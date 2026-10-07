@@ -1,0 +1,57 @@
+@import "tailwindcss";
+@source "../editor/layouts";
+@source "../editor/assets/js";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-accent: oklch(0.47 0.085 195);
+  --color-accent-dark: oklch(0.4 0.08 195);
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("../fonts/inter-latin-wght-normal.woff2") format("woff2");
+}
+
+@layer base {
+  html {
+    font-feature-settings: "cv11", "ss03";
+    -webkit-font-smoothing: antialiased;
+  }
+  [x-cloak] {
+    display: none !important;
+  }
+}
+
+@layer components {
+  .input {
+    @apply block w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-stone-900 shadow-xs ring-1 ring-stone-300 placeholder:text-stone-400 focus:ring-2 focus:ring-accent focus:outline-none;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium text-stone-600;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-medium text-stone-700 shadow-xs ring-1 ring-stone-300 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-accent text-white ring-accent hover:bg-accent-dark;
+  }
+  .btn-danger {
+    @apply text-red-700 hover:bg-red-50;
+  }
+  .card {
+    @apply rounded-2xl bg-white shadow-xs ring-1 ring-stone-200;
+  }
+  .seg {
+    @apply inline-flex rounded-lg bg-stone-100 p-0.5 text-sm;
+    & button {
+      @apply rounded-md px-3 py-1 font-medium text-stone-500;
+    }
+    & button[aria-pressed="true"] {
+      @apply bg-white text-stone-900 shadow-xs;
+    }
+  }
+}

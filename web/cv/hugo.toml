@@ -1,0 +1,49 @@
+# Rendered once per user by the server, with that user's content mounted via
+# --contentDir. The home page of each language is the print layout used for
+# PDFs; pages under links/ are the public share pages.
+baseURL = "/"
+relativeURLs = true
+defaultContentLanguage = "en"
+defaultContentLanguageInSubdir = true
+disableKinds = ["taxonomy", "term", "rss", "sitemap", "robotstxt", "404"]
+timeZone = "Europe/Amsterdam"
+enableGitInfo = false
+
+[languages.en]
+weight = 1
+label = "English"
+
+[languages.nl]
+weight = 2
+label = "Nederlands"
+
+# CV items are data for the home and link pages, not pages of their own.
+[[cascade]]
+[cascade.build]
+render = "never"
+list = "always"
+[cascade.target]
+path = "{/experience,/experience/**,/education,/education/**,/publications,/publications/**,/output,/output/**,/presentations,/presentations/**,/teaching,/teaching/**,/awards,/awards/**,/extracurricular,/extracurricular/**,/volunteering,/volunteering/**}"
+
+[markup.goldmark.renderer]
+unsafe = false
+# Descriptions are typed in a textarea: a newline means a new line.
+hardWraps = true
+
+[imaging.webp]
+quality = 85
+
+# The links section only holds the share pages; it has no index page.
+[[cascade]]
+[cascade.build]
+render = "never"
+list = "local"
+[cascade.target]
+path = "/links"
+
+# The original photo is only used to derive the inlined thumbnail.
+[[cascade]]
+[cascade.build]
+publishResources = false
+[cascade.target]
+path = "/"

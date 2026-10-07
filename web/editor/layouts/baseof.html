@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" class="h-full bg-stone-100">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ .Title }} · CV</title>
+    {{ with resources.Get "css/editor.css" | minify | fingerprint }}
+      <link rel="stylesheet" href="{{ .RelPermalink }}">
+    {{ end }}
+    {{/* app.js registers the Alpine components, so it loads before Alpine. */}}
+    {{ with resources.Get "js/app.js" | minify | fingerprint }}
+      <script defer src="{{ .RelPermalink }}"></script>
+    {{ end }}
+    <script defer src="/vendor/alpine.min.js"></script>
+  </head>
+  <body class="h-full text-stone-800" x-data x-init="$store.cv.load()">
+    <header class="border-b border-stone-200 bg-white">
+      <nav class="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4 sm:px-6">
+        <a href="/" class="flex items-center gap-2 font-semibold text-stone-900">
+          <span class="grid size-7 place-items-center rounded-lg bg-accent text-xs font-bold text-white">CV</span>
+          <span class="hidden sm:inline">Editor</span>
+        </a>
+        <ul class="flex gap-1 text-sm">
+          {{ $current := . }}
+          {{ range site.Menus.main }}
+            {{ $active := $current.IsMenuCurrent "main" . }}
+            <li>
+              <a
+                href="{{ .URL }}"
+                class="rounded-lg px-3 py-1.5 font-medium {{ if $active }}bg-stone-100 text-stone-900{{ else }}text-stone-500 hover:text-stone-900{{ end }}"
+                {{ if $active }}aria-current="page"{{ end }}>
+                {{ .Name }}
+              </a>
+            </li>
+          {{ end }}
+        </ul>
+        <template x-if="$store.cv.state?.users.length > 1">
+          <label class="ml-auto flex items-center gap-2 text-xs text-stone-500">
+            CV of
+            <select
+              class="rounded-md border-0 bg-stone-100 py-1 pr-7 pl-2 text-xs font-medium text-stone-700 ring-1 ring-stone-200"
+              @change="$store.cv.switchUser($event.target.value)">
+              <template x-for="u in $store.cv.state.users" :key="u">
+                <option :value="u" :selected="u === $store.cv.state.user" x-text="u"></option>
+              </template>
+            </select>
+          </label>
+        </template>
+        <span class="ml-auto text-xs text-stone-500" x-cloak x-show="$store.cv.state?.users.length === 1" x-text="$store.cv.state?.user"></span>
+      </nav>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <div x-show="!$store.cv.state && !$store.cv.error" class="py-24 text-center text-sm text-stone-400">Loading…</div>
+      <template x-if="$store.cv.state">
+        <div>{{ block "main" . }}{{ end }}</div>
+      </template>
+    </main>
+
+    <div
+      x-cloak
+      x-show="$store.cv.error"
+      x-transition
+      class="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-fit max-w-[90vw] items-start gap-3 rounded-xl bg-red-700 px-4 py-3 text-sm text-white shadow-lg">
+      <pre class="font-sans whitespace-pre-wrap" x-text="$store.cv.error"></pre>
+      <button type="button" class="font-semibold" @click="$store.cv.error = ''">✕</button>
+    </div>
+    <div
+      x-cloak
+      x-show="$store.cv.notice"
+      x-transition
+      class="fixed inset-x-0 bottom-4 z-50 mx-auto w-fit rounded-xl bg-stone-900 px-4 py-2.5 text-sm text-white shadow-lg"
+      x-text="$store.cv.notice"></div>
+  </body>
+</html>

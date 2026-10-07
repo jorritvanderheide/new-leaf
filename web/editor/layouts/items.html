@@ -1,0 +1,111 @@
+{{ define "main" }}
+  <div x-data="items" class="space-y-6">
+    <template x-for="section in $store.cv.sections()" :key="section">
+      <section class="card overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3" :class="$store.cv.items(section).length && 'border-b border-stone-100'">
+          <h2 class="text-sm font-semibold" :class="!$store.cv.items(section).length && 'text-stone-400'" x-text="$store.cv.sectionName(section)"></h2>
+          <button type="button" class="btn" @click="add(section)">Add</button>
+        </div>
+        <ul class="divide-y divide-stone-100">
+          <template x-for="item in $store.cv.items(section)" :key="$store.cv.key(item)">
+            <li>
+              <button type="button" class="flex w-full items-baseline gap-4 px-5 py-3 text-left hover:bg-stone-50" @click="edit(item)">
+                <span class="w-36 shrink-0 text-xs text-stone-500 tabular-nums" x-text="$store.cv.period(item)"></span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium" x-text="$store.cv.text(item, 'en').title"></span>
+                  <span class="block truncate text-xs text-stone-500" x-text="$store.cv.text(item, 'en').org"></span>
+                </span>
+                <span class="flex shrink-0 gap-1">
+                  <template x-for="l in $store.cv.state.langs" :key="l">
+                    <span
+                      class="rounded px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase"
+                      :class="item.text[l]?.title ? 'bg-stone-100 text-stone-600' : 'bg-amber-100 text-amber-800'"
+                      :title="item.text[l]?.title ? '' : 'Missing translation'"
+                      x-text="l"></span>
+                  </template>
+                </span>
+              </button>
+            </li>
+          </template>
+        </ul>
+      </section>
+    </template>
+
+    {{/* Item editor */}}
+    <div x-cloak x-show="form" class="fixed inset-0 z-40 overflow-y-auto bg-stone-900/40 p-4 sm:p-8" @keydown.escape.window="form = null">
+      <template x-if="form">
+        <form class="card mx-auto max-w-5xl space-y-6 p-6" @submit.prevent="save()">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-semibold">
+              <span x-text="form.id ? 'Edit' : 'New'"></span>
+              <span class="lowercase" x-text="$store.cv.sectionName(form.section)"></span> item
+            </h2>
+            <button type="button" class="text-stone-400 hover:text-stone-700" @click="form = null">✕</button>
+          </div>
+
+          <div class="flex flex-wrap items-end gap-4">
+            <div>
+              <label class="label" for="start" x-text="$store.cv.isPoint(form.section) ? 'Date (optional)' : 'Start'"></label>
+              <input id="start" class="input w-32" x-model="form.start" placeholder="YYYY-MM" title="YYYY-MM or YYYY" pattern="\d{4}(-(0[1-9]|1[0-2]))?" :required="!$store.cv.isPoint(form.section)">
+            </div>
+            <div x-show="!$store.cv.isPoint(form.section)">
+              <label class="label" for="end">End</label>
+              <input id="end" class="input w-32" x-model="form.end" placeholder="YYYY-MM" title="YYYY-MM or YYYY" pattern="\d{4}(-(0[1-9]|1[0-2]))?" :disabled="form.ongoing || $store.cv.isPoint(form.section)" :required="!form.ongoing && !$store.cv.isPoint(form.section)">
+            </div>
+            <label class="flex items-center gap-2 pb-2 text-sm" x-show="!$store.cv.isPoint(form.section)">
+              <input type="checkbox" class="size-4 accent-accent" x-model="form.ongoing"> Ongoing
+            </label>
+            <div class="min-w-64 flex-1">
+              <label class="label" for="link">Link <span class="font-normal text-stone-400">(optional, e.g. DOI or URL; makes the title clickable)</span></label>
+              <input id="link" type="url" class="input" x-model="form.link" placeholder="https://doi.org/…">
+            </div>
+          </div>
+
+          <div class="grid gap-6 md:grid-cols-2">
+            <template x-for="l in $store.cv.state.langs" :key="l">
+              <fieldset class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <legend class="text-sm font-semibold" x-text="$store.cv.langName(l)"></legend>
+                  <template x-for="other in $store.cv.state.langs.filter((o) => o !== l)" :key="other">
+                    <button type="button" class="text-xs text-stone-500 hover:text-stone-900" @click="copyFrom(other, l)">
+                      Fill empty fields from <span x-text="other.toUpperCase()"></span>
+                    </button>
+                  </template>
+                </div>
+                <div>
+                  <label class="label" :for="'title-' + l" x-text="form.section === 'publications' ? 'Short title (for the editor)' : 'Title'"></label>
+                  <input :id="'title-' + l" class="input" x-model="form.text[l].title" :required="l === $store.cv.state.langs[0]">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label" :for="'org-' + l" x-text="['publications', 'presentations'].includes(form.section) ? 'Journal / venue' : 'Organisation'"></label>
+                    <input :id="'org-' + l" class="input" x-model="form.text[l].org">
+                  </div>
+                  <div>
+                    <label class="label" :for="'loc-' + l">Location</label>
+                    <input :id="'loc-' + l" class="input" x-model="form.text[l].location">
+                  </div>
+                </div>
+                <div>
+                  <label class="label" :for="'body-' + l">
+                    <span x-text="form.section === 'publications' ? 'Reference' : 'Description'"></span>
+                    <span class="font-normal text-stone-400" x-text="form.section === 'publications' ? '(shown on the CV as written, e.g. APA; *italics* for the journal; a DOI becomes a link)' : '(Markdown)'"></span>
+                  </label>
+                  <textarea :id="'body-' + l" class="input min-h-40 leading-relaxed" x-model="form.text[l].body"></textarea>
+                </div>
+              </fieldset>
+            </template>
+          </div>
+
+          <div class="flex items-center gap-2 border-t border-stone-100 pt-4">
+            <button type="button" class="btn btn-danger" x-show="form.id" @click="remove()">Delete</button>
+            <div class="ml-auto flex gap-2">
+              <button type="button" class="btn" @click="form = null">Cancel</button>
+              <button class="btn btn-primary" :disabled="$store.cv.busy">Save</button>
+            </div>
+          </div>
+        </form>
+      </template>
+    </div>
+  </div>
+{{ end }}

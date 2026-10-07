@@ -1,0 +1,12 @@
+experience: Werkervaring
+education: Opleiding
+volunteering: Vrijwilligerswerk
+present: heden
+download: Download pdf
+expires: Deze link verloopt op {{ .Date }}.
+publications: Publicaties
+presentations: Presentaties
+teaching: Onderwijs
+awards: Beurzen & prijzen
+extracurricular: Extracurriculaire activiteiten
+output: Overige output

@@ -1,0 +1,153 @@
+@import "tailwindcss";
+@source "../cv/layouts";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-accent: oklch(0.47 0.085 195);
+  --color-accent-dark: oklch(0.4 0.08 195);
+}
+
+/* Static Inter instances: Chromium embeds variable fonts in PDFs as Type 3
+   glyphs, static ones as TrueType. Paths are relative to the generated
+   stylesheet at /css/, so they work from file:// and from the webroot. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/inter-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/inter-latin-400-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/inter-latin-500-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/inter-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/inter-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/inter-latin-ext-400-italic.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/inter-latin-ext-500-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/inter-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@page {
+  size: A4;
+  margin: 16mm 17mm 15mm;
+
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: "Inter", sans-serif;
+    font-size: 7pt;
+    color: var(--color-stone-400);
+  }
+}
+
+@layer base {
+  html {
+    font-feature-settings: "cv11", "ss03";
+    -webkit-font-smoothing: antialiased;
+    print-color-adjust: exact;
+  }
+
+  /* The print page is sized in points; every rem in the shared partial scales with it. */
+  html:has(body.print-doc) {
+    font-size: 9.5pt;
+  }
+
+  body.web-doc {
+    @apply bg-stone-100 text-stone-800;
+  }
+}
+
+@media screen {
+  body.print-doc {
+    @apply mx-auto my-8 bg-white shadow;
+    width: 210mm;
+    padding: 16mm 17mm;
+  }
+}
+
+@layer components {
+  /* Vertical whitespace scales with --space (1 = default), which the
+     composer's spacing slider sets on the print page to fit a page count. */
+  .cv-summary {
+    margin-top: calc(1.5rem * var(--space, 1));
+  }
+  .cv-section {
+    margin-top: calc(2.25rem * var(--space, 1));
+  }
+  .cv-items {
+    margin-top: calc(1.25rem * var(--space, 1));
+    & > * + * {
+      margin-top: calc(1.25rem * var(--space, 1));
+    }
+  }
+
+  .cv-reference a {
+    overflow-wrap: anywhere; /* long DOIs */
+  }
+
+  .cv-prose {
+    line-height: calc(1.3 + 0.325 * var(--space, 1)); /* 1.625 at the default */
+
+    p + p,
+    ul,
+    ol {
+      @apply mt-1.5;
+    }
+    ul {
+      @apply list-disc pl-[1.1em];
+    }
+    ol {
+      @apply list-decimal pl-[1.3em];
+    }
+    a {
+      @apply underline decoration-stone-300 underline-offset-2;
+    }
+  }
+}

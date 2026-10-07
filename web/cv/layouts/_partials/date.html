@@ -1,0 +1,4 @@
+{{/* A YYYY-MM date as "Sep 2023" in the page's language; YYYY as is. */}}
+{{- with . -}}
+  {{- if eq (len .) 4 }}{{ . }}{{ else }}{{ time.AsTime (printf "%s-01" .) | time.Format "Jan 2006" }}{{ end -}}
+{{- end -}}

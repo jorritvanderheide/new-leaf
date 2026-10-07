@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="{{ site.Language.Lang }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="no-referrer">
+    <title>{{ with site.Home.Params.name }}CV {{ . }}{{ else }}CV{{ end }}</title>
+    {{ with resources.Get "css/cv.css" | minify | fingerprint }}
+      <link rel="stylesheet" href="{{ .RelPermalink }}">
+    {{ end }}
+  </head>
+  <body class="{{ block "bodyClass" . }}{{ end }}">
+    {{ block "main" . }}{{ end }}
+  </body>
+</html>
