@@ -243,7 +243,7 @@ as `NEW_LEAF_` and its name in capitals: `NEW_LEAF_PUBLIC_URL` for
 | `-data` | `/var/lib/new-leaf` | The CVs |
 | `-work` | `<data>/work` | Files that can be made again: Typst's fonts, thumbnails |
 | `-public` | `/var/lib/new-leaf/public` | The folder share links are published into |
-| `-public-url` | `https://cv.example.com` | Where that folder is served |
+| `-public-url` | required | Where that folder is served, such as `https://cv.example.com` |
 | `-serve-public` | | Also serve that folder on this address, with the headers it needs |
 | `-users` | | CVs that always exist, comma-separated tailnet logins |
 | `-manage` | `true` | Make, rename and delete CVs in the editor |

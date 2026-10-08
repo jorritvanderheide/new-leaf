@@ -13,6 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -55,7 +56,7 @@ func serveOptions(args []string) server.ServeOptions {
 		dataDir     = fl.String("data", "/var/lib/new-leaf", "persistent data: one content directory per user")
 		workDir     = fl.String("work", "", "regenerable files such as extracted fonts (default: <data>/work)")
 		publicDir   = fl.String("public", "/var/lib/new-leaf/public", "webroot that the public share links are published into")
-		publicURL   = fl.String("public-url", "https://cv.example.com", "base URL the public webroot is served at")
+		publicURL   = fl.String("public-url", "", "base URL the public webroot is served at, e.g. https://cv.example.com (required)")
 		users       = fl.String("users", "", "comma-separated CVs that always exist, each for a tailnet login: in full (alice@example.com), or a name that is the part before \"@\" (alice); every tailnet user can edit all CVs, unless -owners-only")
 		manage      = fl.Bool("manage", true, "let editor users create, rename and delete CVs (those in -users can't be deleted)")
 		ownersOnly  = fl.Bool("owners-only", false, "only let a CV's owners open and edit it (a CV without owners stays open to all), for a tailnet shared with people who shouldn't edit each other's CVs")
@@ -104,6 +105,9 @@ func serveOptions(args []string) server.ServeOptions {
 	}
 	if len(o.Users) == 0 && !o.Manage {
 		log.Fatal("no CVs: pass -users, or leave -manage on to create them in the editor")
+	}
+	if u, err := url.Parse(o.PublicURL); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+		log.Fatalf("-public-url %q: give the address the share links are served at, such as https://cv.example.com", o.PublicURL)
 	}
 	return o
 }
