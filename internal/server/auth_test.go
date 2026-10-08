@@ -46,6 +46,7 @@ func TestClientIPForwardedFor(t *testing.T) {
 		{"127.0.0.1:5000", "100.64.0.7", "100.64.0.7"},
 		{"127.0.0.1:5000", "6.6.6.6, 100.64.0.7", "100.64.0.7"}, // the last hop is the proxy's own view
 		{"100.64.0.9:5000", "100.64.0.7", "100.64.0.9"},         // not from a proxy: ignored
+		{"@", "100.64.0.7", "100.64.0.7"},                       // tailscale serve, on the socket
 	} {
 		r := httptest.NewRequest("GET", "/", nil)
 		r.RemoteAddr = c.remote
@@ -215,5 +216,26 @@ func TestHealth(t *testing.T) {
 	h.ServeHTTP(w, httptest.NewRequest("GET", "/healthz", nil))
 	if w.Code != http.StatusServiceUnavailable || !strings.Contains(w.Body.String(), "share links") {
 		t.Errorf("healthz with a read-only share links folder: %d %s", w.Code, w.Body)
+	}
+}
+
+// Behind tailscale serve, which sets X-Forwarded-For and passes X-Real-IP on
+// as the visitor sent it, a visitor must not pass for another one; behind
+// nginx, which sets both, everyone gets through.
+func TestClientIPBothHeaders(t *testing.T) {
+	for _, c := range []struct{ realIP, xff, want string }{
+		{"100.64.0.7", "100.64.0.9", ""},                                  // spoofed X-Real-IP through tailscale serve
+		{"100.64.0.7", "100.64.0.7", "100.64.0.7"},                        // nginx: both set
+		{"100.64.0.7", "6.6.6.6, 100.64.0.7", "100.64.0.7"},               // nginx, with a visitor's own X-Forwarded-For
+		{"100.64.0.7", "100.64.0.7, 6.6.6.6", ""},                         // a proxy that only sets X-Real-IP, and a spoofed X-Forwarded-For
+		{"fd7a:115c:a1e0::1", "fd7a:115c:a1e0:0::1", "fd7a:115c:a1e0::1"}, // the same address, written differently
+	} {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.RemoteAddr = "@"
+		r.Header.Set("X-Real-IP", c.realIP)
+		r.Header.Set("X-Forwarded-For", c.xff)
+		if got := clientIP(r); got != c.want {
+			t.Errorf("clientIP(X-Real-IP %q, XFF %q) = %q, want %q", c.realIP, c.xff, got, c.want)
+		}
 	}
 }

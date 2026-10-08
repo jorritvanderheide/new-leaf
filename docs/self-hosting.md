@@ -22,7 +22,9 @@ asks Tailscale who each of them is:
    `X-Forwarded-For`, as `tailscale serve` sets it).
 2. New Leaf only believes that header from the proxy itself: a connection on its
    Unix socket, which only the proxy may open, or from `127.0.0.1`. Anything
-   else is taken at its own address.
+   else is taken at its own address. A proxy may pass the other header on as
+   the visitor sent it, so when both are there they must name the same
+   address (nginx sets both), or the request is turned away.
 3. It runs `tailscale whois` on the address. Devices that aren't on the tailnet,
    and tagged devices such as servers, are turned away.
 4. Everyone else may open and edit every CV, or with `-owners-only` only

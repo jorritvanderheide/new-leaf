@@ -126,10 +126,13 @@ func (a *Auth) lookup(ctx context.Context, ip string) (Identity, error) {
 }
 
 // clientIP is the tailnet address a request came from. The visitor address a
-// proxy passes on (X-Real-IP, or else the last X-Forwarded-For entry, as
-// tailscale serve sets it) is only trusted from the proxy itself: a peer on
-// the Unix socket (which only the proxy may open) or on loopback (TCP setups,
-// a container sharing tailscale's network).
+// proxy passes on (X-Real-IP, or the last X-Forwarded-For entry, as tailscale
+// serve sets it) is only trusted from the proxy itself: a peer on the Unix
+// socket (which only the proxy may open) or on loopback (TCP setups, a
+// container sharing tailscale's network). A proxy sets one of the two and
+// may pass the other on from the visitor as it came, so when both are there
+// they must agree: nginx sets both to the same address, and a visitor who
+// adds one of their own gets nothing.
 func clientIP(r *http.Request) string {
 	trusted := r.RemoteAddr == "" || r.RemoteAddr == "@" // Unix socket peer
 	if !trusted {
@@ -145,15 +148,20 @@ func clientIP(r *http.Request) string {
 			return peer.String()
 		}
 	}
-	forwarded := r.Header.Get("X-Real-IP")
-	if forwarded == "" {
-		hops := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
-		forwarded = hops[len(hops)-1]
+	real := r.Header.Get("X-Real-IP")
+	hops := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+	last := hops[len(hops)-1]
+	if real == "" {
+		real = last
 	}
-	if real := net.ParseIP(strings.TrimSpace(forwarded)); real != nil {
-		return real.String()
+	ip := net.ParseIP(strings.TrimSpace(real))
+	if ip == nil {
+		return ""
 	}
-	return ""
+	if strings.TrimSpace(last) != "" && !ip.Equal(net.ParseIP(strings.TrimSpace(last))) {
+		return ""
+	}
+	return ip.String()
 }
 
 func tailscaleWhois(bin string) func(context.Context, string) (Identity, error) {
