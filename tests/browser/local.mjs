@@ -1,14 +1,15 @@
-// Local mode (cv-app without "serve"): no share links, backups, Quit.
+// Local mode (cv-app without "serve"): versions without sharing, backups,
+// Quit.
 
 import { check, openPage } from "./lib.mjs";
 
 export default async function local({ base, shots }) {
   const page = await openPage({ shots });
   try {
-    await page.go(base + "/");
+    await page.go(base + "/v/full-cv/");
     const nav = await page.js("JSON.stringify([...document.querySelectorAll('body > aside nav a')].map((a) => a.textContent.trim()))");
-    check(nav === JSON.stringify(["Compose", "Items", "Profile"]), "sidebar without Links: " + nav);
-    check((await page.js("[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === 'Share link' && b.offsetParent).length")) === 0, "no Share button");
+    check(nav === JSON.stringify(["Versions", "Items", "Profile"]), "sidebar: " + nav);
+    check((await page.js("[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === 'Share' && b.offsetParent).length")) === 0, "no Share button");
     await page.until("document.querySelectorAll('[x-ref=pages] canvas').length > 0", "preview of the empty CV", 20000);
     check(true, "preview renders");
     await page.shot("local");

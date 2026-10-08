@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -44,73 +45,117 @@ func NewTypst(bin, work string, assets *Assets) (*Typst, error) {
 
 // PDF renders a document; photo is the path of the profile photo, if any.
 func (t *Typst) PDF(ctx context.Context, doc Document, photo string) ([]byte, error) {
+	var pdf []byte
+	err := t.run(ctx, doc, photo, func(dir string) []string {
+		return []string{"compile", filepath.Join(dir, "cv.typ"), filepath.Join(dir, "cv.pdf")}
+	}, func(dir string, _ []byte) (err error) {
+		pdf, err = os.ReadFile(filepath.Join(dir, "cv.pdf"))
+		return err
+	})
+	return pdf, err
+}
+
+// Mark is where an item ended up in a PDF: its page (from 1), and its top
+// and height in pt.
+type Mark struct {
+	ID     string  `json:"id"` // section/id
+	Page   int     `json:"page"`
+	Top    float64 `json:"top"`
+	Height float64 `json:"height"`
+}
+
+// Layout tells where each item of a document lands, as PDF would lay it out.
+func (t *Typst) Layout(ctx context.Context, doc Document, photo string) ([]Mark, error) {
+	marks := []Mark{}
+	err := t.run(ctx, doc, photo, func(dir string) []string {
+		return []string{"eval", "query(<cv-item>).map(it => it.value)", "--in", filepath.Join(dir, "cv.typ"), "--format", "json"}
+	}, func(_ string, out []byte) error {
+		return json.Unmarshal(out, &marks)
+	})
+	return marks, err
+}
+
+// run writes the template, the document and the photo into a fresh
+// directory, runs typst there with args, and hands its output to read.
+func (t *Typst) run(ctx context.Context, doc Document, photo string, args func(dir string) []string, read func(dir string, stdout []byte) error) error {
 	select {
 	case t.slots <- struct{}{}:
 		defer func() { <-t.slots }()
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return ctx.Err()
 	}
 
 	tmp, err := os.MkdirTemp("", "cv-app-typst-")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer os.RemoveAll(tmp)
 
 	if doc.Photo != "" && photo != "" {
 		data, err := os.ReadFile(photo)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		doc.Photo = "photo" + filepath.Ext(photo)
 		if err := os.WriteFile(filepath.Join(tmp, doc.Photo), data, 0o600); err != nil {
-			return nil, err
+			return err
 		}
 	} else {
 		doc.Photo = ""
 	}
 	data, err := json.Marshal(doc)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	tpl, err := t.assets.ReadFile("web/typst/cv.typ")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for name, content := range map[string][]byte{"data.json": data, "cv.typ": tpl} {
 		if err := os.WriteFile(filepath.Join(tmp, name), content, 0o600); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	out := filepath.Join(tmp, "cv.pdf")
-	cmd := exec.CommandContext(ctx, t.Bin, "compile",
+	cmd := exec.CommandContext(ctx, t.Bin, append(args(tmp),
 		"--root", tmp,
 		"--font-path", t.fonts,
-		"--ignore-system-fonts",
-		filepath.Join(tmp, "cv.typ"), out)
+		"--ignore-system-fonts")...)
 	cmd.Env = append(os.Environ(), "HOME="+tmp, "XDG_CACHE_HOME="+tmp)
-	if log, err := cmd.CombinedOutput(); err != nil {
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
-			return nil, errors.New(typstHelp)
+			return errors.New(typstHelp)
 		}
-		return nil, fmt.Errorf("typst: %v: %s", err, tail(log, 800))
+		return fmt.Errorf("typst: %v: %s", err, tail(stderr.Bytes(), 800))
 	}
-	return os.ReadFile(out)
+	return read(tmp, out)
+}
+
+// document lays out a user's CV for print options; photo is the path of the
+// profile photo.
+func (s *Server) document(user string, opt PrintOptions) (doc Document, photo string, err error) {
+	profile, err := s.store.Profile(user)
+	if err != nil {
+		return Document{}, "", err
+	}
+	items, err := s.store.Items(user)
+	if err != nil {
+		return Document{}, "", err
+	}
+	photo = s.store.PhotoPath(user)
+	return BuildDocument(profile, items, opt, filepath.Base(photo)), photo, nil
 }
 
 // renderPDF makes a PDF of a user's CV.
 func (s *Server) renderPDF(ctx context.Context, user string, opt PrintOptions) ([]byte, error) {
-	profile, err := s.store.Profile(user)
+	doc, photo, err := s.document(user, opt)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.store.Items(user)
-	if err != nil {
-		return nil, err
-	}
-	photo := s.store.PhotoPath(user)
-	return s.typst.PDF(ctx, BuildDocument(profile, items, opt, filepath.Base(photo)), photo)
+	return s.typst.PDF(ctx, doc, photo)
 }

@@ -33,3 +33,145 @@
   </template>
 </p>
 {{ end }}
+
+{{/* Side panel that edits one item; used with the itemEditor() mixin in
+     app.js, by the Items page and the version workspace. */}}
+{{ define "item-editor" }}
+  <div x-cloak x-show="form" x-transition.opacity class="fixed inset-0 z-30 bg-stone-900/20 xl:hidden" @click="close()"></div>
+  <aside
+    x-cloak
+    x-show="form"
+    x-transition:enter="transition duration-200"
+    x-transition:enter-start="translate-x-full"
+    x-transition:leave="transition duration-150"
+    x-transition:leave-end="translate-x-full"
+    class="fixed inset-y-0 right-0 z-40 flex w-full max-w-xl flex-col border-l border-stone-200 bg-white shadow-xl xl:max-w-[32rem]"
+    aria-label="Edit item">
+    <template x-if="form">
+      <form class="flex min-h-0 flex-1 flex-col" @submit.prevent="form.id ? close() : create()" @input="itemChanged()" @change="itemChanged()">
+        <div class="flex items-start justify-between gap-4 border-b border-stone-100 px-6 py-4">
+          <div class="min-w-0">
+            <p class="text-xs font-medium tracking-wide text-accent uppercase" x-text="$store.cv.sectionName(form.section)"></p>
+            <h2 class="truncate text-base font-semibold" x-text="form.id ? (form.text.en.title || form.text.nl.title || 'Untitled') : 'New item'"></h2>
+          </div>
+          <button type="button" class="text-stone-400 hover:text-stone-700" aria-label="Close" @click="close()">{{ icon "close" "" }}</button>
+        </div>
+
+        <div class="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+          {{/* Dates */}}
+          <fieldset class="space-y-3">
+            <legend class="label" x-text="$store.cv.isPoint(form.section) ? 'Date (optional)' : 'Period'"></legend>
+            <div class="flex flex-wrap items-center gap-2">
+              <select class="input w-24" x-model="form.start.m" aria-label="Start month">
+                <option value="">Month</option>
+                <template x-for="(name, i) in $store.cv.months" :key="i">
+                  <option :value="String(i + 1).padStart(2, '0')" :selected="form.start.m === String(i + 1).padStart(2, '0')" x-text="name"></option>
+                </template>
+              </select>
+              <input class="input w-24" x-model="form.start.y" inputmode="numeric" maxlength="4" placeholder="Year" aria-label="Start year">
+              <template x-if="!$store.cv.isPoint(form.section)">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-stone-400">–</span>
+                  <template x-if="!form.present">
+                    <div class="flex gap-2">
+                      <select class="input w-24" x-model="form.end.m" aria-label="End month">
+                        <option value="">Month</option>
+                        <template x-for="(name, i) in $store.cv.months" :key="i">
+                          <option :value="String(i + 1).padStart(2, '0')" :selected="form.end.m === String(i + 1).padStart(2, '0')" x-text="name"></option>
+                        </template>
+                      </select>
+                      <input class="input w-24" x-model="form.end.y" inputmode="numeric" maxlength="4" placeholder="Year" aria-label="End year">
+                    </div>
+                  </template>
+                  <label class="flex items-center gap-2 text-sm text-stone-600">
+                    <input type="checkbox" class="size-4 accent-accent" x-model="form.present"> Present
+                  </label>
+                </div>
+              </template>
+            </div>
+          </fieldset>
+
+          {{/* Per language */}}
+          <div>
+            <div class="seg" role="tablist" aria-label="Language">
+              <template x-for="l in $store.cv.state.langs" :key="l">
+                <button
+                  type="button"
+                  role="tab"
+                  :aria-selected="tab === l"
+                  :aria-pressed="tab === l"
+                  class="flex items-center gap-1.5"
+                  @click="tab = l">
+                  <span x-text="$store.cv.langName(l)"></span>
+                  <span x-show="!form.text[l].title" class="text-amber-600" title="Not filled in yet">{{ icon "warn" "size-3.5" }}</span>
+                </button>
+              </template>
+            </div>
+
+            <template x-for="l in $store.cv.state.langs" :key="l">
+              <div class="mt-4 space-y-3" x-show="tab === l">
+                <template x-for="other in $store.cv.state.langs.filter((o) => o !== l)" :key="other">
+                  <div x-show="!form.text[l].title && form.text[other].title" class="flex items-center justify-between gap-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <span>No <span x-text="$store.cv.langName(l)"></span> text yet.</span>
+                    <button type="button" class="font-semibold hover:underline" @click="copyFrom(other, l)">
+                      Start from <span x-text="$store.cv.langName(other)"></span>
+                    </button>
+                  </div>
+                </template>
+                <div>
+                  <label class="label" :for="'title-' + l" x-text="form.section === 'publications' ? 'Short title (for the editor)' : 'Title'"></label>
+                  <input :id="'title-' + l" class="input" x-model="form.text[l].title">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      class="label"
+                      :for="'org-' + l"
+                      x-text="{ publications: 'Journal', presentations: 'Event / venue' }[form.section] || 'Organisation'"></label>
+                    <input :id="'org-' + l" class="input" x-model="form.text[l].org">
+                  </div>
+                  <div>
+                    <label class="label" :for="'loc-' + l">Location</label>
+                    <input :id="'loc-' + l" class="input" x-model="form.text[l].location">
+                  </div>
+                </div>
+                <div>
+                  <label class="label" :for="'body-' + l">
+                    <span x-text="form.section === 'publications' ? 'Reference' : 'Description'"></span>
+                    <span
+                      class="font-normal text-stone-400"
+                      x-text="form.section === 'publications' ? '(shown as written, e.g. APA; *italics* for the journal; a DOI becomes a link)' : '(Markdown)'"></span>
+                  </label>
+                  <textarea :id="'body-' + l" class="input min-h-40 leading-relaxed" x-model="form.text[l].body"></textarea>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <div>
+            <label class="label" for="link">Link <span class="font-normal text-stone-400">(optional, e.g. a DOI; makes the title clickable)</span></label>
+            <input id="link" type="url" class="input" x-model="form.link" placeholder="https://doi.org/…">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 border-t border-stone-100 px-6 py-4">
+          <p class="text-xs" :class="problem ? 'text-amber-700' : 'text-stone-400'" x-text="problem || (form.id ? 'Changes save automatically.' : '')"></p>
+          <div class="ml-auto flex gap-2">
+            <template x-if="form.id">
+              <button type="button" class="btn btn-danger" @click="remove()">Delete</button>
+            </template>
+            <template x-if="form.id">
+              <button type="button" class="btn btn-primary" @click="close()">Done</button>
+            </template>
+            <template x-if="!form.id">
+              <button type="button" class="btn" @click="close()">Cancel</button>
+            </template>
+            <template x-if="!form.id">
+              <button class="btn btn-primary" :disabled="$store.cv.busy">Add item</button>
+            </template>
+          </div>
+        </div>
+      </form>
+    </template>
+  </aside>
+{{ end }}

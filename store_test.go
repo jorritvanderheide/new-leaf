@@ -294,24 +294,6 @@ func TestProfileLocationPerLanguage(t *testing.T) {
 	}
 }
 
-func TestCompose(t *testing.T) {
-	s := newTestStore(t)
-	if o, err := s.Compose("alice"); o != nil || err != nil {
-		t.Fatalf("no settings yet: %v, %v", o, err)
-	}
-	in := PrintOptions{Lang: "nl", Entries: []string{"experience/acme"}, Photo: true, Spacing: 0.7}
-	if err := s.SaveCompose("alice", in); err != nil {
-		t.Fatal(err)
-	}
-	got, err := s.Compose("alice")
-	if err != nil || got.Lang != "nl" || got.Spacing != 0.7 || !got.Photo || len(got.Entries) != 1 {
-		t.Errorf("compose = %+v, %v", got, err)
-	}
-	if err := s.SaveCompose("alice", PrintOptions{Lang: "nl", Spacing: 9}); err == nil {
-		t.Error("out-of-range spacing saved")
-	}
-}
-
 func TestLinksInEveryLanguage(t *testing.T) {
 	s := newTestStore(t)
 	l := Link{Slug: "uva-abcdefgh", Label: "UvA", Lang: "nl", Entries: []string{"experience/acme"}, Expires: "2030-01-01", Created: "2026-10-07"}

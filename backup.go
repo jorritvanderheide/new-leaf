@@ -15,11 +15,11 @@ import (
 	"time"
 )
 
-// A backup is a zip of one CV: its content files and composer settings,
+// A backup is a zip of one CV: its content files and versions,
 //
 //	content/_index.<lang>.md, content/photo.<ext>,
 //	content/<section>/<id>.<lang>.md, content/links/<slug>.<lang>.md,
-//	compose.json
+//	versions/<id>.json
 //
 // so it can move between computers and between local and hosted use.
 
@@ -35,8 +35,12 @@ func (s *Server) backupFile(name string) (ok, skip bool) {
 	if path.Clean(name) != name {
 		return false, false
 	}
-	if name == "compose.json" {
+	if name == "compose.json" { // backups from before versions
 		return true, false
+	}
+	if file, found := strings.CutPrefix(name, "versions/"); found {
+		id, found := strings.CutSuffix(file, ".json")
+		return found && idRe.MatchString(id), false
 	}
 	rest, found := strings.CutPrefix(name, "content/")
 	if !found {
@@ -202,8 +206,9 @@ func (s *Server) postImport(r *http.Request, user string) error {
 		if err := os.WriteFile(keep, old.Bytes(), 0o640); err != nil {
 			return err
 		}
-		// Swap in the new content and composer settings.
-		for _, name := range []string{"content", "compose.json"} {
+		// Swap in the new content and versions. A backup from before
+		// versions has compose.json instead, which EnsureVersions takes over.
+		for _, name := range []string{"content", "versions", "compose.json"} {
 			cur, next := filepath.Join(root, name), filepath.Join(stage, name)
 			if err := os.RemoveAll(cur); err != nil {
 				return err

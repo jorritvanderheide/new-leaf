@@ -1,0 +1,100 @@
+// Versions: make one, edit an item from its preview, hide items, reorder
+// sections, and duplicate, delete and undo on the overview.
+
+import { api, check, openPage, sleep } from "./lib.mjs";
+
+const W = "Alpine.$data(document.querySelector('[x-data=workspace]'))";
+const marks = "document.querySelectorAll('[x-ref=pages] [role=button]')";
+
+export default async function versions({ base, shots }) {
+  const page = await openPage({ shots });
+  const state = () => api(base, "GET", "/api/state");
+  const version = async (id) => (await state()).versions.find((v) => v.id === id);
+  const rendered = async () => {
+    await sleep(500);
+    await page.until(`!${W}.loading && ${marks}.length > 0`, "preview", 30000);
+  };
+  try {
+    // New version, from all items.
+    await page.go(base + "/");
+    await page.click("button", "New version");
+    await page.until("document.activeElement?.id === 'version-name'", "name field", 3000);
+    await page.type("#version-name", "UvA PhD");
+    await page.click("form button", "Create");
+    await page.until("location.pathname === '/v/uva-phd/'", "the new version opens", 8000);
+    await page.until("!!window.Alpine && !!Alpine.store('cv').state", "editor state");
+    await rendered();
+    const all = (await version("uva-phd")).entries.length;
+    check(all === (await state()).items.length, `the version starts with all ${all} items`);
+    check((await page.js(`${marks}.length`)) === all, "every item on the preview is clickable");
+
+    // Click an item in the preview: it opens in the editor; edits show.
+    const first = await page.js(`${marks}[0].getAttribute('aria-label')`);
+    await page.js(`${marks}[0].click()`);
+    await page.until("!!document.querySelector('#title-en')", "item editor", 5000);
+    const title = await page.js("document.querySelector('#title-en').value");
+    check(first === "Edit " + title, `clicking "${title}" in the preview opened it`);
+    check(await page.js(`${marks}[0].className.includes('ring-accent')`), "the open item is marked in the preview");
+    const round = await page.js(`${W}.pageList[0].key`);
+    await page.type("#title-en", title + " (live)");
+    await page.until(`${W}.pageList[0]?.key !== ${JSON.stringify(round)} && !${W}.loading`, "preview redrawn after the edit", 30000);
+    check(true, "the preview redraws as the item is edited");
+    await page.shot("workspace-editing");
+    await page.type("#title-en", title);
+    await page.key("Escape");
+    await page.until("!document.querySelector('#title-en')", "editor closed", 5000);
+
+    // Hide an item from the preview.
+    const hidden = await page.js(`${W}.pageList[0].marks[1].id`);
+    await page.js(`${marks}[1].dispatchEvent(new MouseEvent('mouseenter'))`);
+    await page.js(`${marks}[1].querySelector('button[aria-label^=Hide]').click()`);
+    await page.until(`!${W}.selected.includes(${JSON.stringify(hidden)})`, "hidden", 3000);
+    await rendered();
+    await sleep(1000);
+    check(!(await version("uva-phd")).entries.includes(hidden), "Hide takes the item off this version");
+    check((await version("full-cv")).entries.includes(hidden), "and leaves other versions alone");
+
+    // Reorder sections: with the buttons, and by dragging.
+    const before = await page.js(`${W}.shownSections()`);
+    await page.js(`document.querySelector('[aria-label="Move ${await page.js(`Alpine.store('cv').sectionName(${JSON.stringify(before[0])})`)} down"]').click()`);
+    await sleep(1200);
+    const order1 = (await version("uva-phd")).order;
+    check(order1.indexOf(before[1]) < order1.indexOf(before[0]), `${before[1]} moved above ${before[0]}`);
+    await page.js(`(() => {
+      const cards = [...document.querySelectorAll('aside[aria-label=Outline] > div')];
+      const last = cards[cards.length - 1], top = cards[0];
+      const dt = new DataTransfer();
+      last.querySelector('[title="Drag to reorder"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      return Alpine.nextTick(() => {
+        last.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+        top.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        last.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+      });
+    })()`);
+    await sleep(1200);
+    const shown = await page.js(`${W}.shownSections()`);
+    check(shown[0] === before[before.length - 1], `dragged ${shown[0]} to the top`);
+    await rendered();
+    check((await page.js("document.querySelector('[x-ref=pages] [role=button]').getAttribute('aria-label')")) !== first, "the preview follows the new order");
+
+    // The overview: duplicate, delete, undo.
+    await page.go(base + "/");
+    check((await page.js("document.querySelector('article h2').textContent")) === "UvA PhD", "the latest edited version comes first");
+    await page.js("[...document.querySelectorAll('article')].find((a) => a.textContent.includes('UvA PhD')).querySelector('button').click()");
+    await page.until("Alpine.store('cv').state.versions.some((v) => v.name === 'Copy of UvA PhD')", "duplicate", 5000);
+    check(true, "duplicated");
+    await page.js("[...document.querySelectorAll('article')].find((a) => a.textContent.includes('Copy of UvA PhD')).querySelectorAll('button')[1].click()");
+    await page.until("document.body.textContent.includes('Undo')", "undo toast", 5000);
+    check(!(await state()).versions.some((v) => v.name === "Copy of UvA PhD"), "deleted without a question");
+    await page.click("button", "Undo");
+    await page.until("Alpine.store('cv').state.versions.some((v) => v.name === 'Copy of UvA PhD')", "restored", 5000);
+    check(true, "Undo brought it back");
+    await page.shot("versions");
+
+    for (const v of (await state()).versions.filter((v) => v.id !== "full-cv")) await api(base, "DELETE", `/api/versions/${v.id}`);
+    check(page.dialogs.length === 0, "no dialogs " + JSON.stringify(page.dialogs));
+    check(page.errors.length === 0, "no uncaught JS errors " + JSON.stringify(page.errors));
+  } finally {
+    await page.close();
+  }
+}

@@ -114,7 +114,8 @@ type PrintOptions struct {
 	Lang    string   `json:"lang"` // opens at /<slug>/; the other languages at /<slug>/<lang>/
 	Entries []string `json:"entries"`
 	Photo   bool     `json:"photo"`
-	Spacing float64  `json:"spacing"` // whitespace scale, MinSpacing..MaxSpacing; 0 means 1
+	Spacing float64  `json:"spacing"`         // whitespace scale, MinSpacing..MaxSpacing; 0 means 1
+	Order   []string `json:"order,omitempty"` // section order; empty: the profile's
 }
 
 const MinSpacing, MaxSpacing = 0.4, 1.4
@@ -126,6 +127,11 @@ func (o PrintOptions) Validate() error {
 	for _, e := range o.Entries {
 		if !validEntry(e) {
 			return fmt.Errorf("invalid item %q", e)
+		}
+	}
+	for _, s := range o.Order {
+		if sectionIndex(s) < 0 {
+			return fmt.Errorf("unknown section %q", s)
 		}
 	}
 	if o.Spacing != 0 && (o.Spacing < MinSpacing || o.Spacing > MaxSpacing) {
@@ -141,6 +147,8 @@ type Link struct {
 	Entries []string `json:"entries"`
 	Photo   bool     `json:"photo"`
 	Spacing float64  `json:"spacing"` // as in PrintOptions
+	Order   []string `json:"order"`
+	Version string   `json:"version"` // the version it shows
 	Expires string   `json:"expires"` // YYYY-MM-DD; the link stops working at the start of this day
 	Created string   `json:"created"`
 
@@ -148,7 +156,7 @@ type Link struct {
 }
 
 func (l Link) Print() PrintOptions {
-	return PrintOptions{Lang: l.Lang, Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing}
+	return PrintOptions{Lang: l.Lang, Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order}
 }
 
 type linkFile struct {
@@ -157,6 +165,8 @@ type linkFile struct {
 	Entries    []string `yaml:"entries"`
 	Photo      bool     `yaml:"photo"`
 	Spacing    float64  `yaml:"spacing,omitempty"`
+	Order      []string `yaml:"order,omitempty"`
+	Version    string   `yaml:"version,omitempty"`
 	ExpiryDate quoted   `yaml:"expiryDate"`
 	Created    quoted   `yaml:"created"`
 }
@@ -283,8 +293,8 @@ func (s *Store) SaveProfile(user string, p Profile) error {
 	return nil
 }
 
-// --- compose settings: the composer's last selection, kept per CV so it is
-// the same on every device. Stored next to (not in) the content.
+// --- compose settings: from before versions, the composer's last selection,
+// read once to make the first version (see EnsureVersions).
 
 func (s *Store) composePath(user string) string { return filepath.Join(s.Root, user, "compose.json") }
 
@@ -301,17 +311,6 @@ func (s *Store) Compose(user string) (*PrintOptions, error) {
 		return nil, fmt.Errorf("%s: %w", s.composePath(user), err)
 	}
 	return &o, nil
-}
-
-func (s *Store) SaveCompose(user string, o PrintOptions) error {
-	if err := o.Validate(); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(o, "", "  ")
-	if err != nil {
-		return err
-	}
-	return writeAtomic(s.composePath(user), append(data, '\n'))
 }
 
 func (s *Store) PhotoPath(user string) string {
@@ -505,7 +504,7 @@ func (s *Store) Links(user string) ([]Link, error) {
 		// single file, which is then that language.
 		if l.Lang == "" || f.URL == "/"+slug+"/" {
 			*l = Link{
-				Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing,
+				Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing, Order: f.Order, Version: f.Version,
 				Expires: string(f.ExpiryDate), Created: string(f.Created), files: l.files,
 			}
 		}
@@ -556,7 +555,7 @@ func (s *Store) SaveLink(user string, l Link) error {
 	for _, lang := range Langs {
 		f := linkFile{
 			Title: clean(l.Label), URL: "/" + filepath.ToSlash(l.LinkDir(lang)) + "/",
-			Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing,
+			Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order, Version: l.Version,
 			ExpiryDate: quoted(l.Expires), Created: quoted(l.Created),
 		}
 		if err := writeMarkdown(filepath.Join(s.dir(user), "links", l.Slug+"."+lang+".md"), f, ""); err != nil {

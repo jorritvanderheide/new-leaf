@@ -77,6 +77,13 @@ func TestEndToEnd(t *testing.T) {
 		"en": {Title: "Secret role", Org: "Hidden Org", Body: "Confidential detail."},
 	}})
 
+	// The first version, made before there were items, gets every new one.
+	var first editorState
+	json.Unmarshal(call("GET", "/api/state", nil).Body.Bytes(), &first)
+	if len(first.Versions) != 1 || first.Versions[0].ID != "full-cv" || len(first.Versions[0].Entries) != 5 {
+		t.Errorf("full CV = %+v", first.Versions)
+	}
+
 	// Preview PDF with page count.
 	w := call("POST", "/api/pdf", PrintOptions{Lang: "en", Entries: []string{"experience/visible-org"}})
 	if !bytes.HasPrefix(w.Body.Bytes(), []byte("%PDF")) || w.Header().Get("X-Page-Count") != "1" {
@@ -101,37 +108,34 @@ func TestEndToEnd(t *testing.T) {
 		t.Errorf("out-of-range spacing: %d", w0.Code)
 	}
 
-	// Composer settings are kept on the server, per CV.
-	putCompose := func(body string) int {
-		r := httptest.NewRequest("PUT", "/api/compose", strings.NewReader(body))
+	// Versions: a new one starts with everything; settings are validated.
+	var st editorState
+	json.Unmarshal(call("POST", "/api/versions", Version{Name: "Test"}).Body.Bytes(), &st)
+	i := slices.IndexFunc(st.Versions, func(v versionView) bool { return v.ID == "test" })
+	if i < 0 || len(st.Versions[i].Entries) != 5 || st.Versions[i].Lang != "en" {
+		t.Fatalf("versions = %+v", st.Versions)
+	}
+	shared := []string{"experience/visible-org", "publications/journal-of-tests", "publications/refs", "publications/pending"}
+	call("PUT", "/api/versions/test", Version{Name: "Test", PrintOptions: PrintOptions{Lang: "en", Entries: shared, Spacing: 0.8}})
+	putVersion := func(body string) int {
+		r := httptest.NewRequest("PUT", "/api/versions/test", strings.NewReader(body))
 		r.Header.Set("X-CV-App", "1")
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		return w.Code
 	}
-	if code := putCompose(`{"lang":"nl","entries":["experience/visible-org"],"photo":true,"spacing":0.75}`); code != http.StatusNoContent {
-		t.Fatalf("PUT /api/compose: %d", code)
-	}
-	var withCompose editorState
-	json.Unmarshal(call("GET", "/api/state", nil).Body.Bytes(), &withCompose)
-	if c := withCompose.Compose; c == nil || c.Lang != "nl" || c.Spacing != 0.75 || len(c.Entries) != 1 {
-		t.Errorf("compose in state = %+v", c)
-	}
-	if code := putCompose(`{"lang":"de"}`); code != http.StatusBadRequest {
-		t.Errorf("invalid compose settings: %d", code)
+	if code := putVersion(`{"name":"Test","lang":"de"}`); code != http.StatusBadRequest {
+		t.Errorf("invalid version settings: %d", code)
 	}
 
-	// Share link.
+	// Sharing the version publishes it.
 	expires := time.Now().AddDate(0, 1, 0).Format("2006-01-02")
-	var st editorState
-	json.Unmarshal(call("POST", "/api/links", Link{Label: "Test", Lang: "en", Entries: []string{"experience/visible-org", "publications/journal-of-tests", "publications/refs", "publications/pending"}, Spacing: 0.8, Expires: expires}).Body.Bytes(), &st)
-	if len(st.Links) != 1 || !strings.HasPrefix(st.Links[0].Slug, "test-") || st.Links[0].URL != "https://cv.test/"+st.Links[0].Slug+"/" {
-		t.Fatalf("links = %+v", st.Links)
+	json.Unmarshal(call("PUT", "/api/versions/test/share", map[string]string{"expires": expires}).Body.Bytes(), &st)
+	link := st.Versions[slices.IndexFunc(st.Versions, func(v versionView) bool { return v.ID == "test" })].Link
+	if link == nil || !strings.HasPrefix(link.Slug, "test-") || link.URL != "https://cv.test/"+link.Slug+"/" || link.Spacing != 0.8 {
+		t.Fatalf("link = %+v", link)
 	}
-	slug := st.Links[0].Slug
-	if st.Links[0].Spacing != 0.8 {
-		t.Errorf("link spacing = %v", st.Links[0].Spacing)
-	}
+	slug := link.Slug
 	page := readFile(t, filepath.Join(public, slug, "index.html"))
 
 	// Every language is published; the toggle links them both ways.
@@ -196,8 +200,20 @@ func TestEndToEnd(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	}
 
+	// The link follows its version.
+	call("PUT", "/api/versions/test", Version{Name: "Test", PrintOptions: PrintOptions{Lang: "en", Entries: append(shared, "experience/hidden-org"), Spacing: 0.8}})
+	for !strings.Contains(readFile(t, filepath.Join(public, slug, "index.html")), "Hidden Org") {
+		if time.Now().After(deadline) {
+			t.Fatal("share page did not follow its version")
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if code := putVersion(`{"name":"Test","lang":"en","entries":[]}`); code != http.StatusBadRequest {
+		t.Errorf("emptying a shared version: %d", code)
+	}
+
 	// Writes without the anti-CSRF header are refused.
-	r := httptest.NewRequest("DELETE", "/api/links/"+slug, nil)
+	r := httptest.NewRequest("DELETE", "/api/versions/test/share", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, r)
 	if rec.Code != http.StatusForbidden {
@@ -224,23 +240,38 @@ func TestEndToEnd(t *testing.T) {
 		}
 	}
 
-	// Deleting a link unpublishes it immediately.
-	call("DELETE", "/api/links/"+slug, nil)
+	// Stopping sharing unpublishes the link immediately.
+	call("DELETE", "/api/versions/test/share", nil)
 	if _, err := os.Stat(filepath.Join(public, slug)); err == nil {
-		t.Error("deleted link still published")
+		t.Error("unshared link still published")
 	}
 
-	// Undo: a deleted link comes back at its old URL, an item under its old ID.
-	restored := Link{Slug: slug, Label: "Test", Lang: "en", Entries: []string{"experience/visible-org"}, Expires: expires, Created: "2026-01-02"}
-	json.Unmarshal(call("POST", "/api/links", restored).Body.Bytes(), &st)
-	if i := slices.IndexFunc(st.Links, func(l linkView) bool { return l.Slug == slug }); i < 0 || st.Links[i].Created != "2026-01-02" {
-		t.Errorf("restored links = %+v", st.Links)
+	// Deleting a shared version takes its link offline too; undo brings the
+	// version back under its ID.
+	json.Unmarshal(call("PUT", "/api/versions/test/share", map[string]string{"expires": expires}).Body.Bytes(), &st)
+	slug = st.Versions[slices.IndexFunc(st.Versions, func(v versionView) bool { return v.ID == "test" })].Link.Slug
+	deleted := st.Versions[slices.IndexFunc(st.Versions, func(v versionView) bool { return v.ID == "test" })].Version
+	call("DELETE", "/api/versions/test", nil)
+	if _, err := os.Stat(filepath.Join(public, slug)); err == nil {
+		t.Error("deleted version's link still published")
 	}
-	if _, err := os.Stat(filepath.Join(public, slug, "index.html")); err != nil {
-		t.Errorf("restored link not published: %v", err)
+	json.Unmarshal(call("POST", "/api/versions", deleted).Body.Bytes(), &st)
+	if i := slices.IndexFunc(st.Versions, func(v versionView) bool { return v.ID == "test" }); i < 0 || st.Versions[i].Created != deleted.Created || st.Versions[i].Link != nil {
+		t.Errorf("restored versions = %+v", st.Versions)
 	}
-	if code := post(h, "/api/links", restored); code != http.StatusBadRequest {
-		t.Errorf("restoring onto a taken slug: %d", code)
+	if code := post(h, "/api/versions", deleted); code != http.StatusBadRequest {
+		t.Errorf("restoring onto a taken version id: %d", code)
+	}
+	json.Unmarshal(call("POST", "/api/versions", versionRequest{From: "test"}).Body.Bytes(), &st)
+	if i := slices.IndexFunc(st.Versions, func(v versionView) bool { return v.Name == "Copy of Test" }); i < 0 || len(st.Versions[i].Entries) != len(deleted.Entries) {
+		t.Errorf("duplicate: %+v", st.Versions)
+	}
+
+	// Layout: where each selected item is in the PDF.
+	var marks []Mark
+	json.Unmarshal(call("POST", "/api/layout", PrintOptions{Lang: "en", Entries: shared}).Body.Bytes(), &marks)
+	if len(marks) != len(shared) || marks[0].ID != "experience/visible-org" || marks[0].Page != 1 || marks[0].Height <= 0 || marks[1].Top <= marks[0].Top {
+		t.Errorf("marks = %+v", marks)
 	}
 	call("DELETE", "/api/items/experience/visible-org", nil)
 	call("POST", "/api/items", Item{Section: "experience", ID: "visible-org", Start: "2020-01", Text: map[string]ItemText{"en": {Title: "Back"}}})

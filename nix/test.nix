@@ -85,17 +85,19 @@ pkgs.testers.runNixOSTest {
         assert "X-Page-Count: 1" in headers, headers
         machine.succeed("head -c4 /tmp/cv.pdf | grep -q %PDF")
 
-    with subtest("share links publish only the selection, readable by a web server"):
-        state = json.loads(api("POST", "/api/links", {"label": "job", "lang": "en", "entries": ["experience/acme"], "expires": "2099-01-01"}))
-        slug = state["links"][0]["slug"]
+    with subtest("a shared version publishes only its selection, readable by a web server"):
+        api("POST", "/api/versions", {"name": "Job"})
+        api("PUT", "/api/versions/job", {"name": "Job", "lang": "en", "entries": ["experience/acme"]})
+        state = json.loads(api("PUT", "/api/versions/job/share", {"expires": "2099-01-01"}))
+        slug = next(v for v in state["versions"] if v["id"] == "job")["link"]["slug"]
         page = machine.succeed(f"sudo -u nobody cat /var/lib/cv-app/public/{slug}/index.html")
         assert "Acme" in page and "Secret University" not in page
         machine.succeed(f"sudo -u nobody test -s /var/lib/cv-app/public/{slug}/cv.pdf")
         machine.succeed("sudo -u nobody ls /var/lib/cv-app/public/css /var/lib/cv-app/public/fonts")
         machine.fail("sudo -u nobody ls /var/lib/cv-app/users/alice")
 
-    with subtest("deleting a link unpublishes it"):
-        api("DELETE", f"/api/links/{slug}")
+    with subtest("unsharing unpublishes it"):
+        api("DELETE", "/api/versions/job/share")
         machine.fail(f"test -e /var/lib/cv-app/public/{slug}")
 
     with subtest("CVs can be managed in the editor, but configured ones not deleted"):
@@ -106,7 +108,8 @@ pkgs.testers.runNixOSTest {
             + f"-d '{json.dumps(body)}' http://cv{path}"
         )
         carol("POST", "/api/items", {"section": "experience", "start": "2021-01", "text": {"en": {"title": "Job", "org": "Carol Corp"}}})
-        slug = json.loads(carol("POST", "/api/links", {"label": "carol", "lang": "en", "entries": ["experience/carol-corp"], "expires": "2099-01-01"}))["links"][0]["slug"]
+        state = json.loads(carol("PUT", "/api/versions/full-cv/share", {"expires": "2099-01-01"}))
+        slug = state["versions"][0]["link"]["slug"]
         machine.succeed(f"test -s /var/lib/cv-app/public/{slug}/index.html")
         machine.fail("editor-curl -sf -X DELETE -H 'X-Real-IP: 100.64.0.5' -H 'X-CV-App: 1' http://cv/api/cvs/bob")
         machine.succeed(f"editor-curl -sf -X DELETE -H 'X-Real-IP: 100.64.0.5' -H 'X-CV-App: 1' http://cv/api/cvs/{new}")

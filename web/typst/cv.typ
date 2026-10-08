@@ -115,15 +115,25 @@
   },
 )
 
+// An item that tells where it ended up, for the editor's preview: its page,
+// top and height in pt (`typst eval 'query(<cv-item>)…'`). Leaves the layout
+// as it is.
+#let marked(id, body) = block(breakable: false, width: 100%, layout(size => {
+  let height = measure(body, width: size.width).height
+  place(top + left, context [#metadata((id: id, page: here().page(), top: here().position().y.pt(), height: height.pt())) <cv-item>])
+  body
+}))
+
 #for section in data.sections {
   v(base * 2.25 * s, weak: true)
   block(breakable: false, {
     heading-line(section.title)
     v(base * 1.25 * s)
-    item(section.items.first())
+    let first = section.items.first()
+    marked(first.id, item(first))
   })
   for it in section.items.slice(1) {
     v(base * 1.25 * s, weak: true)
-    block(breakable: false, item(it))
+    marked(it.id, item(it))
   }
 }

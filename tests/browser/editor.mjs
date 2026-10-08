@@ -70,9 +70,9 @@ export default async function editor({ base, shots }) {
     await page.until("location.pathname === '/items/' && !!document.querySelector('#title-en')", "palette opened the item", 10000);
     check((await page.js("document.querySelector('#title-en').value")) === title, "⌘K opened the item in the panel");
 
-    // Compose: fits the window; fit to one page.
-    await page.go(base + "/");
-    const C = "Alpine.$data(document.querySelector('[x-data=compose]'))";
+    // A version: fits the window; fit to one page.
+    await page.go(base + "/v/full-cv/");
+    const C = "Alpine.$data(document.querySelector('[x-data=workspace]'))";
     await page.until(`${C} && !${C}.loading && document.querySelectorAll('[x-ref=pages] canvas').length > 0`, "preview", 30000);
     check(await page.js("document.documentElement.scrollHeight <= innerHeight + 1"), "compose fits the window");
     await page.js(C + ".fitPages = 1");

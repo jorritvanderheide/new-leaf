@@ -1,4 +1,4 @@
-// Compose at phone, tablet and desktop widths: nothing overflows sideways.
+// A version at phone, tablet and desktop widths: nothing overflows sideways.
 
 import { check, openPage, sleep } from "./lib.mjs";
 
@@ -7,7 +7,7 @@ export default async function widths({ base, shots }) {
   try {
     for (const [w, h] of [[390, 844], [1024, 760], [1280, 800], [1440, 900]]) {
       await page.viewport(w, h);
-      await page.go(base + "/");
+      await page.go(base + "/v/full-cv/");
       await sleep(800);
       if (w < 600) {
         check(await page.js("document.documentElement.scrollWidth <= innerWidth"), `${w}px: no sideways overflow on the Items tab`);

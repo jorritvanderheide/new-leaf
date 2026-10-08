@@ -112,8 +112,8 @@
     </section>
 
     <section class="card p-6">
-      <h2 class="text-sm font-semibold">Section order</h2>
-      <p class="mt-1 mb-3 text-xs text-stone-500">The order of sections on your CV. Empty sections are left out.</p>
+      <h2 class="text-sm font-semibold">Default section order</h2>
+      <p class="mt-1 mb-3 text-xs text-stone-500">New versions start with this order; each version can change its own. Empty sections are left out.</p>
       <ol class="divide-y divide-stone-100 rounded-lg ring-1 ring-stone-200">
         <template x-for="(section, i) in form.order" :key="section">
           <li class="flex items-center gap-3 px-3 py-1.5 text-sm">

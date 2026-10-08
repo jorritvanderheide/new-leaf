@@ -92,11 +92,13 @@ type editorPage struct {
 }
 
 var editorPages = []editorPage{
-	{"/", "compose.html", "Compose", "Pick items for an application, preview the PDF and share it.", "compose"},
+	{"/", "versions.html", "Versions", "Versions of your CV, each with its own items and layout: one per application, or a full one.", "compose"},
 	{"/items/", "items.html", "Items", "Everything that can go on your CV. Changes save automatically.", "items"},
 	{"/profile/", "profile.html", "Profile", "Your name, contact details and summary. Changes save automatically.", "profile"},
-	{"/links/", "links.html", "Links", "Shared versions of your CV, each with a PDF, until they expire.", "links"},
 }
+
+// workspacePage edits one version, at /v/<id>/; it belongs under Versions.
+var workspacePage = editorPage{"/v/", "workspace.html", "Version", "", "compose"}
 
 type navItem struct {
 	Name, URL, Icon string
@@ -105,7 +107,7 @@ type navItem struct {
 
 type pageData struct {
 	Title, Description string
-	IsHome             bool
+	Workspace          bool // full width, no title
 	Nav                []navItem
 }
 
@@ -114,7 +116,16 @@ func (s *Server) uiHandler() http.Handler {
 	editor, _ := fs.Sub(s.assets.fs, "web/editor")
 	files := http.FileServerFS(editor)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, p := range s.pages() {
+		if id, ok := strings.CutPrefix(r.URL.Path, workspacePage.Path); ok && strings.HasSuffix(id, "/") && !strings.Contains(strings.TrimSuffix(id, "/"), "/") {
+			// A version that is gone (deleted, or of another CV): the overview.
+			if _, err := s.store.Version(userOf(r), strings.TrimSuffix(id, "/")); err != nil {
+				http.Redirect(w, r, "/", http.StatusFound)
+				return
+			}
+			s.servePage(w, workspacePage)
+			return
+		}
+		for _, p := range editorPages {
 			if r.URL.Path == p.Path {
 				s.servePage(w, p)
 				return
@@ -140,9 +151,10 @@ func (s *Server) servePage(w http.ResponseWriter, p editorPage) {
 		httpError(w, err)
 		return
 	}
-	data := pageData{Title: p.Title, Description: p.Description, IsHome: p.Path == "/"}
-	for _, q := range s.pages() {
-		data.Nav = append(data.Nav, navItem{Name: q.Title, URL: q.Path, Icon: q.Icon, Active: q.Path == p.Path})
+	data := pageData{Title: p.Title, Description: p.Description, Workspace: p == workspacePage}
+	for _, q := range editorPages {
+		active := q.Path == p.Path || data.Workspace && q.Path == "/"
+		data.Nav = append(data.Nav, navItem{Name: q.Title, URL: q.Path, Icon: q.Icon, Active: active})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -163,6 +175,8 @@ var icons = map[string]string{
 	"close":   `<path d="m5.5 5.5 9 9M14.5 5.5l-9 9"/>`,
 	"warn":    `<path d="M10 3.5 17 16H3z"/><path d="M10 8.5v3M10 13.75h.01" stroke-width="2"/>`,
 	"plus":    `<path d="M10 4.5v11M4.5 10h11"/>`,
+	"back":    `<path d="M11.5 5 6.5 10l5 5"/>`,
+	"grip":    `<path d="M7.5 5h.01M12.5 5h.01M7.5 10h.01M12.5 10h.01M7.5 15h.01M12.5 15h.01" stroke-width="2.4"/>`,
 	"trash":   `<path d="M4 5.75h12M8.25 5.75V4h3.5v1.75M5.75 5.75l.75 10.5h7l.75-10.5"/>`,
 }
 
@@ -230,15 +244,4 @@ func richHTML(r Rich) template.HTML {
 		}
 	}
 	return template.HTML(b.String())
-}
-
-// pages are the editor's pages; Links only where share links exist.
-func (s *Server) pages() []editorPage {
-	var out []editorPage
-	for _, p := range editorPages {
-		if p.Path != "/links/" || s.sharing {
-			out = append(out, p)
-		}
-	}
-	return out
 }

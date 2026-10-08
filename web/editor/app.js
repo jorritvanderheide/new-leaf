@@ -16,10 +16,9 @@ const SECTION_NAMES = {
 };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PAGES = [
-  { label: "Compose", url: "/" },
+  { label: "Versions", url: "/" },
   { label: "Items", url: "/items/" },
   { label: "Profile", url: "/profile/" },
-  { label: "Links", url: "/links/" },
 ];
 
 // keepalive lets a request finish while the page is being left, which is how
@@ -42,6 +41,13 @@ async function api(method, path, body, { keepalive = false } = {}) {
 window.addEventListener("unhandledrejection", (e) => {
   if (e.reason?.isFromCancelledTransition) e.preventDefault();
 });
+
+// focusSoon focuses an element once x-show has shown it, which happens a
+// frame or so after the state changes.
+window.focusSoon = (el, frames = 10) => {
+  if (el.offsetParent) el.focus();
+  else if (frames > 0) requestAnimationFrame(() => focusSoon(el, frames - 1));
+};
 
 const itemKey = (item) => `${item.section}/${item.id}`;
 
@@ -114,6 +120,136 @@ function autosaver(store, save, delay = 700) {
   return saver;
 }
 
+// The item editor (template "item-editor"), for the Items page and the
+// version workspace. Existing items save as you type; a new one is created
+// with "Add item", after which created(key) is called if there is one.
+const itemEditor = () => ({
+  form: null,
+  tab: "en",
+  problem: "", // why the current input can't be saved yet
+
+  initEditor() {
+    this._saver = autosaver(this.$store.cv, () => this.persist());
+  },
+
+  openKey(key) {
+    const item = this.$store.cv.state.items.find((i) => itemKey(i) === key);
+    if (item) this.edit(item);
+  },
+
+  async edit(item) {
+    if (this.form) await this._saver.flush();
+    const st = this.$store.cv.state;
+    const text = Object.fromEntries(st.langs.map((l) => [l, { title: "", org: "", location: "", body: "", ...item.text[l] }]));
+    this.form = {
+      section: item.section,
+      id: item.id,
+      start: splitDate(item.start),
+      end: splitDate(item.end),
+      present: !item.end,
+      link: item.link || "",
+      text,
+    };
+    this.problem = "";
+    this._tried = false;
+    this.tab = (this.lang && !this.$store.cv.missing(item, this.lang) && this.lang) || st.langs.find((l) => !this.$store.cv.missing(item, l)) || st.langs[0];
+    this._snapshot = JSON.stringify(this.form);
+  },
+
+  add(section) {
+    this.edit({ section, id: null, start: "", end: "", link: "", text: {} });
+    this.form.present = !this.$store.cv.isPoint(section);
+  },
+
+  isOpen(item) {
+    return this.form && this.form.id === item.id && this.form.section === item.section;
+  },
+
+  isOpenKey(key) {
+    return this.form && `${this.form.section}/${this.form.id}` === key;
+  },
+
+  // itemBody builds the API request, or explains what is missing.
+  itemBody() {
+    const f = this.form;
+    const point = this.$store.cv.isPoint(f.section);
+    for (const [name, d] of [["Start", f.start], ["End", f.end]]) {
+      if (d.y && !/^\d{4}$/.test(String(d.y).trim())) return { problem: `${name} year must have four digits.` };
+      if (d.m && !String(d.y).trim()) return { problem: `${name} needs a year.` };
+    }
+    const start = joinDate(f.start);
+    const end = point || f.present ? "" : joinDate(f.end);
+    if (!point && !start) return { problem: "Add a start year." };
+    if (!point && !f.present && !end) return { problem: "Add an end year, or mark it as present." };
+    if (end && end < start) return { problem: "The end is before the start." };
+    return { body: { section: f.section, start, end, link: f.link.trim(), text: f.text } };
+  },
+
+  // Called on every edit in the panel.
+  itemChanged() {
+    const { problem } = this.itemBody();
+    // For a new item, only explain once "Add item" was tried.
+    this.problem = this.form.id || this._tried ? problem || "" : "";
+    if (this.form.id && !problem) this._saver.schedule();
+    else this._saver.cancel();
+  },
+
+  async persist() {
+    const { body } = this.itemBody();
+    if (!body || !this.form?.id) return true;
+    return this.$store.cv.save("PUT", `/api/items/${this.form.section}/${this.form.id}`, body);
+  },
+
+  async create() {
+    this._tried = true;
+    const { body, problem } = this.itemBody();
+    if (problem) return (this.problem = problem);
+    const st = this.$store.cv;
+    const before = new Set(st.state.items.map(itemKey));
+    if (!(await st.send("POST", "/api/items", body, "Item added"))) return;
+    const created = st.state.items.find((i) => !before.has(itemKey(i)));
+    if (created) {
+      this.form.id = created.id;
+      this.created?.(itemKey(created));
+    }
+    this._snapshot = JSON.stringify(this.form);
+  },
+
+  async close() {
+    if (!this.form) return;
+    if (this.form.id) {
+      await this._saver.flush();
+    } else if (JSON.stringify(this.form) !== this._snapshot && !confirm("Discard this new item?")) {
+      return;
+    }
+    this.form = null;
+  },
+
+  copyFrom(from, to) {
+    for (const [k, v] of Object.entries(this.form.text[from])) {
+      if (!this.form.text[to][k]) this.form.text[to][k] = v;
+    }
+    this.itemChanged();
+  },
+
+  async remove() {
+    const st = this.$store.cv;
+    this._saver.cancel();
+    const item = st.state.items.find((i) => i.id === this.form.id && i.section === this.form.section);
+    if (!(await st.send("DELETE", `/api/items/${this.form.section}/${this.form.id}`))) return;
+    this.form = null;
+    const name = st.text(item, "en").title;
+    st.notify(`Deleted "${name}"`, {
+      label: "Undo",
+      run: () => st.send("POST", "/api/items", { ...JSON.parse(JSON.stringify(item)) }, "Item restored"),
+    });
+  },
+});
+
+// The workspace's drawn pages, by key: canvases stay out of Alpine's
+// reactive data, which would wrap them.
+const canvases = new Map();
+
 document.addEventListener("alpine:init", () => {
   Alpine.store("cv", {
     state: null,
@@ -128,9 +264,19 @@ document.addEventListener("alpine:init", () => {
     paletteOpen: false,
     manageOpen: false,
 
+    // contentRev counts changes to what a PDF shows (items, profile), so a
+    // preview knows to redraw; other state changes leave it alone.
+    contentRev: 0,
+    setState(st) {
+      const content = JSON.stringify([st.items, st.profile]);
+      if (this._content !== undefined && content !== this._content) this.contentRev++;
+      this._content = content;
+      this.state = st;
+    },
+
     async load() {
       try {
-        this.state = await (await api("GET", "/api/state")).json();
+        this.setState(await (await api("GET", "/api/state")).json());
       } catch (e) {
         this.error = e.message;
         return;
@@ -154,7 +300,7 @@ document.addEventListener("alpine:init", () => {
       this.busy = true;
       this.error = "";
       try {
-        this.state = await (await api(method, path, body)).json();
+        this.setState(await (await api(method, path, body)).json());
         if (notice) this.notify(notice);
         return true;
       } catch (e) {
@@ -169,7 +315,7 @@ document.addEventListener("alpine:init", () => {
     async save(method, path, body) {
       this.saving++;
       try {
-        this.state = await (await api(method, path, body, { keepalive: true })).json();
+        this.setState(await (await api(method, path, body, { keepalive: true })).json());
         this.saveError = "";
         this.savedAt = Date.now();
         return true;
@@ -241,6 +387,22 @@ document.addEventListener("alpine:init", () => {
     },
 
     langName: (lang) => LANG_NAMES[lang] || lang,
+
+    // "2026-11-07" -> "7 Nov 2026"
+    day(date) {
+      const [y, m, d] = date.split("-");
+      return `${+d} ${MONTHS[+m - 1]} ${y}`;
+    },
+
+    // An RFC 3339 time as "today", "yesterday", "3 days ago" or a date.
+    ago(time) {
+      const then = new Date(time);
+      const days = Math.round((new Date(this.state.today) - new Date(then.toISOString().slice(0, 10))) / 864e5);
+      if (days <= 0) return "today";
+      if (days === 1) return "yesterday";
+      if (days < 7) return `${days} days ago`;
+      return this.day(then.toISOString().slice(0, 10));
+    },
     sectionName: (section) => SECTION_NAMES[section] || section,
     months: MONTHS,
     key: itemKey,
@@ -285,7 +447,8 @@ document.addEventListener("alpine:init", () => {
       const st = this.$store.cv.state;
       if (!st) return [];
       const entries = [
-        ...PAGES.filter((p) => p.url !== "/links/" || st.sharing).map((p) => ({ label: p.label, hint: "Page", run: () => (location.href = p.url) })),
+        ...PAGES.map((p) => ({ label: p.label, hint: "Page", run: () => (location.href = p.url) })),
+        ...st.versions.map((v) => ({ label: v.name, hint: "Version", run: () => (location.href = `/v/${v.id}/`) })),
         ...st.items.map((item) => ({
           label: this.$store.cv.text(item, "en").title,
           hint: [this.$store.cv.sectionName(item.section), this.$store.cv.text(item, "en").org].filter(Boolean).join(" · "),
@@ -368,55 +531,141 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
-  Alpine.data("compose", () => ({
+  // Items: a list per section, with the item editor on the side.
+  Alpine.data("items", () => ({
+    ...itemEditor(),
+
+    init() {
+      this.initEditor();
+      const key = new URLSearchParams(location.search).get("edit");
+      if (key) this.openKey(key);
+    },
+  }));
+
+  // Versions: the overview. Opening one goes to its workspace.
+  Alpine.data("versions", () => ({
+    creating: false,
+    name: "",
+    from: "",
+
+    openNew() {
+      Object.assign(this, { creating: true, name: "", from: "" }); // focus: see x-effect
+    },
+
+    // make creates a version and returns its ID.
+    async make(body) {
+      const st = this.$store.cv;
+      const before = new Set(st.state.versions.map((v) => v.id));
+      if (!(await st.send("POST", "/api/versions", body))) return null;
+      return st.state.versions.find((v) => !before.has(v.id))?.id;
+    },
+
+    async create() {
+      const id = await this.make({ name: this.name, from: this.from });
+      if (id) location.href = `/v/${id}/`;
+    },
+
+    async duplicate(v) {
+      const id = await this.make({ from: v.id });
+      if (id) this.$store.cv.notify(`Made “Copy of ${v.name}”`, { label: "Open", run: () => (location.href = `/v/${id}/`) });
+    },
+
+    async remove(v) {
+      const st = this.$store.cv;
+      // A link can't come back at the same address, so that gets a question
+      // rather than an undo.
+      if (v.link && !v.link.expired && !confirm(`Delete “${v.name}”? Its share link stops working.`)) return;
+      const copy = JSON.parse(JSON.stringify(v));
+      delete copy.link;
+      if (!(await st.send("DELETE", `/api/versions/${v.id}`))) return;
+      st.notify(`Deleted “${v.name}”`, { label: "Undo", run: () => st.send("POST", "/api/versions", copy, "Version restored") });
+    },
+  }));
+
+  // Workspace: one version. Its settings save as they change; the preview
+  // redraws when they or the CV's content change, and its items open in the
+  // item editor.
+  Alpine.data("workspace", () => ({
+    ...itemEditor(),
+    id: "",
+    name: "",
     lang: "en",
     photo: true,
     spacing: 1, // whitespace scale for the PDF, 0.4 (tight) to 1.4 (airy)
     selected: [],
+    order: [], // sections, in this version's order
     pages: null,
     fitPages: 2,
     fitting: false,
-    view: "items", // phones show the item list or the preview
-
+    view: "items", // phones show the outline or the preview
     pdfUrl: "",
     loading: false,
-    editing: null, // the link being edited, when opened from the Links page
-    share: { open: false, label: "", expires: "", result: null },
+    pageList: [], // drawn pages: { key, h (pt), marks }
+    hover: null, // item key under the pointer, in the outline or the preview
+    grab: null, // section whose handle is held
+    dragging: null, // section being dragged
+    share: { open: false, expires: "" },
 
     init() {
+      this.initEditor();
       const st = this.$store.cv.state;
-      const slug = new URLSearchParams(location.search).get("link");
-      const link = slug && st.links.find((l) => l.slug === slug);
-      // Settings are stored per CV on the server. Older versions kept them in
-      // this browser; take those over once if the server has none yet.
-      const legacyKey = `cv-compose:${st.user}`;
-      const legacy = JSON.parse(localStorage.getItem(legacyKey) || "null");
-      localStorage.removeItem(legacyKey);
-      const saved = st.compose
-        ? { lang: st.compose.lang, photo: st.compose.photo, spacing: st.compose.spacing || 1, selected: st.compose.entries || [] }
-        : legacy;
-      if (link) {
-        this.editing = link;
-        Object.assign(this, { lang: link.lang, photo: link.photo, spacing: link.spacing || 1, selected: [...link.entries] });
-      } else if (saved) {
-        Object.assign(this, saved);
-      } else {
-        this.selected = st.items.map(itemKey);
-      }
+      this.id = location.pathname.split("/")[2];
+      const v = this.version();
+      if (!v) return void (location.href = "/");
       const existing = new Set(st.items.map(itemKey));
-      this.selected = this.selected.filter((k) => existing.has(k));
-      this._saver = autosaver(this.$store.cv, () =>
-        api("PUT", "/api/compose", { lang: this.lang, photo: this.photo, spacing: this.spacing, entries: this.selected }, { keepalive: true })
-          .then(() => true)
-          .catch((e) => ((this.$store.cv.saveError = e.message), false)),
+      Object.assign(this, {
+        name: v.name,
+        lang: v.lang,
+        photo: v.photo,
+        spacing: v.spacing || 1,
+        selected: v.entries.filter((k) => existing.has(k)),
+        order: [...(v.order?.length ? v.order : st.profile.order)],
+        pages: v.pages || null,
+      });
+      this._savedPages = v.pages;
+      this._versionSaver = autosaver(this.$store.cv, () =>
+        this.$store.cv.save("PUT", `/api/versions/${this.id}`, {
+          name: this.name,
+          lang: this.lang,
+          photo: this.photo,
+          spacing: this.spacing,
+          entries: this.selected,
+          order: this.order,
+          pages: (this._savedPages = this.pages || 0),
+        }),
       );
+      document.title = `${v.name} · CV`;
+      this.$watch("name", (name) => {
+        document.title = `${name} · CV`;
+        this._versionSaver.schedule();
+      });
+      this.$watch(() => this.$store.cv.contentRev, () => this.rerender());
+      const key = new URLSearchParams(location.search).get("edit");
+      if (key) this.openKey(key);
     },
 
-    // Called from x-effect whenever the selection changes, and once on load,
-    // when there is nothing to save yet.
-    changed() {
-      if (!this.editing && this._loaded) this._saver.schedule();
+    version() {
+      return this.$store.cv.state.versions.find((v) => v.id === this.id);
+    },
+
+    link() {
+      return this.version()?.link;
+    },
+
+    // Called from x-effect when a setting changes, and once on load, when
+    // there is nothing to save yet.
+    settingsChanged() {
+      if (this._loaded) this._versionSaver.schedule();
       this._loaded = true;
+      this.rerender();
+    },
+
+    // A new item from the outline goes on this version.
+    created(key) {
+      if (!this.selected.includes(key)) this.selected.push(key);
+    },
+
+    rerender() {
       clearTimeout(this._timer);
       this._timer = setTimeout(() => this.render(), 350);
     },
@@ -424,20 +673,25 @@ document.addEventListener("alpine:init", () => {
     async render() {
       this._abort?.abort();
       const abort = (this._abort = new AbortController());
-      this.loading = true;
-      try {
-        const res = await fetch("/api/pdf", {
+      const post = (path) =>
+        fetch(path, {
           method: "POST",
           headers: { "X-CV-App": "1", "Content-Type": "application/json" },
-          body: JSON.stringify({ lang: this.lang, entries: this.selected, photo: this.photo, spacing: this.spacing }),
+          body: JSON.stringify({ lang: this.lang, entries: this.selected, photo: this.photo, spacing: this.spacing, order: this.order }),
           signal: abort.signal,
         });
+      this.loading = true;
+      try {
+        // Where the items are is only for clicking them; the preview works without.
+        const [res, marks] = await Promise.all([post("/api/pdf"), post("/api/layout").then((r) => (r.ok ? r.json() : []), () => [])]);
         if (!res.ok) throw new Error((await res.text()).trim());
         const blob = await res.blob();
-        await this.draw(blob, abort);
+        await this.draw(blob, marks, abort);
+        if (abort.signal.aborted) return;
         if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
         this.pdfUrl = URL.createObjectURL(blob);
         this.pages = +res.headers.get("X-Page-Count");
+        if (this.pages !== this._savedPages) this._versionSaver.schedule(); // for the overview
       } catch (e) {
         if (e.name !== "AbortError") this.$store.cv.error = e.message;
       } finally {
@@ -447,8 +701,9 @@ document.addEventListener("alpine:init", () => {
 
     // Draws the PDF as pages with pdf.js rather than the browser's PDF viewer,
     // which brings its own toolbar. Pages swap in only once all are drawn.
-    async draw(blob, abort) {
+    async draw(blob, marks, abort) {
       this._blob = blob;
+      this._marks = marks;
       const pdfjs = await loadPdfjs();
       const task = pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) });
       try {
@@ -457,28 +712,99 @@ document.addEventListener("alpine:init", () => {
         // a fixed size (it scales with CSS) and redraw sharp when shown.
         const width = this.$refs.pages.clientWidth || 800;
         const dpr = window.devicePixelRatio || 1;
-        const canvases = [];
+        const drawn = [];
         for (let n = 1; n <= doc.numPages; n++) {
           const page = await doc.getPage(n);
-          const viewport = page.getViewport({ scale: width / page.getViewport({ scale: 1 }).width });
+          const size = page.getViewport({ scale: 1 }); // in pt
+          const viewport = page.getViewport({ scale: width / size.width });
           const canvas = document.createElement("canvas");
           canvas.width = Math.floor(viewport.width * dpr);
           canvas.height = Math.floor(viewport.height * dpr);
-          canvas.className = "block w-full bg-white shadow-md ring-1 ring-stone-900/5";
+          canvas.className = "block w-full";
           canvas.setAttribute("aria-label", `Page ${n} of ${doc.numPages}`);
           await page.render({ canvas, viewport, transform: [dpr, 0, 0, dpr, 0, 0] }).promise;
-          canvases.push(canvas);
+          drawn.push({ canvas, h: size.height });
         }
-        if (!abort?.signal.aborted) this.$refs.pages.replaceChildren(...canvases);
+        if (abort?.signal.aborted) return;
+        const round = (this._round = (this._round || 0) + 1);
+        canvases.clear();
+        this.pageList = drawn.map(({ canvas, h }, i) => {
+          const key = `${round}-${i}`;
+          canvases.set(key, canvas);
+          return { key, h, marks: marks.filter((m) => m.page === i + 1) };
+        });
       } finally {
         task.destroy();
       }
     },
 
+    canvas(p) {
+      return canvases.get(p.key);
+    },
+
     // Redraw at the new width after the window is resized.
     resized() {
       clearTimeout(this._resizeTimer);
-      this._resizeTimer = setTimeout(() => this._blob && this.draw(this._blob), 200);
+      this._resizeTimer = setTimeout(() => this._blob && this.draw(this._blob, this._marks), 200);
+    },
+
+    // An item's clickable area on its page, with a little room around it. An
+    // object, which Alpine sets property by property: the CSP blocks style
+    // attributes.
+    markStyle(m, p) {
+      const pct = (pt) => `${(pt / p.h) * 100}%`;
+      return { top: pct(m.top - 4), height: pct(m.height + 8) };
+    },
+
+    markTitle(key) {
+      const item = this.$store.cv.state.items.find((i) => itemKey(i) === key);
+      return item ? this.$store.cv.text(item, this.lang).title : "";
+    },
+
+    hide(key) {
+      this.selected = this.selected.filter((k) => k !== key);
+      this.hover = null;
+    },
+
+    // Sections with items, in this version's order; the rest can get one.
+    shownSections() {
+      return this.order.filter((s) => this.$store.cv.items(s).length);
+    },
+
+    emptySections() {
+      return this.order.filter((s) => !this.$store.cv.items(s).length);
+    },
+
+    // move swaps a section with its shown neighbour.
+    move(section, step) {
+      const shown = this.shownSections();
+      const other = shown[shown.indexOf(section) + step];
+      const order = [...this.order];
+      const a = order.indexOf(section);
+      const b = order.indexOf(other);
+      [order[a], order[b]] = [order[b], order[a]];
+      this.order = order;
+    },
+
+    dragStart(event, section) {
+      this.dragging = section;
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", section);
+    },
+
+    // Moves the dragged section to where it is held, as it is dragged.
+    dragOver(section) {
+      if (!this.dragging || section === this.dragging) return;
+      const from = this.order.indexOf(this.dragging);
+      const to = this.order.indexOf(section);
+      const order = this.order.filter((s) => s !== this.dragging);
+      order.splice(from < to ? order.indexOf(section) + 1 : order.indexOf(section), 0, this.dragging);
+      this.order = order;
+    },
+
+    dragEnd() {
+      this.dragging = null;
+      this.grab = null;
     },
 
     // Finds the most generous spacing that still fits on fitPages pages.
@@ -489,6 +815,7 @@ document.addEventListener("alpine:init", () => {
           lang: this.lang,
           entries: this.selected,
           photo: this.photo,
+          order: this.order,
           pages: this.fitPages,
         });
         const fit = await res.json();
@@ -526,155 +853,21 @@ document.addEventListener("alpine:init", () => {
     },
 
     openShare() {
-      const today = this.$store.cv.state.today;
-      this.share = {
-        open: true,
-        label: this.editing?.label || "",
-        expires: this.editing?.expires || addDays(today, 30),
-        result: null,
-      };
+      const link = this.link();
+      this.share = { open: true, expires: link && !link.expired ? link.expires : addDays(this.$store.cv.state.today, 30) };
     },
 
-    async saveLink() {
+    // Shares the version until the chosen date; the dialog then shows the link.
+    async saveShare() {
       const st = this.$store.cv;
-      const body = {
-        label: this.share.label,
-        lang: this.lang,
-        entries: this.selected,
-        photo: this.photo,
-        spacing: this.spacing,
-        expires: this.share.expires,
-      };
-      const before = new Set(st.state.links.map((l) => l.slug));
-      const ok = this.editing
-        ? await st.send("PUT", `/api/links/${this.editing.slug}`, body)
-        : await st.send("POST", "/api/links", body);
-      if (!ok) return;
-      const link = this.editing
-        ? st.state.links.find((l) => l.slug === this.editing.slug)
-        : st.state.links.find((l) => !before.has(l.slug));
-      this.editing = this.editing && link;
-      this.share.result = link;
-    },
-  }));
-
-  // Items: a list per section, and a side panel that edits one item. Existing
-  // items save as you type; a new one is created with "Add item".
-  Alpine.data("items", () => ({
-    form: null,
-    tab: "en",
-    problem: "", // why the current input can't be saved yet
-
-    init() {
-      this._saver = autosaver(this.$store.cv, () => this.persist());
-      const key = new URLSearchParams(location.search).get("edit");
-      if (key) this.openKey(key);
+      const had = this.link() && !this.link().expired;
+      if (!(await this._versionSaver.flush())) return;
+      await st.send("PUT", `/api/versions/${this.id}/share`, { expires: this.share.expires }, had ? "Date changed" : "");
     },
 
-    openKey(key) {
-      const item = this.$store.cv.state.items.find((i) => itemKey(i) === key);
-      if (item) this.edit(item);
-    },
-
-    async edit(item) {
-      if (this.form) await this._saver.flush();
-      const st = this.$store.cv.state;
-      const text = Object.fromEntries(st.langs.map((l) => [l, { title: "", org: "", location: "", body: "", ...item.text[l] }]));
-      this.form = {
-        section: item.section,
-        id: item.id,
-        start: splitDate(item.start),
-        end: splitDate(item.end),
-        present: !item.end,
-        link: item.link || "",
-        text,
-      };
-      this.problem = "";
-      this._tried = false;
-      this.tab = st.langs.find((l) => this.$store.cv.missing(item, l) === false) || st.langs[0];
-      this._snapshot = JSON.stringify(this.form);
-    },
-
-    add(section) {
-      this.edit({ section, id: null, start: "", end: "", link: "", text: {} });
-      this.form.present = !this.$store.cv.isPoint(section);
-    },
-
-    isOpen(item) {
-      return this.form && this.form.id === item.id && this.form.section === item.section;
-    },
-
-    // body builds the API request, or explains what is missing.
-    body() {
-      const f = this.form;
-      const point = this.$store.cv.isPoint(f.section);
-      for (const [name, d] of [["Start", f.start], ["End", f.end]]) {
-        if (d.y && !/^\d{4}$/.test(String(d.y).trim())) return { problem: `${name} year must have four digits.` };
-        if (d.m && !String(d.y).trim()) return { problem: `${name} needs a year.` };
-      }
-      const start = joinDate(f.start);
-      const end = point || f.present ? "" : joinDate(f.end);
-      if (!point && !start) return { problem: "Add a start year." };
-      if (!point && !f.present && !end) return { problem: "Add an end year, or mark it as present." };
-      if (end && end < start) return { problem: "The end is before the start." };
-      return { body: { section: f.section, start, end, link: f.link.trim(), text: f.text } };
-    },
-
-    // Called on every edit in the panel.
-    changed() {
-      const { problem } = this.body();
-      // For a new item, only explain once "Add item" was tried.
-      this.problem = this.form.id || this._tried ? problem || "" : "";
-      if (this.form.id && !problem) this._saver.schedule();
-      else this._saver.cancel();
-    },
-
-    async persist() {
-      const { body } = this.body();
-      if (!body || !this.form?.id) return true;
-      return this.$store.cv.save("PUT", `/api/items/${this.form.section}/${this.form.id}`, body);
-    },
-
-    async create() {
-      this._tried = true;
-      const { body, problem } = this.body();
-      if (problem) return (this.problem = problem);
-      const st = this.$store.cv;
-      const before = new Set(st.state.items.map(itemKey));
-      if (!(await st.send("POST", "/api/items", body, "Item added"))) return;
-      const created = st.state.items.find((i) => !before.has(itemKey(i)));
-      if (created) this.form.id = created.id;
-      this._snapshot = JSON.stringify(this.form);
-    },
-
-    async close() {
-      if (!this.form) return;
-      if (this.form.id) {
-        await this._saver.flush();
-      } else if (JSON.stringify(this.form) !== this._snapshot && !confirm("Discard this new item?")) {
-        return;
-      }
-      this.form = null;
-    },
-
-    copyFrom(from, to) {
-      for (const [k, v] of Object.entries(this.form.text[from])) {
-        if (!this.form.text[to][k]) this.form.text[to][k] = v;
-      }
-      this.changed();
-    },
-
-    async remove() {
-      const st = this.$store.cv;
-      this._saver.cancel();
-      const item = st.state.items.find((i) => i.id === this.form.id && i.section === this.form.section);
-      if (!(await st.send("DELETE", `/api/items/${this.form.section}/${this.form.id}`))) return;
-      this.form = null;
-      const name = st.text(item, "en").title;
-      st.notify(`Deleted "${name}"`, {
-        label: "Undo",
-        run: () => st.send("POST", "/api/items", { ...JSON.parse(JSON.stringify(item)) }, "Item restored"),
-      });
+    async unshare() {
+      if (!confirm("Stop sharing? The link stops working; sharing again gives a new address.")) return;
+      if (await this.$store.cv.send("DELETE", `/api/versions/${this.id}/share`, undefined, "No longer shared")) this.share.open = false;
     },
   }));
 
@@ -739,28 +932,6 @@ document.addEventListener("alpine:init", () => {
 
     async removePhoto() {
       if (confirm("Remove your photo? This can't be undone.")) await this.$store.cv.send("DELETE", "/api/photo", undefined, "Photo removed");
-    },
-  }));
-
-  Alpine.data("links", () => ({
-    expiry: {},
-
-    extend(link) {
-      const expires = this.expiry[link.slug];
-      return this.$store.cv.send("PUT", `/api/links/${link.slug}`, { ...link, expires }, "Expiry updated");
-    },
-
-    async remove(link) {
-      const st = this.$store.cv;
-      // An expired link can't be re-published as it was, so it gets no undo.
-      if (link.expired && !confirm(`Delete "${link.label || link.slug}"?`)) return;
-      if (!(await st.send("DELETE", `/api/links/${link.slug}`))) return;
-      const copy = JSON.parse(JSON.stringify(link));
-      if (link.expired) return st.notify("Link deleted");
-      st.notify(`Deleted "${link.label || link.slug}"; the URL no longer works`, {
-        label: "Undo",
-        run: () => st.send("POST", "/api/links", copy, "Link restored"),
-      });
     },
   }));
 });

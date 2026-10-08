@@ -1,6 +1,6 @@
 <!doctype html>
-{{/* The editor's frame. Data: page (see ui.go): Title, Description, IsHome
-     and Nav. Each page template defines "main". */}}
+{{/* The editor's frame. Data: pageData (see assets.go): Title, Description,
+     Workspace and Nav. Each page template defines "main". */}}
 <html lang="en" class="h-full bg-stone-50">
   <head>
     <meta charset="utf-8">
@@ -52,7 +52,7 @@
     {{/* Top bar (small screens) */}}
     <header class="border-b border-stone-200 bg-white lg:hidden">
       <div class="flex h-14 items-center gap-3 px-4">
-        <a href="/" class="grid size-8 place-items-center rounded-lg bg-accent text-xs font-bold text-white" aria-label="Compose">CV</a>
+        <a href="/" class="grid size-8 place-items-center rounded-lg bg-accent text-xs font-bold text-white" aria-label="Versions">CV</a>
         <nav class="flex gap-1 overflow-x-auto text-sm" aria-label="Main">
           {{ range .Nav }}
             <a href="{{ .URL }}" class="rounded-lg px-2.5 py-1.5 font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-500{{ end }}">{{ .Name }}</a>
@@ -70,9 +70,9 @@
     </header>
 
     <main class="lg:pl-60">
-      <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {{/* Compose (home) has no title: it uses the full window height. */}}
-        {{ if not .IsHome }}
+      <div class="{{ if .Workspace }}px-4 py-6 sm:px-6{{ else }}mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8{{ end }}">
+        {{/* A version's workspace has no title: it uses the full window. */}}
+        {{ if not .Workspace }}
           <div class="mb-6">
             <h1 class="text-xl font-semibold text-stone-900">{{ .Title }}</h1>
             {{ with .Description }}<p class="mt-1 text-sm text-stone-500">{{ . }}</p>{{ end }}
@@ -92,7 +92,7 @@
       x-show="$store.cv.paletteOpen"
       class="fixed inset-0 z-50 flex items-start justify-center bg-stone-900/30 p-4 pt-[12vh]"
       @keydown.escape.window="$store.cv.paletteOpen = false"
-      x-effect="$store.cv.paletteOpen && $nextTick(() => $refs.q.focus())">
+      x-effect="$store.cv.paletteOpen && focusSoon($refs.q)">
       <div class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200" @click.outside="$store.cv.paletteOpen = false">
         <div class="flex items-center gap-3 border-b border-stone-100 px-4">
           {{ icon "search" "size-5 text-stone-400" }}

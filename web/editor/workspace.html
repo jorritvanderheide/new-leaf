@@ -1,0 +1,232 @@
+{{ define "main" }}
+  {{/* One version: the outline picks and orders what goes on it, the preview
+       shows the result and opens items for editing, the item editor docks on
+       the right. On large screens nothing but the outline and the preview
+       scroll. */}}
+  <div
+    x-data="workspace"
+    x-effect="lang, photo, spacing, selected.join(), order.join(), settingsChanged()"
+    @resize.window="resized()"
+    @keydown.escape.window="!$store.cv.paletteOpen && !share.open && close()"
+    @mouseup.window="grab = null"
+    class="flex flex-col gap-4 transition-[padding] lg:h-[calc(100dvh-3rem)]"
+    :class="form && 'xl:pr-[34rem]'">
+    {{/* The version, and what to do with it */}}
+    <div class="flex flex-wrap items-center gap-2">
+      <a href="/" class="rounded-lg p-1.5 text-stone-500 hover:bg-stone-100 hover:text-stone-900" aria-label="All versions" title="All versions">{{ icon "back" "size-5" }}</a>
+      <input
+        class="min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 py-1 text-lg font-semibold text-stone-900 hover:ring-1 hover:ring-stone-200 focus:ring-2 focus:ring-accent focus:outline-none sm:max-w-sm"
+        x-model="name"
+        aria-label="Version name"
+        maxlength="80">
+      <span
+        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium"
+        :class="pages <= fitPages ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+        :title="pages <= fitPages ? 'Fits on ' + fitPages : 'More than ' + fitPages + '; use Fit or deselect items'"
+        x-show="pages">
+        {{ icon "compose" "size-4" }}
+        <span x-text="pages === 1 ? '1 page' : pages + ' pages'"></span>
+      </span>
+      <span
+        x-show="missing().length"
+        class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-800 ring-1 ring-amber-200"
+        :title="missing().map((i) => $store.cv.text(i, 'en').title).join('\n')">
+        {{ icon "warn" "size-4" }}
+        <span x-text="missing().length + ' without ' + $store.cv.langName(lang) + ' text'"></span>
+      </span>
+      <span class="text-xs text-stone-400" x-show="loading">Rendering…</span>
+      <div class="ml-auto flex shrink-0 gap-2">
+        <a class="btn" :href="pdfUrl || null" :download="filename()" :class="!pdfUrl && 'pointer-events-none opacity-50'">Download PDF</a>
+        <button type="button" class="btn btn-primary" x-show="$store.cv.state.sharing" @click="openShare()" :disabled="!selected.length">
+          <span x-show="link() && !link().expired" class="size-2 rounded-full bg-emerald-300" aria-hidden="true"></span>
+          <span x-text="link() && !link().expired ? 'Shared' : 'Share'"></span>
+        </button>
+      </div>
+    </div>
+
+    {{/* Phones: one column at a time */}}
+    <div class="seg w-full lg:hidden" role="tablist" aria-label="View">
+      <button type="button" role="tab" class="flex-1" :aria-pressed="view === 'items'" :aria-selected="view === 'items'" @click="view = 'items'">
+        Items <span class="text-stone-400" x-text="selected.length"></span>
+      </button>
+      <button type="button" role="tab" class="flex-1" :aria-pressed="view === 'preview'" :aria-selected="view === 'preview'" @click="view = 'preview'; resized()">
+        Preview <span class="text-stone-400" x-show="pages" x-text="pages === 1 ? '1 page' : pages + ' pages'"></span>
+      </button>
+    </div>
+
+    <div
+      class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]"
+      :class="form && 'xl:max-2xl:grid-cols-[minmax(0,1fr)]'">
+      {{/* Outline: sections in this version's order, items to tick */}}
+      <aside class="space-y-3 lg:min-h-0 lg:overflow-y-auto lg:p-0.5 lg:pr-2" :class="[view !== 'items' && 'max-lg:hidden', form && 'xl:max-2xl:hidden']" aria-label="Outline">
+        <template x-for="(section, i) in shownSections()" :key="section">
+          <div
+            class="group card p-3 transition"
+            :class="dragging === section && 'opacity-40'"
+            :draggable="grab === section"
+            @dragstart="dragStart($event, section)"
+            @dragover.prevent="dragOver(section)"
+            @drop.prevent
+            @dragend="dragEnd()">
+            <div class="mb-1 flex items-center gap-1.5">
+              <span class="cursor-grab px-0.5 text-stone-300 hover:text-stone-500" title="Drag to reorder" @mousedown="grab = section">{{ icon "grip" "size-4" }}</span>
+              <h2 class="min-w-0 flex-1 truncate text-xs font-semibold tracking-wide text-accent uppercase" x-text="$store.cv.sectionName(section)"></h2>
+              <button type="button" class="rounded px-1 text-stone-400 hover:text-stone-900 disabled:opacity-25 lg:hidden lg:group-focus-within:block lg:group-hover:block" :disabled="i === 0" @click="move(section, -1)" :aria-label="'Move ' + $store.cv.sectionName(section) + ' up'">↑</button>
+              <button type="button" class="rounded px-1 text-stone-400 hover:text-stone-900 disabled:opacity-25 lg:hidden lg:group-focus-within:block lg:group-hover:block" :disabled="i === shownSections().length - 1" @click="move(section, 1)" :aria-label="'Move ' + $store.cv.sectionName(section) + ' down'">↓</button>
+              <button
+                type="button"
+                class="ml-1 w-9 text-right text-xs text-stone-500 hover:text-stone-900"
+                @click="toggleSection(section, sectionState(section) !== 'all')"
+                x-text="sectionState(section) === 'all' ? 'None' : 'All'"></button>
+            </div>
+            <ul class="space-y-0.5">
+              <template x-for="item in $store.cv.items(section)" :key="$store.cv.key(item)">
+                <li
+                  class="flex gap-2.5 rounded-lg px-1.5 py-1"
+                  :class="isOpen(item) ? 'bg-teal-50' : hover === $store.cv.key(item) ? 'bg-stone-100' : 'hover:bg-stone-50'"
+                  @mouseenter="hover = $store.cv.key(item)"
+                  @mouseleave="hover = null">
+                  <input
+                    type="checkbox"
+                    class="mt-1 size-4 shrink-0 accent-accent"
+                    :value="$store.cv.key(item)"
+                    x-model="selected"
+                    :aria-label="'Include ' + $store.cv.text(item, lang).title">
+                  <button type="button" class="min-w-0 flex-1 text-left text-sm" @click="edit(item)" :title="'Edit ' + $store.cv.text(item, lang).title">
+                    <span class="flex items-center gap-1.5">
+                      <span class="truncate font-medium" :class="selected.includes($store.cv.key(item)) ? 'text-stone-900' : 'text-stone-400'" x-text="$store.cv.text(item, lang).title"></span>
+                      <span
+                        x-show="$store.cv.missing(item, lang)"
+                        class="shrink-0 text-amber-600"
+                        :title="'No ' + $store.cv.langName(lang) + ' text yet; the CV shows an empty title'">
+                        {{ icon "warn" "size-3.5" }}
+                      </span>
+                    </span>
+                    <span class="block truncate text-xs text-stone-500" x-text="[$store.cv.text(item, lang).org, $store.cv.period(item)].filter(Boolean).join(' · ')"></span>
+                  </button>
+                </li>
+              </template>
+            </ul>
+            <button type="button" class="mt-1 flex items-center gap-1 px-1.5 text-xs text-stone-500 hover:text-accent" @click="add(section)" :aria-label="'Add to ' + $store.cv.sectionName(section)">
+              {{ icon "plus" "size-3.5" }} Add
+            </button>
+          </div>
+        </template>
+
+        <select
+          class="w-full rounded-lg border-0 bg-transparent py-2 text-sm text-stone-500 ring-1 ring-stone-200 hover:ring-stone-300"
+          x-show="emptySections().length"
+          aria-label="Add an item to another section"
+          @change="add($event.target.value); $event.target.value = ''">
+          <option value="">+ Add an item to another section…</option>
+          <template x-for="section in emptySections()" :key="section">
+            <option :value="section" x-text="$store.cv.sectionName(section)"></option>
+          </template>
+        </select>
+      </aside>
+
+      {{/* Preview, with the layout settings above it */}}
+      <section class="flex min-h-0 min-w-0 flex-col" :class="view !== 'preview' && 'max-lg:hidden'">
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl bg-white px-3 py-2 ring-1 ring-stone-200">
+          <div class="seg" role="group" aria-label="Language">
+            <template x-for="l in $store.cv.state.langs" :key="l">
+              <button type="button" :aria-pressed="lang === l" @click="lang = l" x-text="l.toUpperCase()"></button>
+            </template>
+          </div>
+          <label class="flex items-center gap-2 text-sm text-stone-600" :class="!$store.cv.state.profile.photo && 'opacity-50'">
+            <input type="checkbox" class="size-4 accent-accent" x-model="photo" :disabled="!$store.cv.state.profile.photo">
+            Photo
+          </label>
+          <div class="flex items-center gap-2 text-sm whitespace-nowrap text-stone-600">
+            <label for="spacing">Spacing</label>
+            <input id="spacing" type="range" min="0.4" max="1.4" step="0.05" class="w-24 accent-accent" x-model.number="spacing">
+            <button
+              type="button"
+              class="w-9 text-left text-xs text-stone-500 tabular-nums hover:text-stone-900"
+              :title="spacing !== 1 ? 'Reset to 100%' : ''"
+              @click="spacing = 1"
+              x-text="Math.round(spacing * 100) + '%'"></button>
+          </div>
+          <div class="flex items-center gap-1.5 text-sm whitespace-nowrap text-stone-600">
+            <button type="button" class="btn py-1" @click="fit()" :disabled="fitting || !selected.length" x-text="fitting ? 'Fitting…' : 'Fit to'"></button>
+            <select class="rounded-lg border-0 bg-white py-1 pr-7 pl-2 text-sm ring-1 ring-stone-300" x-model.number="fitPages" aria-label="Pages to fit on">
+              <template x-for="n in [1, 2, 3, 4]" :key="n">
+                <option :value="n" :selected="n === fitPages" x-text="n === 1 ? '1 page' : n + ' pages'"></option>
+              </template>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-4 h-[80vh] overflow-y-auto px-1 pb-4 lg:h-auto lg:min-h-0 lg:flex-1">
+          <div x-show="!selected.length" class="card mx-auto max-w-md p-6 text-center text-sm text-stone-500">
+            Nothing selected yet. Tick the items for this version in the list on the left.
+          </div>
+          <div x-ref="pages" aria-label="PDF preview" class="mx-auto max-w-3xl space-y-6 transition-opacity" :class="loading && 'opacity-60'">
+            <template x-for="p in pageList" :key="p.key">
+              <div class="relative bg-white shadow-md ring-1 ring-stone-900/5" x-init="$el.prepend(canvas(p))">
+                {{/* Each item on the page: hover to see it, click to edit */}}
+                <template x-for="m in p.marks" :key="m.id">
+                  <div
+                    role="button"
+                    tabindex="0"
+                    class="group absolute inset-x-[2%] cursor-pointer rounded-md transition"
+                    :class="isOpenKey(m.id) ? 'bg-teal-500/5 ring-2 ring-accent' : hover === m.id ? 'bg-teal-500/5 ring-2 ring-accent/40' : 'focus-visible:ring-2 focus-visible:ring-accent/40'"
+                    :style="markStyle(m, p)"
+                    :aria-label="'Edit ' + markTitle(m.id)"
+                    @mouseenter="hover = m.id"
+                    @mouseleave="hover = null"
+                    @click="openKey(m.id)"
+                    @keydown.enter.prevent="openKey(m.id)">
+                    <div class="absolute -top-3.5 right-2 gap-1" :class="hover === m.id ? 'flex' : 'hidden group-focus-within:flex'">
+                      <button type="button" class="rounded-md bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm ring-1 ring-stone-200 hover:text-accent" @click.stop="openKey(m.id)">Edit</button>
+                      <button type="button" class="rounded-md bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm ring-1 ring-stone-200 hover:text-red-700" @click.stop="hide(m.id)" :aria-label="'Hide ' + markTitle(m.id) + ' in this version'">Hide</button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    {{ template "item-editor" . }}
+
+    {{/* Share */}}
+    <div x-cloak x-show="share.open" class="fixed inset-0 z-40 grid place-items-center bg-stone-900/40 p-4" @keydown.escape.window="share.open = false">
+      <form class="card w-full max-w-md space-y-4 p-6" @submit.prevent="saveShare()" @click.outside="share.open = false">
+        <div>
+          <h2 class="text-base font-semibold">
+            <span x-text="link() && !link().expired ? 'Shared' : 'Share'"></span> “<span x-text="name"></span>”
+          </h2>
+          <p class="mt-1 text-sm text-stone-500">
+            A web page with the <span x-text="selected.length"></span> selected items in every language, each with a PDF.
+            It opens in <span x-text="$store.cv.langName(lang)"></span>, and follows this version as you change it.
+          </p>
+        </div>
+        <template x-if="link() && !link().expired">
+          <div class="flex gap-2">
+            <input class="input font-mono text-xs" readonly :value="link().url" @focus="$el.select()" aria-label="Link">
+            <button type="button" class="btn" @click="$store.cv.copy(link().url)">Copy</button>
+            <a class="btn" :href="link().url" target="_blank" rel="noopener">Open</a>
+          </div>
+        </template>
+        <div>
+          <label class="label" for="share-expires" x-text="link()?.expired ? 'Expired; share again until' : 'Works until'"></label>
+          <input id="share-expires" type="date" class="input" x-model="share.expires" :min="$store.cv.state.today" required>
+          <p class="mt-1 text-xs text-stone-500">The link stops working at the start of this day.</p>
+        </div>
+        <div class="flex flex-wrap justify-end gap-2">
+          <template x-if="link()">
+            <button type="button" class="btn btn-danger mr-auto" @click="unshare()" :disabled="$store.cv.busy">Stop sharing</button>
+          </template>
+          <button type="button" class="btn" @click="share.open = false" x-text="link() && !link().expired ? 'Done' : 'Cancel'"></button>
+          <button
+            class="btn btn-primary"
+            :disabled="$store.cv.busy || (link() && !link().expired && share.expires === link().expires)"
+            x-text="$store.cv.busy ? 'Publishing…' : !link() ? 'Create link' : link().expired ? 'Share again' : 'Change date'"></button>
+        </div>
+      </form>
+    </div>
+  </div>
+{{ end }}

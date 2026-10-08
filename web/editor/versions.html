@@ -1,0 +1,78 @@
+{{ define "main" }}
+  <div x-data="versions" class="space-y-4">
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <template x-for="v in $store.cv.state.versions" :key="v.id">
+        <article class="card group relative flex flex-col p-5 transition hover:ring-stone-300">
+          <a :href="'/v/' + v.id + '/'" class="absolute inset-0 rounded-2xl" :aria-label="'Open ' + v.name"></a>
+          <div class="flex items-start gap-3">
+            <h2 class="min-w-0 flex-1 truncate font-semibold text-stone-900" x-text="v.name"></h2>
+            <span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600 uppercase" x-text="v.lang"></span>
+          </div>
+          <p class="mt-1 text-sm text-stone-500">
+            <span x-text="v.entries.length === 1 ? '1 item' : v.entries.length + ' items'"></span><span x-show="v.pages"> · <span x-text="v.pages === 1 ? '1 page' : v.pages + ' pages'"></span></span>
+          </p>
+          <div class="mt-4 flex items-center gap-2 text-xs">
+            <template x-if="$store.cv.state.sharing">
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium"
+                :class="!v.link ? 'bg-stone-100 text-stone-500' : v.link.expired ? 'bg-stone-200 text-stone-600' : 'bg-emerald-100 text-emerald-800'"
+                x-text="!v.link ? 'Not shared' : v.link.expired ? 'Link expired' : 'Shared until ' + $store.cv.day(v.link.expires)"></span>
+            </template>
+            <span class="text-stone-400" x-text="'Edited ' + $store.cv.ago(v.updated)"></span>
+            {{/* Above the card-wide link */}}
+            <div class="relative ml-auto flex gap-1 opacity-100 transition sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+              <button type="button" class="rounded-md px-2 py-1 text-stone-500 hover:bg-stone-100 hover:text-stone-900" @click="duplicate(v)">Duplicate</button>
+              <button type="button" class="rounded-md px-2 py-1 text-red-700 hover:bg-red-50" @click="remove(v)">Delete</button>
+            </div>
+          </div>
+        </article>
+      </template>
+
+      <button
+        type="button"
+        class="flex min-h-32 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-stone-300 p-5 text-sm font-medium text-stone-500 transition hover:border-accent hover:text-accent"
+        @click="openNew()">
+        {{ icon "plus" "size-5" }}
+        New version
+      </button>
+    </div>
+
+    <template x-if="!$store.cv.state.items.length">
+      <div class="card p-6 text-center text-sm text-stone-500">
+        Your CV has no items yet. <a href="/items/" class="font-medium text-accent">Add items</a>, then pick per version which ones to show.
+      </div>
+    </template>
+
+    {{/* New version */}}
+    <div
+      x-cloak
+      x-show="creating"
+      x-effect="creating && focusSoon($refs.name)"
+      class="fixed inset-0 z-40 grid place-items-center bg-stone-900/40 p-4"
+      @keydown.escape.window="creating = false">
+      <form class="card w-full max-w-md space-y-4 p-6" @submit.prevent="create()" @click.outside="creating = false">
+        <div>
+          <h2 class="text-base font-semibold">New version</h2>
+          <p class="mt-1 text-sm text-stone-500">For an application, say. Pick its items and layout next; your items stay shared by all versions.</p>
+        </div>
+        <div>
+          <label class="label" for="version-name">Name</label>
+          <input id="version-name" class="input" x-model="name" placeholder="e.g. UvA PhD position" maxlength="80" required x-ref="name">
+        </div>
+        <div>
+          <label class="label" for="version-from">Start from</label>
+          <select id="version-from" class="input" x-model="from">
+            <option value="">All items</option>
+            <template x-for="v in $store.cv.state.versions" :key="v.id">
+              <option :value="v.id" x-text="'A copy of ' + v.name"></option>
+            </template>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn" @click="creating = false">Cancel</button>
+          <button class="btn btn-primary" :disabled="$store.cv.busy">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{{ end }}

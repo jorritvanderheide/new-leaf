@@ -1,9 +1,10 @@
 # cv-app
 
-A CV editor. Each CV is Markdown (one file per item and language); per
-application you pick items, preview the PDF with its page count, tune the
-spacing to fit, and download it. On a server it also publishes expiring share
-links such as `https://cv.example.com/uva-k7f3q9ab/`.
+A CV editor. Each CV is Markdown (one file per item and language). You make
+versions of it, say one per application: each picks its own items, section
+order, language and spacing, with a live preview of the PDF and its page
+count. On a server a version can also be shared as an expiring link such as
+`https://cv.example.com/uva-k7f3q9ab/`.
 
 It runs two ways, from one binary:
 
@@ -77,18 +78,24 @@ PDFs. `cv-app -h` and `cv-app serve -h` list the options. A backup of a CV
   PDF); Go templates render the share pages from the same data, so the web
   page and the PDF always match. Languages: English and Dutch. The only
   runtime dependency is the `typst` binary.
-- **Share links**: static files published into a webroot that a public web
-  server serves, in every language with a toggle (the chosen language at
-  `/<slug>/`, others at `/<slug>/<lang>/`), each with its PDF. Items that
-  weren't selected never reach that webroot. Links
-  get a random suffix and `noindex` headers, and disappear within five
-  minutes of the start of their expiry day (Europe/Amsterdam).
+- **Versions**: each version selects items and orders sections; items and
+  the profile are shared by all of them. A new item joins the versions that
+  hold every item, such as "Full CV". In a version's preview, items can be
+  clicked to edit them (Typst reports where each item lands) or hidden.
+- **Share links**: sharing a version publishes it as static files into a
+  webroot that a public web server serves, in every language with a toggle
+  (the chosen language at `/<slug>/`, others at `/<slug>/<lang>/`), each
+  with its PDF. The link follows the version as it changes. Items that
+  weren't selected never reach that webroot. Links get a random suffix and
+  `noindex` headers, and disappear within five minutes of the start of
+  their expiry day (Europe/Amsterdam).
 
 ## Layout
 
 ```
 main.go api.go auth.go store.go        server, API, tailnet identity, content files
 cvs.go                                which CVs exist; creating, renaming, deleting
+versions.go                           versions of a CV; the first ones made from older data
 document.go                           a CV for one selection and language (sorted, localised, Markdown parsed)
 typst.go  share.go  publish.go        PDF, share pages, publishing into the webroot
 local.go  backup.go                   local mode; backup and restore
@@ -105,10 +112,11 @@ Per CV, under the data directory:
 
 ```
 users/<cv>/cv.json                                   display name and owners
+users/<cv>/versions/<id>.json                        a version: name, items, order, language, layout
 users/<cv>/content/_index.{en,nl}.md                 profile (summary in the body, section order)
 users/<cv>/content/photo.{jpg,png,webp}
 users/<cv>/content/<section>/<id>.{en,nl}.md         items
-users/<cv>/content/links/<slug>.<lang>.md            share links
+users/<cv>/content/links/<slug>.<lang>.md            share links, one per shared version
 ```
 
 Sections: work experience, education, publications, other output,
@@ -116,7 +124,7 @@ presentations, teaching, grants & awards, extracurricular activities,
 volunteering. Publications, other output, presentations and awards have a
 single, optional date (undated items go last; an undated publication sorts by
 the year in its reference); the rest a period. Dates are YYYY-MM or YYYY. Each
-user sets their own section order; empty sections are left out.
+version sets its own section order; empty sections are left out.
 
 ## Development
 

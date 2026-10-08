@@ -127,7 +127,11 @@ func BuildDocument(p Profile, items []Item, opt PrintOptions, photo string) Docu
 	for _, e := range opt.Entries {
 		selected[e] = true
 	}
-	for _, section := range SectionOrder(p.Order) {
+	order := p.Order
+	if len(opt.Order) > 0 {
+		order = opt.Order
+	}
+	for _, section := range SectionOrder(order) {
 		var in []Item
 		for _, it := range items {
 			if it.Section == section && (opt.Entries == nil || selected[section+"/"+it.ID]) {

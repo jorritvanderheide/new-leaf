@@ -55,13 +55,13 @@ func TestLocalOnlyAnswersLocalhost(t *testing.T) {
 
 func TestLocalHasNoSharing(t *testing.T) {
 	_, h := newLocalServer(t)
-	r := httptest.NewRequest("POST", "/api/links", strings.NewReader(`{}`))
+	r := httptest.NewRequest("PUT", "/api/versions/full-cv/share", strings.NewReader(`{}`))
 	r.Host = "localhost:8484"
 	r.Header.Set("X-CV-App", "1")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	if w.Code != http.StatusNotFound {
-		t.Errorf("POST /api/links locally: %d", w.Code)
+		t.Errorf("sharing locally: %d", w.Code)
 	}
 	r = httptest.NewRequest("GET", "/links/", nil)
 	r.Host = "localhost:8484"

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -75,7 +78,10 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("DELETE /api/items/{section}/{id}", s.handle(s.deleteItem))
 	mux.HandleFunc("POST /api/pdf", s.postPDF)
 	mux.HandleFunc("POST /api/fit", s.postFit)
-	mux.HandleFunc("PUT /api/compose", s.putCompose)
+	mux.HandleFunc("POST /api/layout", s.postLayout)
+	mux.HandleFunc("POST /api/versions", s.handle(s.postVersion))
+	mux.HandleFunc("PUT /api/versions/{id}", s.handle(s.putVersion))
+	mux.HandleFunc("DELETE /api/versions/{id}", s.handle(s.deleteVersion))
 	mux.HandleFunc("GET /api/export", s.getExport)
 	mux.HandleFunc("POST /api/import", s.handle(s.postImport))
 	mux.HandleFunc("GET /api/ping", s.getPing)
@@ -85,9 +91,8 @@ func (s *Server) routes() http.Handler {
 		mux.HandleFunc("DELETE /api/cvs/{id}", s.deleteCV)
 	}
 	if s.sharing {
-		mux.HandleFunc("POST /api/links", s.handle(s.postLink))
-		mux.HandleFunc("PUT /api/links/{slug}", s.handle(s.putLink))
-		mux.HandleFunc("DELETE /api/links/{slug}", s.handle(s.deleteLink))
+		mux.HandleFunc("PUT /api/versions/{id}/share", s.handle(s.putShare))
+		mux.HandleFunc("DELETE /api/versions/{id}/share", s.handle(s.deleteShare))
 	}
 	if s.quit != nil {
 		mux.HandleFunc("POST /api/quit", func(w http.ResponseWriter, r *http.Request) {
@@ -121,7 +126,12 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 			http.Error(w, "missing X-CV-App header", http.StatusForbidden)
 			return
 		}
-		if err := s.store.Init(user); err != nil {
+		if err := s.change(user, func() error {
+			if err := s.store.Init(user); err != nil {
+				return err
+			}
+			return s.store.EnsureVersions(user)
+		}); err != nil {
 			httpError(w, err)
 			return
 		}
@@ -190,11 +200,10 @@ type editorState struct {
 	Point    []string      `json:"pointSections"`
 	Profile  Profile       `json:"profile"`
 	Items    []Item        `json:"items"`
-	Links    []linkView    `json:"links"`
+	Versions []versionView `json:"versions"` // most recently edited first
 	Today    string        `json:"today"`
 	CVs      []CVInfo      `json:"cvs"`     // all CVs, for the switcher
 	Manage   bool          `json:"manage"`  // CVs can be created, renamed and deleted
-	Compose  *PrintOptions `json:"compose"` // the composer's last settings for this CV, if any
 	Sharing  bool          `json:"sharing"` // share links are available
 	Local    bool          `json:"local"`   // running on the user's own computer
 }
@@ -209,10 +218,14 @@ func (s *Server) editorState(ctx context.Context, user string) (editorState, err
 	if st.Profile, err = s.store.Profile(user); err != nil {
 		return st, err
 	}
-	if st.Compose, err = s.store.Compose(user); err != nil {
+	if st.Items, err = s.store.Items(user); err != nil {
 		return st, err
 	}
-	if st.Items, err = s.store.Items(user); err != nil {
+	if st.Items == nil {
+		st.Items = []Item{}
+	}
+	versions, err := s.store.Versions(user)
+	if err != nil {
 		return st, err
 	}
 	links, err := s.store.Links(user)
@@ -220,14 +233,23 @@ func (s *Server) editorState(ctx context.Context, user string) (editorState, err
 		return st, err
 	}
 	now := time.Now()
-	st.Links = []linkView{}
-	for _, l := range links {
-		st.Links = append(st.Links, linkView{l, s.publicURL + "/" + l.Slug + "/", l.Expired(now)})
-	}
-	if st.Items == nil {
-		st.Items = []Item{}
+	st.Versions = []versionView{}
+	for _, v := range versions {
+		vv := versionView{Version: v}
+		for _, l := range links {
+			if l.Version == v.ID {
+				vv.Link = &linkView{l, s.publicURL + "/" + l.Slug + "/", l.Expired(now)}
+			}
+		}
+		st.Versions = append(st.Versions, vv)
 	}
 	return st, nil
+}
+
+// versionView is a version with its share link, if it has one.
+type versionView struct {
+	Version
+	Link *linkView `json:"link"`
 }
 
 func (s *Server) getState(r *http.Request, user string) error { return nil }
@@ -320,8 +342,39 @@ func (s *Server) postItem(r *http.Request, user string) error {
 		if err := it.Validate(); err != nil {
 			return badRequest{err}
 		}
-		return s.store.SaveItem(user, it)
+		before, err := s.store.Items(user)
+		if err != nil {
+			return err
+		}
+		if err := s.store.SaveItem(user, it); err != nil {
+			return err
+		}
+		return s.addToCompleteVersions(user, before, it.Section+"/"+it.ID)
 	})
+}
+
+// addToCompleteVersions adds a new item to the versions that hold every
+// other item, such as "Full CV", so they stay complete. A shared one's link
+// follows; s.edit republishes it.
+func (s *Server) addToCompleteVersions(user string, before []Item, key string) error {
+	versions, err := s.store.Versions(user)
+	if err != nil {
+		return err
+	}
+	for _, v := range versions {
+		complete := !slices.Contains(v.Entries, key)
+		for _, it := range before {
+			complete = complete && slices.Contains(v.Entries, it.Section+"/"+it.ID)
+		}
+		if !complete {
+			continue
+		}
+		v.Entries = append(v.Entries, key)
+		if _, err := s.storeVersion(user, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Server) putItem(r *http.Request, user string) error {
@@ -348,29 +401,6 @@ func (s *Server) deleteItem(r *http.Request, user string) error {
 }
 
 // --- PDF
-
-// putCompose saves the composer's settings. It answers 204 rather than the
-// full state: it is called on every change and nothing else depends on it.
-func (s *Server) putCompose(w http.ResponseWriter, r *http.Request) {
-	user := userOf(r)
-	var o PrintOptions
-	if err := readJSON(r, &o); err != nil {
-		httpError(w, err)
-		return
-	}
-	if err := o.Validate(); err != nil {
-		httpError(w, badRequest{err})
-		return
-	}
-	unlock := s.lock(user)
-	err := s.store.SaveCompose(user, o)
-	unlock()
-	if err != nil {
-		httpError(w, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
 
 // postPDF renders a selection. The editor shows it as the preview and
 // reads the page count from X-Page-Count.
@@ -472,32 +502,214 @@ func (s *Server) postFit(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, res)
 }
 
-// --- links
+// postLayout tells where each item of a selection lands in its PDF, so the
+// preview can make items clickable.
+func (s *Server) postLayout(w http.ResponseWriter, r *http.Request) {
+	user := userOf(r)
+	var req PrintOptions
+	if err := readJSON(r, &req); err != nil {
+		httpError(w, err)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		httpError(w, badRequest{err})
+		return
+	}
+	doc, photo, err := s.document(user, req)
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+	marks, err := s.typst.Layout(r.Context(), doc, photo)
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+	writeJSON(w, marks)
+}
 
-func (s *Server) postLink(r *http.Request, user string) error {
-	var l Link
-	if err := readJSON(r, &l); err != nil {
+// --- versions
+
+type versionRequest struct {
+	Version
+	From string `json:"from"` // duplicate this version
+}
+
+// postVersion makes a version: a copy of another one, everything, or (with
+// an ID, to undo a delete) exactly the one given.
+func (s *Server) postVersion(r *http.Request, user string) error {
+	var req versionRequest
+	if err := readJSON(r, &req); err != nil {
 		return err
 	}
-	// A slug (and creation date) is only given when undoing a delete: the
-	// link comes back at the URL that was already sent out.
-	if l.Slug != "" {
-		if !idRe.MatchString(l.Slug) || s.slugTaken(user, l.Slug) {
-			return badRequest{fmt.Errorf("link %q is invalid or taken", l.Slug)}
+	now := time.Now()
+	return s.change(user, func() error {
+		v := req.Version
+		switch {
+		case v.ID != "":
+			if _, err := s.store.Version(user, v.ID); !errors.Is(err, errNotFound) {
+				return badRequest{fmt.Errorf("version %q exists", v.ID)}
+			}
+		case req.From != "":
+			from, err := s.store.Version(user, req.From)
+			if err != nil {
+				return err
+			}
+			v = from
+			v.Name = cmp.Or(clean(req.Name), "Copy of "+from.Name)
+		default:
+			profile, err := s.store.Profile(user)
+			if err != nil {
+				return err
+			}
+			items, err := s.store.Items(user)
+			if err != nil {
+				return err
+			}
+			v.PrintOptions = PrintOptions{Lang: cmp.Or(v.Lang, Langs[0]), Photo: profile.Photo, Spacing: 1, Order: profile.Order, Entries: []string{}}
+			for _, it := range items {
+				v.Entries = append(v.Entries, it.Section+"/"+it.ID)
+			}
 		}
-		if !dayRe.MatchString(l.Created) {
-			l.Created = time.Now().In(linkZone).Format("2006-01-02")
+		if v.ID == "" {
+			v.ID = s.store.NewVersionID(user, v.Name)
 		}
-		return s.saveLink(r.Context(), user, l)
+		v.Created = cmp.Or(v.Created, now.In(linkZone).Format("2006-01-02"))
+		v.Updated = now.UTC().Format(time.RFC3339)
+		if err := s.store.SaveVersion(user, v); err != nil {
+			return badRequest{err}
+		}
+		return nil
+	})
+}
+
+// putVersion saves a version as it is edited. A shared version's link
+// follows it.
+func (s *Server) putVersion(r *http.Request, user string) error {
+	var v Version
+	if err := readJSON(r, &v); err != nil {
+		return err
 	}
-	l.Created = time.Now().In(linkZone).Format("2006-01-02")
-	for {
-		l.Slug = NewSlug(l.Label)
-		if !s.slugTaken(user, l.Slug) {
-			break
+	shared := false
+	err := s.change(user, func() error {
+		cur, err := s.store.Version(user, r.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		v.ID, v.Created, v.Updated = cur.ID, cur.Created, cur.Updated
+		if !sameSettings(v, cur) { // not just the preview's page count
+			v.Updated = time.Now().UTC().Format(time.RFC3339)
+		}
+		shared, err = s.storeVersion(user, v)
+		return err
+	})
+	if err == nil && shared {
+		s.schedulePublish(user)
+	}
+	return err
+}
+
+// storeVersion saves a version and makes its link, if any, follow it. The
+// caller holds the user's lock and republishes.
+func (s *Server) storeVersion(user string, v Version) (shared bool, err error) {
+	link, err := s.store.VersionLink(user, v.ID)
+	if err != nil {
+		return false, err
+	}
+	if link != nil && len(v.Entries) == 0 {
+		return true, badRequest{errors.New("a shared version needs at least one item; stop sharing it first")}
+	}
+	if err := s.store.SaveVersion(user, v); err != nil {
+		return link != nil, badRequest{err}
+	}
+	if link == nil {
+		return false, nil
+	}
+	follow(link, v)
+	return true, s.store.SaveLink(user, *link)
+}
+
+func sameSettings(a, b Version) bool {
+	a.Pages, b.Pages = 0, 0
+	a.Order, b.Order = SectionOrder(a.Order), SectionOrder(b.Order)
+	x, _ := json.Marshal(a)
+	y, _ := json.Marshal(b)
+	return bytes.Equal(x, y)
+}
+
+// follow makes a link show a version.
+func follow(l *Link, v Version) {
+	l.Version, l.Label = v.ID, v.Name
+	l.Lang, l.Entries, l.Photo, l.Spacing, l.Order = v.Lang, v.Entries, v.Photo, v.Spacing, v.Order
+}
+
+// deleteVersion deletes a version and takes its link offline.
+func (s *Server) deleteVersion(r *http.Request, user string) error {
+	id := r.PathValue("id")
+	shared := false
+	err := s.change(user, func() error {
+		link, err := s.store.VersionLink(user, id)
+		if err != nil {
+			return err
+		}
+		if err := s.store.DeleteVersion(user, id); err != nil {
+			return err
+		}
+		if link == nil {
+			return nil
+		}
+		shared = true
+		return s.store.DeleteLink(user, link.Slug)
+	})
+	if err != nil || !shared {
+		return err
+	}
+	return s.reconcile()
+}
+
+// putShare shares a version until a date, or changes that date. The link is
+// published before the answer, so it works as soon as the editor shows it.
+func (s *Server) putShare(r *http.Request, user string) error {
+	var req struct {
+		Expires string `json:"expires"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		return err
+	}
+	v, err := s.store.Version(user, r.PathValue("id"))
+	if err != nil {
+		return err
+	}
+	link, err := s.store.VersionLink(user, v.ID)
+	if err != nil {
+		return err
+	}
+	if link == nil {
+		link = &Link{Created: time.Now().In(linkZone).Format("2006-01-02")}
+		for link.Slug == "" || s.slugTaken(user, link.Slug) {
+			link.Slug = NewSlug(v.Name)
 		}
 	}
-	return s.saveLink(r.Context(), user, l)
+	follow(link, v)
+	link.Expires = req.Expires
+	return s.saveLink(r.Context(), user, *link)
+}
+
+func (s *Server) deleteShare(r *http.Request, user string) error {
+	err := s.change(user, func() error {
+		link, err := s.store.VersionLink(user, r.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		if link == nil {
+			return errNotFound
+		}
+		return s.store.DeleteLink(user, link.Slug)
+	})
+	if err != nil {
+		return err
+	}
+	return s.reconcile()
 }
 
 // slugTaken reports whether a slug is in use, by this user or in the webroot.
@@ -509,21 +721,7 @@ func (s *Server) slugTaken(user, slug string) bool {
 	return !errors.Is(err, errNotFound)
 }
 
-func (s *Server) putLink(r *http.Request, user string) error {
-	cur, err := s.store.Link(user, r.PathValue("slug"))
-	if err != nil {
-		return err
-	}
-	var l Link
-	if err := readJSON(r, &l); err != nil {
-		return err
-	}
-	l.Slug, l.Created = cur.Slug, cur.Created
-	return s.saveLink(r.Context(), user, l)
-}
-
-// saveLink writes the link and publishes it before answering, so the URL
-// works as soon as the editor shows it.
+// saveLink writes the link and publishes it before answering.
 func (s *Server) saveLink(ctx context.Context, user string, l Link) error {
 	if err := l.Validate(); err != nil {
 		return badRequest{err}
@@ -535,12 +733,4 @@ func (s *Server) saveLink(ctx context.Context, user string, l Link) error {
 		return err
 	}
 	return s.publishLink(ctx, user, l)
-}
-
-func (s *Server) deleteLink(r *http.Request, user string) error {
-	err := s.change(user, func() error { return s.store.DeleteLink(user, r.PathValue("slug")) })
-	if err != nil {
-		return err
-	}
-	return s.reconcile()
 }
