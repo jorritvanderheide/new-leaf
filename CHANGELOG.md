@@ -21,4 +21,7 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   as headings, the sections are bookmarks, and the photo has alt text, so
   screen readers and applicant tracking systems get the CV's structure. The
   PDFs look exactly as before.
+- **JSON Resume, in and out.** Import one on the Profile page to start from a
+  CV made elsewhere, or download yours in one of its languages. Sections that
+  JSON Resume doesn't have go out as projects, and come back where they were.
 - A new logo.

@@ -161,12 +161,7 @@ type upload struct {
 
 func uploadOf(t *testing.T, data []byte) *upload {
 	t.Helper()
-	var b bytes.Buffer
-	mw := multipart.NewWriter(&b)
-	f, _ := mw.CreateFormFile("backup", "cv.zip")
-	f.Write(data)
-	mw.Close()
-	return &upload{&b, mw.FormDataContentType()}
+	return formOf(t, "backup", data)
 }
 
 func zipOf(t *testing.T, files map[string]string) []byte {
@@ -211,4 +206,52 @@ func TestEmptyCVMakesPDF(t *testing.T) {
 	if w.Code != http.StatusOK || w.Header().Get("X-Page-Count") != "1" {
 		t.Errorf("empty CV: %d %s", w.Code, w.Body.String()[:min(300, w.Body.Len())])
 	}
+}
+
+// A CV goes out as a JSON Resume and comes back in, replacing the CV.
+func TestResumeExportImport(t *testing.T) {
+	s, h := newLocalServer(t)
+	s.store.Init("me")
+	s.store.SaveProfile("me", cv.Profile{Langs: []string{"en"}, Name: "Me Example", Text: map[string]cv.ProfileText{"en": {Headline: "Designer"}}})
+	s.store.SaveItem("me", cv.Item{Section: "experience", ID: "job", Start: "2020-01", Text: map[string]cv.ItemText{"en": {Title: "Job", Org: "Acme"}}})
+
+	w := do(h, "GET", "/api/resume", nil)
+	if w.Code != http.StatusOK || !strings.Contains(w.Header().Get("Content-Disposition"), "resume-me-en-") {
+		t.Fatalf("export: %d %s", w.Code, w.Body)
+	}
+	var r cv.Resume
+	if err := json.Unmarshal(w.Body.Bytes(), &r); err != nil || r.Basics.Name != "Me Example" || len(r.Work) != 1 || r.Work[0].Name != "Acme" {
+		t.Fatalf("resume = %+v, %v", r, err)
+	}
+	if w := do(h, "GET", "/api/resume?lang=nl", nil); w.Code != http.StatusBadRequest {
+		t.Errorf("a language the CV doesn't have: %d", w.Code)
+	}
+
+	r.Basics.Name = "Me Again"
+	r.Skills = []json.RawMessage{[]byte(`{"name": "Go"}`)}
+	data, _ := json.Marshal(r)
+	w = do(h, "POST", "/api/resume", formOf(t, "resume", data))
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "skills (1)") {
+		t.Fatalf("import: %d %s", w.Code, w.Body)
+	}
+	if p, _ := s.store.Profile("me"); p.Name != "Me Again" {
+		t.Errorf("profile = %+v", p)
+	}
+	if items, _ := s.store.Items("me"); len(items) != 1 || items[0].Text["en"].Org != "Acme" {
+		t.Errorf("items = %+v", items)
+	}
+
+	if w := do(h, "POST", "/api/resume", formOf(t, "resume", []byte("not json"))); w.Code != http.StatusBadRequest {
+		t.Errorf("not JSON: %d %s", w.Code, w.Body)
+	}
+}
+
+func formOf(t *testing.T, field string, data []byte) *upload {
+	t.Helper()
+	var b bytes.Buffer
+	mw := multipart.NewWriter(&b)
+	f, _ := mw.CreateFormFile(field, "file")
+	f.Write(data)
+	mw.Close()
+	return &upload{&b, mw.FormDataContentType()}
 }

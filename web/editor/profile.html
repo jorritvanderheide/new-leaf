@@ -137,5 +137,24 @@
         </label>
       </div>
     </section>
+
+    {{/* Not part of the autosaved form. */}}
+    <section class="card p-6" @input.stop @change.stop>
+      <h2 class="text-sm font-semibold">JSON Resume</h2>
+      <p class="mt-1 text-xs text-stone-500">
+        Bring your CV from another tool, or take it to one, as a
+        <a class="underline" href="https://jsonresume.org" target="_blank" rel="noopener">JSON Resume</a>: one language, without the photo or the look.
+        Importing replaces your current CV with the resume's text, in its main language, and keeps your photo and look. A copy of the current CV is kept.
+      </p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <template x-for="lang in $store.cv.state.langs" :key="lang">
+          <a class="btn" :href="resumeURL(lang)" download x-text="resumeLabel(lang)"></a>
+        </template>
+        <label class="btn cursor-pointer">
+          Import JSON Resume
+          <input type="file" accept=".json,application/json" class="sr-only" @change="importResume($event)">
+        </label>
+      </div>
+    </section>
   </form>
 {{ end }}

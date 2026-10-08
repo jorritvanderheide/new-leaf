@@ -18,6 +18,9 @@ export default async function local({ base, shots }) {
     check((await page.js("document.body.textContent")).includes("Download backup"), "backup card on Profile");
     const res = await fetch(base + "/api/export");
     check(res.ok && res.headers.get("content-type") === "application/zip", "backup downloads as zip");
+    const href = await page.js("document.querySelector('a[href^=\"/api/resume\"]')?.getAttribute('href')");
+    const resume = href && (await (await fetch(base + href)).json());
+    check(resume?.basics !== undefined, "JSON Resume downloads");
 
     await page.js("document.querySelector('body > aside [aria-haspopup=menu]').click()");
     await sleep(300);

@@ -92,6 +92,14 @@ language.
 computer. A restore keeps what it replaces as a backup first. It works between
 your computer and a server too.
 
+### Can I bring my CV from another tool?
+
+If it exports [JSON Resume](https://jsonresume.org): **Import JSON Resume** on
+the Profile page. It replaces your current CV (kept as a backup first) with
+the resume's text, in your CV's main language, and keeps your photo and look.
+Skills, languages, interests and references have no section in New Leaf, so
+it tells you what it left out. **Download JSON Resume** goes the other way.
+
 ### Can I undo?
 
 Changes to a version (items, order, language, look) have undo and redo, ⌘Z and

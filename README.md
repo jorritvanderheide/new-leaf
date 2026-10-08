@@ -205,6 +205,10 @@ every CV opens by default for the people it belongs to.
 zip file. **Restore** brings it back, on the same computer or another one, or
 on a server; what it replaces is kept as a backup first.
 
+[JSON Resume](https://jsonresume.org), which many CV tools read and write,
+works both ways too: import one to start from a CV you already have elsewhere,
+or download yours, one language at a time, to take it somewhere else.
+
 <br/>
 
 ## 6 Versions

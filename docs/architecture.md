@@ -35,10 +35,11 @@ flowchart TD
 | --- | --- |
 | `main.go`, `flags.go` | The command: flags (also from `NEW_LEAF_*`), `-version`, finding Typst, the data folder, moving cv-app's data |
 | **`internal/cv`** | **A CV and its rules: files, no HTTP, no Typst** |
-| `store.go`, `profile.go`, `items.go`, `links.go` | Reading and writing the profile, items and share links, and the helpers for their files |
+| `store.go`, `profile.go`, `items.go`, `links.go` | Reading and writing the profile, items and share links, the helpers for their files, and moving a CV from an older format over |
 | `versions.go` | Versions, and the first ones for CVs from before them |
 | `cvs.go` | Which CVs exist; making, renaming and deleting them |
 | `backup.go` | Backups: writing one, checking one fully, restoring it |
+| `jsonresume.go` | JSON Resume: a CV out as one, and one in as a CV, staged like a backup |
 | `languages.go` | The languages a CV can be in, with the words New Leaf adds to its PDF and share page |
 | `theme.go` | Looks: accent colour, font, photo shape |
 | `document.go` | A CV for one version and language: sorted, localised, Markdown parsed |

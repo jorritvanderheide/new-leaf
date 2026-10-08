@@ -1177,6 +1177,38 @@ document.addEventListener("alpine:init", () => {
       if (await this.$store.cv.send("POST", "/api/import", data)) location.reload();
     },
 
+    resumeURL(lang) {
+      return "/api/resume?lang=" + lang;
+    },
+
+    resumeLabel(lang) {
+      const st = this.$store.cv;
+      return st.state.langs.length > 1 ? "Download in " + st.langName(lang) : "Download JSON Resume";
+    },
+
+    async importResume(event) {
+      const st = this.$store.cv;
+      const file = event.target.files[0];
+      event.target.value = "";
+      const links = st.state.sharing ? " Its share links stop working." : "";
+      if (!file || !confirm(`Replace your current CV with this resume? A copy of the current CV is kept.${links}`)) return;
+      await st.flushAll();
+      const data = new FormData();
+      data.append("resume", file);
+      st.busy = true;
+      st.error = "";
+      try {
+        const { skipped } = await (await api("POST", "/api/resume", data)).json();
+        if (skipped.length) alert("Imported. New Leaf has no place for:\n\n- " + skipped.join("\n- "));
+        // Reload so every form shows the imported CV.
+        location.reload();
+      } catch (e) {
+        st.error = e.message;
+      } finally {
+        st.busy = false;
+      }
+    },
+
     async removePhoto() {
       if (confirm("Remove your photo? This can't be undone.")) await this.$store.cv.send("DELETE", "/api/photo", undefined, "Photo removed");
     },

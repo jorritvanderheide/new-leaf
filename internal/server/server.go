@@ -85,6 +85,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/versions/{id}/thumb", s.getThumb)
 	mux.HandleFunc("GET /api/export", s.getExport)
 	mux.HandleFunc("POST /api/import", s.handle(s.postImport))
+	mux.HandleFunc("GET /api/resume", s.getResume)
+	mux.HandleFunc("POST /api/resume", s.postResume)
 	mux.HandleFunc("GET /api/ping", s.getPing)
 	if s.auth.CVs.Manage {
 		mux.HandleFunc("POST /api/cvs", s.postCV)
