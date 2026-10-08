@@ -80,7 +80,8 @@ The code has to be one Typst knows, for hyphenation.
 
 ## Releasing
 
-1. Set the version in `nix/package.nix`.
+1. Set the version in `nix/package.nix`, and in `CHANGELOG.md` turn
+   **Unreleased** into `## X.Y.Z`.
 2. Push the commit and a tag `X.Y.Z` for it to Codeberg, without a `v`, as in
    the plugins. That is the only remote: GitHub mirrors it. (Go's own tools
    only know versions tagged `vX.Y.Z`, so `go install` can't ask for one by
@@ -88,7 +89,9 @@ The code has to be one Typst knows, for hyphenation.
 3. When the tag reaches GitHub, `.github/workflows/release.yml`:
    - builds the archives with `scripts/release.sh` (six platforms, Typst next
      to `new-leaf`) and `SHA256SUMS`, attests the archives, and creates a
-     **draft** GitHub release with them;
+     **draft** GitHub release with them, its notes taken from the version's
+     part of `CHANGELOG.md` (or made by GitHub from the commits, if it has
+     none);
    - checks the tag against the package version, builds the container image
      with Nix for amd64 and arm64, pushes it to
      `ghcr.io/jorritvanderheide/new-leaf` as `X.Y.Z` and `latest`, and
@@ -103,7 +106,7 @@ and checked against the checksums pinned there. Keep its version in step with
 nixpkgs (`nix develop -c typst --version`), and update the checksums with it.
 
 Before releasing anything that renames or removes a file, key or section, see
-[Compatibility](data-model.md#compatibility).
+[Compatibility](compatibility.md), and add it to `CHANGELOG.md`.
 
 ## Updating an action
 

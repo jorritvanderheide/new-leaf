@@ -40,8 +40,12 @@ jobs:
           # Before 1.0, and tags like 1.2.0-rc.1, are pre-releases.
           prerelease=()
           case "$GITHUB_REF_NAME" in 0.*|*-*) prerelease=(--prerelease) ;; esac
+          # The notes are the version's part of CHANGELOG.md, if it has one.
+          awk -v v="## $GITHUB_REF_NAME" '$0 == v { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > notes.md
+          notes=(--generate-notes)
+          if grep -q '[^[:space:]]' notes.md; then notes=(--notes-file notes.md); fi
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.zip dist/SHA256SUMS \
-            --verify-tag --draft "${prerelease[@]}" --title "New Leaf $GITHUB_REF_NAME" --generate-notes
+            --verify-tag --draft "${prerelease[@]}" --title "New Leaf $GITHUB_REF_NAME" "${notes[@]}"
 
   image:
     strategy:

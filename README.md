@@ -125,7 +125,9 @@ files:
 - [**Self-hosting**](docs/self-hosting.md) - The NixOS module, the Docker setup,
   how sign-in over Tailscale works, and what the reverse proxy needs to do.
 - [**Data model**](docs/data-model.md) - Every file New Leaf keeps, what is in
-  it, and what counts as a breaking change.
+  it, and how a CV is laid out.
+- [**Compatibility**](docs/compatibility.md) - What a release may change: files,
+  options, share links. Changes are in [CHANGELOG.md](CHANGELOG.md).
 - [**PDF**](docs/pdf.md) - The Typst template, the data it gets, and how the
   preview knows where each item is.
 - [**Architecture**](docs/architecture.md) - How the code is laid out, and how a

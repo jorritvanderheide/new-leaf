@@ -178,17 +178,5 @@ of an outdated one; the old file is removed.
 
 ## Compatibility
 
-CVs written by New Leaf exist on other people's computers and servers. So:
-
-- **Renaming or removing** a front matter key, a JSON key, a section or a file
-  name is a breaking change and needs a migration that runs when the CV is
-  read, like the one that makes versions for CVs from before them.
-- **Adding** an optional key is not.
-- **Removing a language** from `internal/cv/languages.go` is breaking too: CVs in it would
-  lose their text.
-- **Backups** of older versions must keep restoring.
-
-New Leaf was called cv-app. Its data folder (`cv-app` instead of `new-leaf`)
-is moved over once, the first time New Leaf starts and finds no CVs of its own.
-On a server the NixOS module copies `/var/lib/cv-app` the same way, and New
-Leaf takes over a share links folder marked `.cv-app-public`.
+What a release may change in these files, and how a CV from an older one is
+moved over, is in [Compatibility](compatibility.md).
