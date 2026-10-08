@@ -1,0 +1,51 @@
+# Self-hosting cv-app with Docker, no domain or web server of your own:
+# the editor on your tailnet and the share links public, both at
+# https://cv.<your tailnet>.ts.net, served by a tailscale container that
+# cv-app shares its network with.
+#
+#   1. In the Tailscale admin console, make an auth key, and allow Funnel
+#      for this machine (the "funnel" node attribute in the tailnet policy).
+#   2. In a .env file next to this one, set
+#        TS_AUTHKEY=tskey-auth-...
+#        CV_APP_PUBLIC_URL=https://cv.<your tailnet>.ts.net
+#      and optionally CV_APP_USERS (CVs that always exist, by tailnet login)
+#      or any other CV_APP_* setting (see cv-app serve -h).
+#   3. docker compose up -d
+#
+# The editor is then at https://cv.<your tailnet>.ts.net:8443 (tailnet only),
+# share links at https://cv.<your tailnet>.ts.net/<link>/ (public).
+# Everything cv-app keeps is in the cv-app volume.
+
+services:
+  tailscale:
+    image: tailscale/tailscale:stable
+    hostname: cv
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?set TS_AUTHKEY in .env}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SOCKET: /var/run/tailscale/tailscaled.sock
+      TS_SERVE_CONFIG: /config/serve.json
+    volumes:
+      - tailscale:/var/lib/tailscale
+      - tailscale-socket:/var/run/tailscale
+      - ./serve.json:/config/serve.json:ro
+    restart: unless-stopped
+
+  cv-app:
+    image: ghcr.io/bw20/cv-app:latest
+    # Shares tailscale's network: tailscale serve reaches cv-app on
+    # 127.0.0.1, and cv-app asks tailscale who each visitor is.
+    network_mode: service:tailscale
+    depends_on: [tailscale]
+    environment:
+      CV_APP_PUBLIC_URL: ${CV_APP_PUBLIC_URL:?set CV_APP_PUBLIC_URL in .env}
+      CV_APP_USERS: ${CV_APP_USERS:-}
+    volumes:
+      - cv-app:/data
+      - tailscale-socket:/var/run/tailscale
+    restart: unless-stopped
+
+volumes:
+  tailscale:
+  tailscale-socket:
+  cv-app:

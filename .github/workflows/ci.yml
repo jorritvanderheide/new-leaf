@@ -1,0 +1,66 @@
+# Tests on every push to main and every pull request. The repository lives on
+# Codeberg and is push-mirrored here, where this runs.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Typst
+        run: |
+          scripts/typst.sh x86_64-unknown-linux-musl "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Format, vet and test
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "not gofmt'ed: $unformatted"; exit 1; fi
+          go vet ./...
+          go test ./...
+
+      # The stylesheets are generated from the templates and committed.
+      - name: Stylesheets are up to date
+        run: |
+          tw="$RUNNER_TEMP/tailwindcss"
+          curl -fsSL -o "$tw" https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64
+          echo "dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a  $tw" | sha256sum -c -
+          chmod +x "$tw"
+          "$tw" --minify -i web/css/share.css -o web/share/share.css
+          "$tw" --minify -i web/css/editor.css -o web/editor/editor.css
+          git diff --exit-code -- web/share/share.css web/editor/editor.css
+
+      - name: Browser tests
+        run: |
+          go build -o "$RUNNER_TEMP/cv-app" .
+          CV_APP="$RUNNER_TEMP/cv-app" CHROMIUM=google-chrome node tests/browser/run.mjs
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The NixOS VM test needs KVM.
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: system-features = nixos-test benchmark big-parallel kvm
+      - run: nix flake check -L

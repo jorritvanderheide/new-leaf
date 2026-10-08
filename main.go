@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -36,6 +37,10 @@ func main() {
 // serve runs the multi-user server: tailnet sign-in and share links.
 func serve(args []string) {
 	fl := flag.NewFlagSet("cv-app serve", flag.ExitOnError)
+	fl.Usage = func() {
+		fmt.Fprint(fl.Output(), "Usage: cv-app serve [flags]\n\nFlags (also as environment variables, e.g. CV_APP_PUBLIC_URL for -public-url):\n")
+		fl.PrintDefaults()
+	}
 	var (
 		listen      = fl.String("listen", "127.0.0.1:8080", "editor address: host:port, unix:/path, or systemd (socket activation); put a tailnet-only reverse proxy in front")
 		dataDir     = fl.String("data", "/var/lib/cv-app", "persistent data: one content directory per user")
@@ -46,11 +51,12 @@ func serve(args []string) {
 		manage      = fl.Bool("manage", true, "let editor users create, rename and delete CVs (those in -users can't be deleted)")
 		devUser     = fl.String("dev-user", "", "skip tailnet identity and act as this user (local development only)")
 		devAssets   = fl.String("dev-assets", "", "read templates and static files from this directory instead of the binary, so edits show at once (development only)")
-		servePublic = fl.String("serve-public", "", "also serve the public webroot on this address (local development only)")
+		servePublic = fl.String("serve-public", "", "also serve the public webroot on this address, with the headers it needs, e.g. behind tailscale funnel")
 		tsBin       = fl.String("tailscale", "tailscale", "tailscale binary, used for identity lookups")
 		typstBin    = fl.String("typst", "typst", "typst binary, which makes the PDFs")
 	)
-	fl.Parse(args)
+	parseFlags(fl, args)
+	*typstBin = findTypst(*typstBin)
 
 	if *workDir == "" {
 		*workDir = filepath.Join(*dataDir, "work")
@@ -163,15 +169,26 @@ func listener(addr string) (net.Listener, error) {
 	}
 }
 
-// publicHandler serves the webroot the way the production web server does:
-// noindex headers, no caching, and no directory listings.
+// publicHandler serves the webroot the way the NixOS module's nginx does:
+// noindex, no caching, a strict content security policy, no directory
+// listings, and nothing that starts with a dot (the marker file, publishes
+// in progress).
 func publicHandler(dir string) http.Handler {
 	files := http.FileServer(http.Dir(dir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
-		w.Header().Set("Cache-Control", "no-cache")
+		h := w.Header()
+		h.Set("X-Robots-Tag", "noindex, nofollow, noarchive")
+		h.Set("Cache-Control", "no-cache")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; font-src 'self'; img-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		clean := path.Clean("/" + r.URL.Path)
+		if strings.Contains(clean, "/.") {
+			http.NotFound(w, r)
+			return
+		}
 		if strings.HasSuffix(r.URL.Path, "/") {
-			index := filepath.Join(dir, filepath.FromSlash(path.Clean(r.URL.Path)), "index.html")
+			index := filepath.Join(dir, filepath.FromSlash(clean), "index.html")
 			if _, err := os.Stat(index); err != nil {
 				http.NotFound(w, r)
 				return

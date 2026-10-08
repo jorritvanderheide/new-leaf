@@ -132,7 +132,7 @@ func (s *Server) uiHandler() http.Handler {
 			}
 		}
 		name := strings.TrimPrefix(r.URL.Path, "/")
-		if name != "app.js" && name != "editor.css" && !strings.HasPrefix(name, "vendor/") && !strings.HasPrefix(name, "fonts/") {
+		if name != "app.js" && name != "mode.js" && name != "editor.css" && !strings.HasPrefix(name, "vendor/") && !strings.HasPrefix(name, "fonts/") {
 			http.NotFound(w, r)
 			return
 		}

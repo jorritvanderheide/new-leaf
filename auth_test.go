@@ -33,6 +33,22 @@ func TestClientIP(t *testing.T) {
 	}
 }
 
+// tailscale serve passes the visitor on as X-Forwarded-For.
+func TestClientIPForwardedFor(t *testing.T) {
+	for _, c := range []struct{ remote, xff, want string }{
+		{"127.0.0.1:5000", "100.64.0.7", "100.64.0.7"},
+		{"127.0.0.1:5000", "6.6.6.6, 100.64.0.7", "100.64.0.7"}, // the last hop is the proxy's own view
+		{"100.64.0.9:5000", "100.64.0.7", "100.64.0.9"},         // not from a proxy: ignored
+	} {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.RemoteAddr = c.remote
+		r.Header.Set("X-Forwarded-For", c.xff)
+		if got := clientIP(r); got != c.want {
+			t.Errorf("clientIP(%s, XFF %q) = %q, want %q", c.remote, c.xff, got, c.want)
+		}
+	}
+}
+
 func TestAuthUser(t *testing.T) {
 	ids := map[string]Identity{
 		"100.64.0.1": {LoginName: "jorrit@"},

@@ -6,6 +6,49 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --color-accent: oklch(0.47 0.085 195);
   --color-accent-dark: oklch(0.4 0.08 195);
+  --color-on-accent: #fff; /* text on the accent */
+}
+
+/* Dark mode, on html.dark (see mode.js). The colours the editor uses are
+   remapped rather than given dark: variants everywhere: light greys become
+   dark ones and the other way round, and tints become shades. Text on the
+   accent turns dark, as the accent itself gets lighter. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+.dark {
+  color-scheme: dark;
+  --color-white: oklch(21.6% 0.006 56.043);
+  --color-stone-50: oklch(14.7% 0.004 49.25);
+  --color-stone-100: oklch(26.8% 0.007 34.298);
+  --color-stone-200: oklch(37.4% 0.01 67.558);
+  --color-stone-300: oklch(44.4% 0.011 73.639);
+  --color-stone-400: oklch(55.3% 0.013 58.071);
+  --color-stone-500: oklch(70.9% 0.01 56.259);
+  --color-stone-600: oklch(86.9% 0.005 56.366);
+  --color-stone-700: oklch(92.3% 0.003 48.717);
+  --color-stone-800: oklch(97% 0.001 106.424);
+  --color-stone-900: oklch(98.5% 0.001 106.423);
+  --color-amber-50: oklch(27.9% 0.077 45.635);
+  --color-amber-100: oklch(41.4% 0.112 45.904);
+  --color-amber-200: oklch(47.3% 0.137 46.201);
+  --color-amber-600: oklch(82.8% 0.189 84.429);
+  --color-amber-700: oklch(87.9% 0.169 91.605);
+  --color-amber-800: oklch(92.4% 0.12 95.746);
+  --color-amber-900: oklch(96.2% 0.059 95.617);
+  --color-emerald-100: oklch(37.8% 0.077 168.94);
+  --color-emerald-200: oklch(43.2% 0.095 166.913);
+  --color-emerald-800: oklch(90.5% 0.093 164.15);
+  --color-sky-50: oklch(29.3% 0.066 243.157);
+  --color-sky-100: oklch(39.1% 0.09 240.876);
+  --color-sky-800: oklch(90.1% 0.058 230.902);
+  --color-teal-50: oklch(27.7% 0.046 192.524);
+  --color-teal-200: oklch(43.7% 0.078 188.216);
+  --color-teal-300: oklch(51.1% 0.096 186.391);
+  --color-red-50: oklch(25.8% 0.092 26.042);
+  --color-red-700: oklch(70.4% 0.191 22.216);
+  --color-accent: oklch(0.74 0.1 192);
+  --color-accent-dark: oklch(0.82 0.09 192);
+  --color-on-accent: oklch(14.7% 0.004 49.25);
 }
 
 @font-face {
@@ -37,7 +80,7 @@
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-medium text-stone-700 shadow-xs ring-1 ring-stone-300 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply bg-accent text-white ring-accent hover:bg-accent-dark;
+    @apply bg-accent text-on-accent ring-accent hover:bg-accent-dark;
   }
   .btn-danger {
     @apply text-red-700 hover:bg-red-50;

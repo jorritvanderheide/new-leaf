@@ -1,5 +1,5 @@
-// The details: contrast, keyboard and touch, page breaks and fit hints,
-// thumbnails, the accent warning and vacancy matching.
+// The details: contrast (light and dark), keyboard and touch, page breaks
+// and fit hints, thumbnails, the accent warning and vacancy matching.
 
 import { api, check, openPage, sleep } from "./lib.mjs";
 
@@ -19,6 +19,27 @@ export default async function polish({ base, shots }) {
       const low = await page.lowContrast();
       check(low.length === 0, `${path}: all text has enough contrast ${JSON.stringify(low)}`);
     }
+
+    // Dark mode follows the system unless chosen otherwise, and keeps the contrast.
+    await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "dark" }] });
+    for (const path of ["/", "/v/full-cv/", "/items/", "/profile/"]) {
+      await page.go(base + path);
+      await sleep(800);
+      check(await page.js("document.documentElement.classList.contains('dark')"), `${path}: dark, as the system is`);
+      const low = await page.lowContrast();
+      check(low.length === 0, `${path}: dark text has enough contrast ${JSON.stringify(low)}`);
+    }
+    await page.js("document.querySelector('body > aside [aria-haspopup=menu]').click()");
+    await sleep(300);
+    await page.click("[aria-label=Appearance] button", "light");
+    check(!(await page.js("document.documentElement.classList.contains('dark')")), "Light overrides the system");
+    await page.go(base + "/");
+    check(!(await page.js("document.documentElement.classList.contains('dark')")), "and is remembered");
+    await page.js("Alpine.store('cv').setMode('system')");
+    check(await page.js("document.documentElement.classList.contains('dark')"), "System follows the system again");
+    await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }] });
+    await sleep(100);
+    check(!(await page.js("document.documentElement.classList.contains('dark')")), "including when the system changes");
 
     // Page breaks in the outline, and how far from the target the pages are.
     await page.go(base + "/v/full-cv/");

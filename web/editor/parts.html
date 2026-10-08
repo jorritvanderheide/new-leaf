@@ -1,8 +1,8 @@
 {{/* Small pieces shared by the editor pages. */}}
 
-{{/* The open CV, with a menu to switch, manage CVs and (locally) quit.
-     Called with "sidebar" (full width, opens upwards) or "bar" (a round
-     button for the top bar on phones). */}}
+{{/* The open CV, with a menu to switch, manage CVs, choose light or dark,
+     and (locally) quit. Called with "sidebar" (full width, opens upwards)
+     or "bar" (a round button for the top bar on phones). */}}
 {{ define "cv-menu" }}
 <div class="relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
   {{ if eq . "sidebar" }}
@@ -30,6 +30,14 @@
         <span x-show="cv.id === $store.cv.state.user" class="text-accent" aria-hidden="true">✓</span>
       </button>
     </template>
+    <div class="mt-1 border-t border-stone-100 px-1 pt-2 pb-1">
+      <p class="mb-1.5 px-1.5 text-xs font-medium text-stone-500">Appearance</p>
+      <div class="seg w-full" role="group" aria-label="Appearance">
+        <template x-for="m in ['system', 'light', 'dark']" :key="m">
+          <button type="button" class="flex-1 capitalize" :aria-pressed="$store.cv.mode === m" @click="$store.cv.setMode(m)" x-text="m"></button>
+        </template>
+      </div>
+    </div>
     <template x-if="$store.cv.state?.manage || $store.cv.state?.local">
       <div class="mt-1 border-t border-stone-100 pt-1">
         <template x-if="$store.cv.state.manage">
@@ -61,7 +69,7 @@
 {{/* Side panel that edits one item; used with the itemEditor() mixin in
      app.js, by the Items page and the version workspace. */}}
 {{ define "item-editor" }}
-  <div x-cloak x-show="form" x-transition.opacity class="fixed inset-0 z-30 bg-stone-900/20 xl:hidden" @click="close()"></div>
+  <div x-cloak x-show="form" x-transition.opacity class="fixed inset-0 z-30 bg-black/20 xl:hidden" @click="close()"></div>
   <aside
     x-cloak
     x-show="form"
@@ -69,7 +77,7 @@
     x-transition:enter-start="translate-x-full"
     x-transition:leave="transition duration-150"
     x-transition:leave-end="translate-x-full"
-    class="fixed inset-y-0 right-0 z-40 flex w-full max-w-xl flex-col border-l border-stone-200 bg-white shadow-xl xl:max-w-[32rem]"
+    class="fixed inset-y-0 right-0 z-40 flex w-full max-w-xl flex-col border-l border-stone-200 bg-white shadow-xl xl:max-w-lg"
     aria-label="Edit item">
     <template x-if="form">
       <form class="flex min-h-0 flex-1 flex-col" @submit.prevent="form.id ? close() : create()" @input="itemChanged()" @change="itemChanged()">

@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title>{{ .Title }} · CV</title>
+    <script src="{{ asset "mode.js" }}"></script>
     <link rel="stylesheet" href="{{ asset "editor.css" }}">
     {{/* app.js registers the Alpine components, so it loads before Alpine. */}}
     <script defer src="{{ asset "app.js" }}"></script>
@@ -21,7 +22,7 @@
     {{/* Sidebar (large screens) */}}
     <aside class="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-stone-200 bg-white lg:flex">
       <a href="/" class="flex h-16 items-center gap-2.5 px-5 font-semibold text-stone-900">
-        <span class="grid size-8 place-items-center rounded-lg bg-accent text-xs font-bold text-white">CV</span>
+        <span class="grid size-8 place-items-center rounded-lg bg-accent text-xs font-bold text-on-accent">CV</span>
         Editor
       </a>
       <button type="button" class="mx-3 mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-500 ring-1 ring-stone-200 hover:text-stone-900" @click="$store.cv.paletteOpen = true">
@@ -48,7 +49,7 @@
     {{/* Top bar (small screens) */}}
     <header class="border-b border-stone-200 bg-white lg:hidden">
       <div class="flex h-14 items-center gap-3 px-4">
-        <a href="/" class="grid size-8 place-items-center rounded-lg bg-accent text-xs font-bold text-white" aria-label="Versions">CV</a>
+        <a href="/" class="grid size-8 place-items-center rounded-lg bg-accent text-xs font-bold text-on-accent" aria-label="Versions">CV</a>
         <nav class="flex gap-1 overflow-x-auto text-sm" aria-label="Main">
           {{ range .Nav }}
             <a href="{{ .URL }}" class="rounded-lg px-2.5 py-1.5 font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-500{{ end }}">{{ .Name }}</a>
@@ -80,7 +81,7 @@
       x-data="palette"
       x-cloak
       x-show="$store.cv.paletteOpen"
-      class="fixed inset-0 z-50 flex items-start justify-center bg-stone-900/30 p-4 pt-[12vh]"
+      class="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-[12vh]"
       @keydown.escape.window="$store.cv.paletteOpen = false"
       x-effect="$store.cv.paletteOpen && focusSoon($refs.q)">
       <div class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200" @click.outside="$store.cv.paletteOpen = false">
@@ -118,7 +119,7 @@
       x-data="cvs"
       x-cloak
       x-show="$store.cv.manageOpen"
-      class="fixed inset-0 z-40 grid place-items-center bg-stone-900/40 p-4"
+      class="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4"
       @keydown.escape.window="$store.cv.manageOpen = false">
       <div class="card max-h-[90vh] w-full max-w-lg space-y-5 overflow-y-auto p-6" @click.outside="$store.cv.manageOpen = false">
         <div>

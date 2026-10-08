@@ -238,7 +238,7 @@
                     <button
                       type="button"
                       class="size-7 rounded-full ring-offset-2 transition"
-                      :class="resolvedTheme().accent === c.hex ? 'ring-2 ring-stone-900' : 'hover:ring-2 hover:ring-stone-300'"
+                      :class="resolvedTheme().accent === c.hex ? 'ring-2 ring-stone-900' : 'ring-1 ring-black/10 hover:ring-2 hover:ring-stone-300 dark:ring-white/25'"
                       :style="{ backgroundColor: c.hex }"
                       :aria-label="c.name"
                       :aria-pressed="resolvedTheme().accent === c.hex"
@@ -351,7 +351,7 @@
     {{ template "item-editor" . }}
 
     {{/* Share */}}
-    <div x-cloak x-show="share.open" class="fixed inset-0 z-40 grid place-items-center bg-stone-900/40 p-4" @keydown.escape.window="share.open = false">
+    <div x-cloak x-show="share.open" class="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" @keydown.escape.window="share.open = false">
       <form class="card w-full max-w-md space-y-4 p-6" @submit.prevent="saveShare()" @click.outside="share.open = false">
         <div>
           <h2 class="text-base font-semibold">

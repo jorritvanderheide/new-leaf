@@ -8,10 +8,11 @@
 }:
 let
   root = ../.;
+  version = "0.4.0";
 in
 buildGoModule {
   pname = "cv-app";
-  version = "0.3.0";
+  inherit version;
 
   # Templates, styles and fonts under web/ are embedded in the binary; the
   # stylesheets are generated (see checks.css) and committed.
@@ -32,6 +33,7 @@ buildGoModule {
   ldflags = [
     "-s"
     "-w"
+    "-X main.version=v${version}"
   ];
 
   nativeBuildInputs = [

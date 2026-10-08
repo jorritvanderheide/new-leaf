@@ -317,6 +317,13 @@ document.addEventListener("alpine:init", () => {
     savedAt: 0,
     savedFlash: false, // "Saved" shows for a moment after a save
     panelOpen: false, // the item editor is open
+
+    // Light, dark, or as the system is (mode.js applies it).
+    mode: window.cvMode?.get() || "system",
+    setMode(mode) {
+      this.mode = mode;
+      window.cvMode?.set(mode);
+    },
     toast: null, // { message, action?: { label, run } }
     paletteOpen: false,
     manageOpen: false,

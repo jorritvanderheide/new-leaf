@@ -22,6 +22,10 @@
     {
       packages = forAllSystems (pkgs: {
         default = pkgs.callPackage ./nix/package.nix { };
+        # The self-hosting container image (nix/docker.nix).
+        docker = pkgs.callPackage ./nix/docker.nix {
+          cv-app = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+        };
       });
 
       devShells = forAllSystems (pkgs: {
@@ -104,6 +108,7 @@
 
       checks = forAllSystems (pkgs: {
         package = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+        docker = self.packages.${pkgs.stdenv.hostPlatform.system}.docker;
         vm = import ./nix/test.nix self { inherit pkgs; };
 
         # The committed stylesheets match the templates.

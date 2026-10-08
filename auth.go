@@ -106,9 +106,11 @@ func (a *Auth) lookup(ctx context.Context, ip string) (Identity, error) {
 	return id, nil
 }
 
-// clientIP is the tailnet address a request came from. X-Real-IP is only
-// trusted from the reverse proxy: a peer on the Unix socket (which only the
-// proxy may open) or on loopback (development and TCP setups).
+// clientIP is the tailnet address a request came from. The visitor address a
+// proxy passes on (X-Real-IP, or else the last X-Forwarded-For entry, as
+// tailscale serve sets it) is only trusted from the proxy itself: a peer on
+// the Unix socket (which only the proxy may open) or on loopback (TCP setups,
+// a container sharing tailscale's network).
 func clientIP(r *http.Request) string {
 	trusted := r.RemoteAddr == "" || r.RemoteAddr == "@" // Unix socket peer
 	if !trusted {
@@ -124,7 +126,12 @@ func clientIP(r *http.Request) string {
 			return peer.String()
 		}
 	}
-	if real := net.ParseIP(strings.TrimSpace(r.Header.Get("X-Real-IP"))); real != nil {
+	forwarded := r.Header.Get("X-Real-IP")
+	if forwarded == "" {
+		hops := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+		forwarded = hops[len(hops)-1]
+	}
+	if real := net.ParseIP(strings.TrimSpace(forwarded)); real != nil {
 		return real.String()
 	}
 	return ""

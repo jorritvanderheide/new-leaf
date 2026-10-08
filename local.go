@@ -33,7 +33,7 @@ typst-cli", or a binary from the releases page.`
 func local(args []string) {
 	fl := flag.NewFlagSet("cv-app", flag.ExitOnError)
 	fl.Usage = func() {
-		fmt.Fprint(fl.Output(), "Usage:\n  cv-app [flags]         edit your CV on this computer\n  cv-app serve [flags]   run the multi-user server (see cv-app serve -h)\n\nFlags:\n")
+		fmt.Fprint(fl.Output(), "Usage:\n  cv-app [flags]         edit your CV on this computer\n  cv-app serve [flags]   run the multi-user server (see cv-app serve -h)\n\nFlags (also as environment variables, e.g. CV_APP_DATA for -data):\n")
 		fl.PrintDefaults()
 	}
 	var (
@@ -44,7 +44,8 @@ func local(args []string) {
 		typstBin  = fl.String("typst", "typst", "typst binary, which makes the PDFs")
 		devAssets = fl.String("dev-assets", "", "read templates and static files from this directory (development only)")
 	)
-	fl.Parse(args)
+	parseFlags(fl, args)
+	*typstBin = findTypst(*typstBin)
 
 	// Already running? Then open that one.
 	if url := runningAt(*listen); url != "" {
