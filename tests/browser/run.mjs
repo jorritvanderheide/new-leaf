@@ -86,4 +86,5 @@ try {
   rmSync(data, { recursive: true, force: true });
 }
 console.log(ok ? "all passed" : "FAILED");
-process.exitCode = ok ? 0 : 1;
+// Exit even if a browser or server is still winding down.
+process.exit(ok ? 0 : 1);

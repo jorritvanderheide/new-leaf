@@ -29,16 +29,37 @@ export async function openPage({ width = 1440, height = 900, shots } = {}) {
   const profile = mkdtempSync(join(tmpdir(), "new-leaf-chromium-"));
   const proc = spawn(
     process.env.CHROMIUM || "chromium",
-    ["--headless", "--no-sandbox", "--disable-gpu", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"],
+    [
+      "--headless",
+      "--no-sandbox",
+      "--disable-gpu",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--remote-debugging-port=0",
+      `--user-data-dir=${profile}`,
+      "about:blank",
+    ],
     { stdio: "ignore" },
   );
-  // Chromium writes the port it picked into the profile.
-  const portFile = join(profile, "DevToolsActivePort");
-  for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
-  const port = readFileSync(portFile, "utf8").split("\n")[0];
-  const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
-  const ws = new WebSocket(targets.find((t) => t.type === "page").webSocketDebuggerUrl);
-  await new Promise((r) => (ws.onopen = r));
+  let exited = false;
+  proc.once("exit", () => (exited = true));
+  let ws;
+  try {
+    // Chromium writes the port it picked into the profile. A first start on
+    // a fresh machine (CI) can take a while.
+    const portFile = join(profile, "DevToolsActivePort");
+    for (let i = 0; i < 600 && !existsSync(portFile) && !exited; i++) await sleep(100);
+    if (!existsSync(portFile)) throw new Error(exited ? "Chromium quit while starting" : "Chromium did not start within a minute");
+    const port = readFileSync(portFile, "utf8").split("\n")[0];
+    const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
+    ws = new WebSocket(targets.find((t) => t.type === "page").webSocketDebuggerUrl);
+    await new Promise((r) => (ws.onopen = r));
+  } catch (e) {
+    // Don't leave it running: it would keep the test run from ending.
+    proc.kill();
+    rmSync(profile, { recursive: true, force: true, maxRetries: 5 });
+    throw e;
+  }
 
   let id = 0;
   const pending = {};
