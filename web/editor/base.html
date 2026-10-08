@@ -27,7 +27,7 @@
       <button type="button" class="mx-3 mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-500 ring-1 ring-stone-200 hover:text-stone-900" @click="$store.cv.paletteOpen = true">
         {{ icon "search" "size-4" }}
         Search
-        <kbd class="ml-auto font-sans text-xs text-stone-400">⌘K</kbd>
+        <kbd class="ml-auto font-sans text-xs text-stone-500">⌘K</kbd>
       </button>
       <nav class="flex-1 space-y-0.5 px-3" aria-label="Main">
         {{ range .Nav }}
@@ -35,17 +35,13 @@
             href="{{ .URL }}"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-600 hover:bg-stone-50 hover:text-stone-900{{ end }}"
             {{ if .Active }}aria-current="page"{{ end }}>
-            {{ icon .Icon (cond .Active "size-5 text-accent" "size-5 text-stone-400") }}
+            {{ icon .Icon (cond .Active "size-5 text-accent" "size-5 text-stone-500") }}
             {{ .Name }}
           </a>
         {{ end }}
       </nav>
-      <div class="space-y-3 border-t border-stone-100 p-4" x-cloak x-show="$store.cv.state">
-        {{ template "cv-switcher" . }}
-        {{ template "save-status" . }}
-        <template x-if="$store.cv.state?.local">
-          <button type="button" class="btn w-full py-1.5" @click="$store.cv.quit()" title="Saves your changes and stops cv-app">Quit</button>
-        </template>
+      <div class="border-t border-stone-100 p-3" x-cloak x-show="$store.cv.state">
+        {{ template "cv-menu" "sidebar" }}
       </div>
     </aside>
 
@@ -58,14 +54,8 @@
             <a href="{{ .URL }}" class="rounded-lg px-2.5 py-1.5 font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-500{{ end }}">{{ .Name }}</a>
           {{ end }}
         </nav>
-        <button type="button" class="ml-auto text-stone-500" aria-label="Search" @click="$store.cv.paletteOpen = true">{{ icon "search" "" }}</button>
-      </div>
-      <div class="flex items-center gap-3 border-t border-stone-100 px-4 py-2" x-cloak x-show="$store.cv.state">
-        {{ template "cv-switcher" . }}
-        <div class="ml-auto">{{ template "save-status" . }}</div>
-        <template x-if="$store.cv.state?.local">
-          <button type="button" class="btn py-1 text-xs" @click="$store.cv.quit()">Quit</button>
-        </template>
+        <button type="button" class="ml-auto grid size-10 place-items-center text-stone-500" aria-label="Search" @click="$store.cv.paletteOpen = true">{{ icon "search" "" }}</button>
+        <div x-cloak x-show="$store.cv.state">{{ template "cv-menu" "bar" }}</div>
       </div>
     </header>
 
@@ -78,7 +68,7 @@
             {{ with .Description }}<p class="mt-1 text-sm text-stone-500">{{ . }}</p>{{ end }}
           </div>
         {{ end }}
-        <div x-show="!$store.cv.state && !$store.cv.error" class="py-24 text-center text-sm text-stone-400">Loading…</div>
+        <div x-show="!$store.cv.state && !$store.cv.error" class="py-24 text-center text-sm text-stone-500">Loading…</div>
         <template x-if="$store.cv.state">
           <div>{{ block "main" . }}{{ end }}</div>
         </template>
@@ -95,7 +85,7 @@
       x-effect="$store.cv.paletteOpen && focusSoon($refs.q)">
       <div class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200" @click.outside="$store.cv.paletteOpen = false">
         <div class="flex items-center gap-3 border-b border-stone-100 px-4">
-          {{ icon "search" "size-5 text-stone-400" }}
+          {{ icon "search" "size-5 text-stone-500" }}
           <input
             x-ref="q"
             x-model="q"
@@ -115,10 +105,10 @@
               @mouseenter="index = i"
               @click="run(r)">
               <span class="truncate font-medium text-stone-900" x-text="r.label"></span>
-              <span class="ml-auto shrink-0 text-xs text-stone-400" x-text="r.hint"></span>
+              <span class="ml-auto shrink-0 text-xs text-stone-500" x-text="r.hint"></span>
             </li>
           </template>
-          <li x-show="!results().length" class="px-3 py-6 text-center text-sm text-stone-400">Nothing found.</li>
+          <li x-show="!results().length" class="px-3 py-6 text-center text-sm text-stone-500">Nothing found.</li>
         </ul>
       </div>
     </div>
@@ -187,6 +177,17 @@
         <h2 class="text-lg font-semibold text-stone-900">cv-app has stopped</h2>
         <p class="mt-1 text-sm text-stone-500">Your changes are saved. You can close this tab and start cv-app again any time.</p>
       </div>
+    </div>
+
+    {{/* Save status: while saving, a few seconds after, and until an error is
+         fixed. Above the item editor's buttons when that is open. */}}
+    <div
+      x-cloak
+      x-show="$store.cv.state && ($store.cv.saveStatus() === 'saving' || $store.cv.saveStatus() === 'error' || $store.cv.savedFlash)"
+      x-transition.opacity.duration.300ms
+      class="pointer-events-none fixed right-4 z-50 max-w-[calc(100vw-2rem)] rounded-xl bg-white px-3 py-1.5 shadow-md ring-1 ring-stone-200"
+      :class="$store.cv.panelOpen ? 'bottom-24' : 'bottom-4'">
+      {{ template "save-status" . }}
     </div>
 
     {{/* Notifications */}}

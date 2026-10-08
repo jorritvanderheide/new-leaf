@@ -54,17 +54,22 @@ export default async function versions({ base, shots }) {
     check(!(await version("uva-phd")).entries.includes(hidden), "Hide takes the item off this version");
     check((await version("full-cv")).entries.includes(hidden), "and leaves other versions alone");
 
-    // Reorder sections: with the buttons, and by dragging.
-    const before = await page.js(`${W}.shownSections()`);
-    await page.js(`document.querySelector('[aria-label="Move ${await page.js(`Alpine.store('cv').sectionName(${JSON.stringify(before[0])})`)} down"]').click()`);
+    // Undo and redo: the hide comes back, and goes again with ⇧⌘Z.
+    await page.js("document.querySelector('button[aria-label=Undo]').click()");
+    await page.until(`${W}.selected.includes(${JSON.stringify(hidden)})`, "undone", 3000);
     await sleep(1200);
-    const order1 = (await version("uva-phd")).order;
-    check(order1.indexOf(before[1]) < order1.indexOf(before[0]), `${before[1]} moved above ${before[0]}`);
+    check((await version("uva-phd")).entries.includes(hidden), "Undo brings a hidden item back, and saves that");
+    await page.key("z", 4 | 8); // Shift+Meta
+    await page.until(`!${W}.selected.includes(${JSON.stringify(hidden)})`, "redone", 3000);
+    check(true, "⇧⌘Z redoes it");
+
+    // Reorder sections by dragging.
+    const before = await page.js(`${W}.shownSections()`);
     await page.js(`(() => {
-      const cards = [...document.querySelectorAll('aside[aria-label=Outline] > div')];
+      const cards = [...document.querySelectorAll('aside[aria-label=Outline] [data-handle]')].map((h) => h.closest('.card'));
       const last = cards[cards.length - 1], top = cards[0];
       const dt = new DataTransfer();
-      last.querySelector('[title="Drag to reorder"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      last.querySelector('[data-handle]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       return Alpine.nextTick(() => {
         last.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
         top.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
@@ -74,8 +79,30 @@ export default async function versions({ base, shots }) {
     await sleep(1200);
     const shown = await page.js(`${W}.shownSections()`);
     check(shown[0] === before[before.length - 1], `dragged ${shown[0]} to the top`);
+    check((await version("uva-phd")).order.find((s) => shown.includes(s)) === shown[0], "the new order is saved");
     await rendered();
     check((await page.js("document.querySelector('[x-ref=pages] [role=button]').getAttribute('aria-label')")) !== first, "the preview follows the new order");
+    await page.js("document.querySelector('button[aria-label=Undo]').click()");
+    await page.until(`${W}.shownSections()[0] === ${JSON.stringify(before[0])}`, "drag undone", 3000);
+    check(true, "Undo takes a whole drag back in one step");
+
+    // Look: colour and font, saved with the version; a default for new ones.
+    await page.click("button", "Look");
+    await page.until("!!document.querySelector('[role=dialog][aria-label=Look]').offsetParent", "look menu", 3000);
+    await page.js("document.querySelector('button[aria-label=Crimson]').click()");
+    await page.click("[aria-label=Font] button", "Serif");
+    await sleep(1500);
+    const look = (await version("uva-phd")).theme;
+    check(look.accent === "#b91c1c" && look.font === "serif", "the look is saved: " + JSON.stringify(look));
+    await rendered();
+    check(await page.js(`${W}.pages > 0`), "the preview renders in the new look");
+    await page.click("[role=dialog][aria-label=Look] button", "Use look and section order for new versions");
+    await page.until("Alpine.store('cv').state.profile.theme?.font === 'serif'", "default look", 5000);
+    const fresh = (await api(base, "POST", "/api/versions", { name: "Look check" })).versions.find((v) => v.id === "look-check");
+    check(fresh.theme.accent === "#b91c1c" && fresh.theme.font === "serif", "new versions start with the default look");
+    await api(base, "DELETE", "/api/versions/look-check");
+    const profile = (await state()).profile;
+    await api(base, "PUT", "/api/profile", { ...profile, theme: {} });
 
     // The overview: duplicate, delete, undo.
     await page.go(base + "/");

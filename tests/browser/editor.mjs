@@ -23,7 +23,9 @@ export default async function editor({ base, shots }) {
     await page.until(stateHas(`s.items.some((i) => i.text.en.title === ${JSON.stringify(title + " (autosaved)")})`), "autosave", 8000);
     check(true, "item title autosaved without a Save button");
     await page.until("document.body.textContent.includes('Saved ✓')", "saved status", 5000);
-    check(true, "sidebar shows Saved ✓");
+    check(true, "Saved ✓ shows in the corner");
+    await page.until("!document.body.textContent.includes('Saved ✓') || !document.querySelector('[x-show*=savedFlash]').checkVisibility()", "Saved ✓ fades", 6000);
+    check(true, "and fades after a few seconds");
 
     // An invalid year is explained and not saved.
     await page.type("input[aria-label='Start year']", "20");
@@ -75,8 +77,9 @@ export default async function editor({ base, shots }) {
     const C = "Alpine.$data(document.querySelector('[x-data=workspace]'))";
     await page.until(`${C} && !${C}.loading && document.querySelectorAll('[x-ref=pages] canvas').length > 0`, "preview", 30000);
     check(await page.js("document.documentElement.scrollHeight <= innerHeight + 1"), "compose fits the window");
-    await page.js(C + ".fitPages = 1");
-    await page.click("button", "Fit to");
+    await page.js(C + ".pagesOpen = true");
+    await sleep(300);
+    await page.click("[aria-label='Fit on'] button", "1");
     await page.until(`!${C}.fitting`, "fit", 60000);
     await sleep(1500);
     await page.until(`!${C}.loading`, "rerender", 30000);

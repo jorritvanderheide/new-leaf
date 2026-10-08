@@ -18,7 +18,7 @@
       <template x-for="section in $store.cv.sections()" :key="section">
         <section class="card overflow-hidden">
           <div class="flex items-center justify-between px-5 py-3" :class="$store.cv.items(section).length && 'border-b border-stone-100'">
-            <h2 class="text-sm font-semibold" :class="!$store.cv.items(section).length && 'text-stone-400'" x-text="$store.cv.sectionName(section)"></h2>
+            <h2 class="text-sm font-semibold" :class="!$store.cv.items(section).length && 'text-stone-500'" x-text="$store.cv.sectionName(section)"></h2>
             <button type="button" class="btn py-1.5" @click="add(section)" :aria-label="'Add to ' + $store.cv.sectionName(section)">
               {{ icon "plus" "size-4" }}
               Add
@@ -41,7 +41,7 @@
                     <template x-for="l in $store.cv.state.langs" :key="l">
                       <span
                         class="rounded px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase"
-                        :class="$store.cv.missing(item, l) ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-500'"
+                        :class="$store.cv.missing(item, l) ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-600'"
                         :title="$store.cv.missing(item, l) ? 'No ' + $store.cv.langName(l) + ' text yet' : ''"
                         x-text="l"></span>
                     </template>

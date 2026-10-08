@@ -174,9 +174,13 @@ var icons = map[string]string{
 	"search":  `<circle cx="8.75" cy="8.75" r="5"/><path d="m12.5 12.5 4 4"/>`,
 	"close":   `<path d="m5.5 5.5 9 9M14.5 5.5l-9 9"/>`,
 	"warn":    `<path d="M10 3.5 17 16H3z"/><path d="M10 8.5v3M10 13.75h.01" stroke-width="2"/>`,
+	"updown":  `<path d="m6.5 7.5 3.5-3.5 3.5 3.5M6.5 12.5l3.5 3.5 3.5-3.5"/>`,
+	"match":   `<circle cx="10" cy="10" r="6.25"/><circle cx="10" cy="10" r="2.75"/><path d="M10 1.75v2.5M10 15.75v2.5M1.75 10h2.5M15.75 10h2.5"/>`,
 	"plus":    `<path d="M10 4.5v11M4.5 10h11"/>`,
 	"back":    `<path d="M11.5 5 6.5 10l5 5"/>`,
 	"grip":    `<path d="M7.5 5h.01M12.5 5h.01M7.5 10h.01M12.5 10h.01M7.5 15h.01M12.5 15h.01" stroke-width="2.4"/>`,
+	"undo":    `<path d="M7 5.5 3.75 8.75 7 12"/><path d="M4 8.75h7.5a4.25 4.25 0 0 1 0 8.5H9"/>`,
+	"redo":    `<path d="m13 5.5 3.25 3.25L13 12"/><path d="M16 8.75H8.5a4.25 4.25 0 0 0 0 8.5H11"/>`,
 	"trash":   `<path d="M4 5.75h12M8.25 5.75V4h3.5v1.75M5.75 5.75l.75 10.5h7l.75-10.5"/>`,
 }
 

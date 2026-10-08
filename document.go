@@ -26,6 +26,14 @@ type Document struct {
 	Summary  Rich         `json:"summary"`
 	Photo    string       `json:"photo,omitempty"` // file name next to the document
 	Sections []DocSection `json:"sections"`
+	Theme    DocTheme     `json:"theme"`
+}
+
+// DocTheme is a Theme as a template uses it, defaults filled in.
+type DocTheme struct {
+	Accent string `json:"accent"` // #rrggbb
+	Font   string `json:"font"`   // font family
+	Photo  string `json:"photo"`  // rounded, circle or square
 }
 
 type Contact struct {
@@ -98,11 +106,13 @@ var (
 func BuildDocument(p Profile, items []Item, opt PrintOptions, photo string) Document {
 	lang := opt.Lang
 	pt := p.Text[lang]
+	theme := opt.Theme.Resolved()
 	doc := Document{
 		Lang: lang, Spacing: cmp.Or(opt.Spacing, 1), Name: p.Name, Headline: pt.Headline,
 		Summary: markdownRich(pt.Summary),
 		// Empty lists, not null: templates iterate over them.
 		Contacts: []Contact{}, Sections: []DocSection{},
+		Theme: DocTheme{Accent: theme.Accent, Font: theme.font().Typst, Photo: theme.Photo},
 	}
 	if opt.Photo {
 		doc.Photo = photo

@@ -126,6 +126,43 @@ export async function openPage({ width = 1440, height = 900, shots } = {}) {
       return send("Input.dispatchKeyEvent", { type: "keyDown", key: k, code, modifiers, windowsVirtualKeyCode: vk });
     },
 
+    // lowContrast lists visible text below the WCAG AA contrast (4.5:1, or
+    // 3:1 for large text) against what is behind it. Disabled controls and
+    // placeholders are exempt, as in WCAG.
+    lowContrast() {
+      return page.js(`(() => {
+        const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+        const rgba = (css) => { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = '#000'; ctx.fillStyle = css; ctx.fillRect(0, 0, 1, 1); const d = ctx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; };
+        const lum = ([r, g, b]) => [r, g, b].map((c) => c / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)).reduce((s, c, i) => s + c * [0.2126, 0.7152, 0.0722][i], 0);
+        const over = (top, below) => top.slice(0, 3).map((c, i) => c * top[3] + below[i] * (1 - top[3]));
+        const background = (el) => {
+          const layers = [];
+          for (let e = el; e; e = e.parentElement) {
+            const bg = rgba(getComputedStyle(e).backgroundColor);
+            if (bg[3] > 0) layers.push(bg);
+            if (bg[3] >= 1) break;
+          }
+          return layers.reduceRight((below, top) => over(top, below), [255, 255, 255]);
+        };
+        const out = [];
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const el = n.parentElement;
+          if (!n.textContent.trim() || !el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+          if (el.closest('[disabled], [aria-disabled=true], [aria-hidden=true], option, script, style')) continue;
+          const style = getComputedStyle(el);
+          const bg = background(el);
+          const fg = over(rgba(style.color), bg);
+          const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+          const ratio = (a + 0.05) / (b + 0.05);
+          const size = parseFloat(style.fontSize), bold = +style.fontWeight >= 700;
+          const need = size >= 24 || (size >= 18.66 && bold) ? 3 : 4.5;
+          if (ratio < need - 0.05) out.push(n.textContent.trim().slice(0, 30) + ' ' + ratio.toFixed(2));
+        }
+        return [...new Set(out)];
+      })()`);
+    },
+
     async shot(name, clip) {
       if (!shots) return;
       const res = await send("Page.captureScreenshot", { format: "png", ...(clip && { clip: { ...clip, scale: 1 } }) });

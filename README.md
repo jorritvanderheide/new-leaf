@@ -80,15 +80,25 @@ PDFs. `cv-app -h` and `cv-app serve -h` list the options. A backup of a CV
   runtime dependency is the `typst` binary.
 - **Versions**: each version selects items and orders sections; items and
   the profile are shared by all of them. A new item joins the versions that
-  hold every item, such as "Full CV". In a version's preview, items can be
-  clicked to edit them (Typst reports where each item lands) or hidden.
+  hold every item, such as "Full CV". Typst reports where each item lands,
+  so items in the preview can be clicked to edit or hide them, the item
+  list shows where pages break, and the page count says how many lines it
+  is over (or under) the pages to fit on. Each version has a look: accent
+  colour (with a warning when it is too pale to read), sans or serif (Inter,
+  Source Serif 4), photo shape and spacing, for the PDF and the share page
+  alike. The overview shows page 1 of each version, rendered in the
+  background into the work directory.
+- **Vacancy matching**: paste a job ad into a version to see which items
+  share its words and which of its words the CV lacks. It runs in the
+  browser and is not saved.
 - **Share links**: sharing a version publishes it as static files into a
   webroot that a public web server serves, in every language with a toggle
   (the chosen language at `/<slug>/`, others at `/<slug>/<lang>/`), each
   with its PDF. The link follows the version as it changes. Items that
   weren't selected never reach that webroot. Links get a random suffix and
-  `noindex` headers, and disappear within five minutes of the start of
-  their expiry day (Europe/Amsterdam).
+  `noindex` headers. A link has an end date or none; with one, it
+  disappears within five minutes of the start of that day
+  (Europe/Amsterdam).
 
 ## Layout
 
@@ -96,6 +106,7 @@ PDFs. `cv-app -h` and `cv-app serve -h` list the options. A backup of a CV
 main.go api.go auth.go store.go        server, API, tailnet identity, content files
 cvs.go                                which CVs exist; creating, renaming, deleting
 versions.go                           versions of a CV; the first ones made from older data
+thumbs.go  theme.go                   overview thumbnails; looks (colour, font, photo shape)
 document.go                           a CV for one selection and language (sorted, localised, Markdown parsed)
 typst.go  share.go  publish.go        PDF, share pages, publishing into the webroot
 local.go  backup.go                   local mode; backup and restore
@@ -147,5 +158,5 @@ by git, so until the first commit use `path:.` (e.g. `nix run path:.#dev`).
 ## License
 
 [EUPL-1.2](LICENSE). Bundled: Alpine.js (MIT), pdf.js (Apache-2.0) and the
-Inter typeface (SIL Open Font License 1.1); their licenses are next to them
-under `web/`.
+Inter and Source Serif 4 typefaces (SIL Open Font License 1.1); their
+licenses are next to them under `web/`.

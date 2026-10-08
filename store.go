@@ -90,7 +90,8 @@ type Profile struct {
 	Website string                 `json:"website"`
 	Links   []ProfileLink          `json:"links"` // e.g. LinkedIn, Google Scholar
 	Photo   bool                   `json:"photo"`
-	Order   []string               `json:"order"` // section order on the CV
+	Order   []string               `json:"order"` // default section order for new versions
+	Theme   Theme                  `json:"theme"` // default look for new versions
 	Text    map[string]ProfileText `json:"text"`
 }
 
@@ -102,6 +103,7 @@ type profileFile struct {
 	Website     string        `yaml:"website,omitempty"`
 	Links       []ProfileLink `yaml:"links,omitempty"`
 	Order       []string      `yaml:"order,omitempty"`
+	Theme       Theme         `yaml:"theme,omitempty"`
 }
 
 type ProfileLink struct {
@@ -116,6 +118,7 @@ type PrintOptions struct {
 	Photo   bool     `json:"photo"`
 	Spacing float64  `json:"spacing"`         // whitespace scale, MinSpacing..MaxSpacing; 0 means 1
 	Order   []string `json:"order,omitempty"` // section order; empty: the profile's
+	Theme   Theme    `json:"theme"`
 }
 
 const MinSpacing, MaxSpacing = 0.4, 1.4
@@ -134,6 +137,9 @@ func (o PrintOptions) Validate() error {
 			return fmt.Errorf("unknown section %q", s)
 		}
 	}
+	if err := o.Theme.Validate(); err != nil {
+		return err
+	}
 	if o.Spacing != 0 && (o.Spacing < MinSpacing || o.Spacing > MaxSpacing) {
 		return fmt.Errorf("spacing must be between %g and %g", MinSpacing, MaxSpacing)
 	}
@@ -149,14 +155,15 @@ type Link struct {
 	Spacing float64  `json:"spacing"` // as in PrintOptions
 	Order   []string `json:"order"`
 	Version string   `json:"version"` // the version it shows
-	Expires string   `json:"expires"` // YYYY-MM-DD; the link stops working at the start of this day
+	Theme   Theme    `json:"theme"`
+	Expires string   `json:"expires"` // YYYY-MM-DD, the link stops working at the start of this day; empty: never
 	Created string   `json:"created"`
 
 	files int // language files found on disk; fewer than Langs means a pre-toggle link
 }
 
 func (l Link) Print() PrintOptions {
-	return PrintOptions{Lang: l.Lang, Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order}
+	return PrintOptions{Lang: l.Lang, Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order, Theme: l.Theme}
 }
 
 type linkFile struct {
@@ -167,7 +174,8 @@ type linkFile struct {
 	Spacing    float64  `yaml:"spacing,omitempty"`
 	Order      []string `yaml:"order,omitempty"`
 	Version    string   `yaml:"version,omitempty"`
-	ExpiryDate quoted   `yaml:"expiryDate"`
+	Theme      Theme    `yaml:"theme,omitempty"`
+	ExpiryDate quoted   `yaml:"expiryDate,omitempty"` // none: the link does not expire
 	Created    quoted   `yaml:"created"`
 }
 
@@ -179,7 +187,7 @@ func (l Link) ExpiresAt() time.Time {
 	return t
 }
 
-func (l Link) Expired(now time.Time) bool { return !now.Before(l.ExpiresAt()) }
+func (l Link) Expired(now time.Time) bool { return l.Expires != "" && !now.Before(l.ExpiresAt()) }
 
 // quoted forces YAML double quotes, so "2023-09" and "2026-12-01" stay
 // strings for every YAML parser instead of becoming dates.
@@ -238,7 +246,7 @@ func (s *Store) Profile(user string) (Profile, error) {
 		if !shared {
 			shared = true
 			p.Name, p.Email, p.Phone, p.Website = f.Name, f.Email, f.Phone, f.Website
-			p.Links, p.Order = f.Links, f.Order
+			p.Links, p.Order, p.Theme = f.Links, f.Order, f.Theme
 		}
 		f.ProfileText.Summary = body
 		p.Text[lang] = f.ProfileText
@@ -252,6 +260,9 @@ func (s *Store) Profile(user string) (Profile, error) {
 }
 
 func (p Profile) Validate() error {
+	if err := p.Theme.Validate(); err != nil {
+		return err
+	}
 	for _, u := range append([]string{p.Website}, linkURLs(p.Links)...) {
 		if u = strings.TrimSpace(u); u != "" && !urlRe.MatchString(u) {
 			return fmt.Errorf("%q is not a URL starting with http:// or https://", u)
@@ -284,6 +295,7 @@ func (s *Store) SaveProfile(user string, p Profile) error {
 			Name: clean(p.Name), Email: clean(p.Email), Phone: clean(p.Phone),
 			Website: clean(p.Website), Links: links,
 			Order:       SectionOrder(p.Order),
+			Theme:       p.Theme,
 			ProfileText: ProfileText{Headline: clean(t.Headline), Location: clean(t.Location)},
 		}
 		if err := writeMarkdown(filepath.Join(s.dir(user), "_index."+lang+".md"), f, t.Summary); err != nil {
@@ -504,7 +516,7 @@ func (s *Store) Links(user string) ([]Link, error) {
 		// single file, which is then that language.
 		if l.Lang == "" || f.URL == "/"+slug+"/" {
 			*l = Link{
-				Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing, Order: f.Order, Version: f.Version,
+				Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing, Order: f.Order, Version: f.Version, Theme: f.Theme,
 				Expires: string(f.ExpiryDate), Created: string(f.Created), files: l.files,
 			}
 		}
@@ -539,7 +551,7 @@ func (l Link) Validate() error {
 	if !idRe.MatchString(l.Slug) {
 		return fmt.Errorf("invalid slug %q", l.Slug)
 	}
-	if !dayRe.MatchString(l.Expires) {
+	if l.Expires != "" && !dayRe.MatchString(l.Expires) {
 		return errors.New("expiry must be a date (YYYY-MM-DD)")
 	}
 	if len(l.Entries) == 0 {
@@ -555,7 +567,7 @@ func (s *Store) SaveLink(user string, l Link) error {
 	for _, lang := range Langs {
 		f := linkFile{
 			Title: clean(l.Label), URL: "/" + filepath.ToSlash(l.LinkDir(lang)) + "/",
-			Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order, Version: l.Version,
+			Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order, Version: l.Version, Theme: l.Theme,
 			ExpiryDate: quoted(l.Expires), Created: quoted(l.Created),
 		}
 		if err := writeMarkdown(filepath.Join(s.dir(user), "links", l.Slug+"."+lang+".md"), f, ""); err != nil {

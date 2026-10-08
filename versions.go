@@ -22,6 +22,7 @@ type Version struct {
 	Name string `json:"name"`
 	PrintOptions
 	Pages   int    `json:"pages"`   // page count at the last preview, for the overview
+	Fit     int    `json:"fit"`     // the page count to fit on, 1 to 4; 0 means 2
 	Created string `json:"created"` // YYYY-MM-DD
 	Updated string `json:"updated"` // RFC 3339
 }
@@ -30,6 +31,7 @@ type versionFile struct {
 	Name string `json:"name"`
 	PrintOptions
 	Pages   int    `json:"pages,omitempty"`
+	Fit     int    `json:"fit,omitempty"`
 	Created string `json:"created"`
 	Updated string `json:"updated"`
 }
@@ -46,6 +48,9 @@ func (v Version) Validate() error {
 	}
 	if clean(v.Name) == "" {
 		return errors.New("give the version a name")
+	}
+	if v.Fit < 0 || v.Fit > 4 {
+		return errors.New("fit on 1 to 4 pages")
 	}
 	if v.Pages < 0 || v.Pages > 99 {
 		return errors.New("invalid page count")
@@ -90,7 +95,7 @@ func (s *Store) readVersion(path string) (Version, error) {
 	if f.Entries == nil {
 		f.Entries = []string{}
 	}
-	return Version{Name: f.Name, PrintOptions: f.PrintOptions, Pages: f.Pages, Created: f.Created, Updated: f.Updated}, nil
+	return Version{Name: f.Name, PrintOptions: f.PrintOptions, Pages: f.Pages, Fit: f.Fit, Created: f.Created, Updated: f.Updated}, nil
 }
 
 func (s *Store) Version(user, id string) (Version, error) {
@@ -115,7 +120,7 @@ func (s *Store) SaveVersion(user string, v Version) error {
 	}
 	v.Order = SectionOrder(v.Order)
 	data, err := json.MarshalIndent(versionFile{
-		Name: v.Name, PrintOptions: v.PrintOptions, Pages: v.Pages, Created: v.Created, Updated: v.Updated,
+		Name: v.Name, PrintOptions: v.PrintOptions, Pages: v.Pages, Fit: v.Fit, Created: v.Created, Updated: v.Updated,
 	}, "", "  ")
 	if err != nil {
 		return err
@@ -186,7 +191,7 @@ func (s *Store) EnsureVersions(user string) error {
 
 	full := Version{
 		ID: "full-cv", Name: "Full CV", Created: today, Updated: stamp,
-		PrintOptions: PrintOptions{Lang: Langs[0], Photo: profile.Photo, Spacing: 1, Order: profile.Order, Entries: []string{}},
+		PrintOptions: PrintOptions{Lang: Langs[0], Photo: profile.Photo, Spacing: 1, Order: profile.Order, Theme: profile.Theme, Entries: []string{}},
 	}
 	for _, it := range items {
 		full.Entries = append(full.Entries, it.Section+"/"+it.ID)

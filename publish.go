@@ -80,6 +80,9 @@ func (s *Server) publishLink(ctx context.Context, user string, l Link) error {
 	if err := s.syncAssets(); err != nil {
 		return err
 	}
+	if err := s.syncTheme(l.Theme); err != nil {
+		return err
+	}
 	if s.isPublished(l, pages) {
 		return nil
 	}
@@ -170,6 +173,22 @@ func (s *Server) syncAssets() error {
 		}
 	}
 	return nil
+}
+
+// syncTheme writes a theme's stylesheet, once: its name changes with it.
+func (s *Server) syncTheme(t Theme) error {
+	name, data := t.css()
+	dst := filepath.Join(s.publicDir, filepath.FromSlash(name))
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	if err := writeAtomic(dst, data); err != nil {
+		return err
+	}
+	return os.Chmod(dst, 0o644)
 }
 
 // reconcile makes the webroot contain exactly the active links of all users.

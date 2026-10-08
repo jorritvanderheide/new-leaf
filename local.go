@@ -84,6 +84,7 @@ func local(args []string) {
 		store:  store,
 		typst:  typst,
 		assets: assets,
+		work:   filepath.Join(cache, "cv-app"),
 		auth:   &Auth{DevUser: name, CVs: NewRegistry(store, nil, true)},
 		local:  true,
 		quit:   stop,

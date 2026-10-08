@@ -1,7 +1,7 @@
 // Local mode (cv-app without "serve"): versions without sharing, backups,
-// Quit.
+// Quit (in the CV menu).
 
-import { check, openPage } from "./lib.mjs";
+import { check, openPage, sleep } from "./lib.mjs";
 
 export default async function local({ base, shots }) {
   const page = await openPage({ shots });
@@ -19,7 +19,9 @@ export default async function local({ base, shots }) {
     const res = await fetch(base + "/api/export");
     check(res.ok && res.headers.get("content-type") === "application/zip", "backup downloads as zip");
 
-    await page.click("button", "Quit");
+    await page.js("document.querySelector('body > aside [aria-haspopup=menu]').click()");
+    await sleep(300);
+    await page.click("[role=menu] button", "Quit cv-app");
     await page.until("Alpine.store('cv').stopped", "stopped screen", 5000);
     let stopped = false;
     for (let i = 0; i < 20 && !stopped; i++) {

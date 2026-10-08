@@ -15,6 +15,57 @@ const SECTION_NAMES = {
   volunteering: "Volunteering",
 };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// Accent colours to pick from; the first is the default (theme.go).
+const ACCENTS = [
+  { name: "Teal", hex: "#00696a" },
+  { name: "Blue", hex: "#1d4ed8" },
+  { name: "Indigo", hex: "#4f46e5" },
+  { name: "Plum", hex: "#86198f" },
+  { name: "Crimson", hex: "#b91c1c" },
+  { name: "Amber", hex: "#b45309" },
+  { name: "Green", hex: "#15803d" },
+  { name: "Graphite", hex: "#44403c" },
+];
+const resolveTheme = (t) => ({ accent: (t?.accent || ACCENTS[0].hex).toLowerCase(), font: t?.font || "sans", photo: t?.photo || "rounded" });
+
+// Vacancy matching: words of four letters or more, without common English
+// and Dutch words, compared on their first five letters so that "manage",
+// "manager" and "management" meet.
+const STOPWORDS = new Set(
+  (
+    "about above after again also among and any are been before being below between both but can could did does doing down during each " +
+    "else even ever every few for from further had has have having here how into its itself just least less like made make many may " +
+    "more most much must near need next not now off once only other our ours out over own per same shall should since some such than " +
+    "that the their them then there these they this those through too under until upon very was were what when where which while who " +
+    "whom why will with within without would you your yours able across work working works team teams role roles candidate candidates " +
+    "position job jobs apply application offer offers looking good great strong well years year including include based using " +
+    "aan aangezien alle alleen als altijd ander andere anders bij binnen daar daarom dan dat deze die dit doen door echter een eigen " +
+    "elke enige enkele enz geen hebben heeft hem hen het hier hij hoe hun iemand iets jaar jaren jij jou jouw jullie kan kunnen kun " +
+    "maar meer men met mij mijn moet moeten naar niet niets nog onder ons onze ook over omdat sinds tegen tot tussen uit veel voor " +
+    "waar want was wat welke werd werk werken wie wij wil willen word worden wordt zal zelf zich zijn zoals zonder zou zullen functie " +
+    "functies vacature kandidaat bieden biedt ervaring goede goed graag jouw sterke vereist vereisten pluspunt kennis " +
+    "experience experienced required requirements require look plus must nice skills knowledge ideal ideally preferably " +
+    "please send apply join opportunity responsibilities responsible"
+  ).split(" "),
+);
+const stem = (word) => (word.length > 5 ? word.slice(0, 5) : word);
+// Words of four letters or more, and acronyms like SQL or PhD.
+const terms = (text) =>
+  ((text || "").match(/[\p{L}\p{N}][\p{L}\p{N}+#.-]*[\p{L}\p{N}+#]|\p{L}/gu) || [])
+    .filter((w) => (w.length >= 4 && !STOPWORDS.has(w.toLowerCase())) || (w.length <= 3 && (w.match(/\p{Lu}/gu) || []).length >= 2))
+    .map((w) => w.toLowerCase());
+
+// WCAG contrast of a colour against white.
+const luminance = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrastOnWhite = (hex) => 1.05 / (luminance(hex) + 0.05);
+const darker = (hex, amount) =>
+  "#" + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - amount)).toString(16).padStart(2, "0")).join("");
+
+// Where a page's content ends, in pt: A4 with the margins of cv.typ.
+const PAGE = { top: 45.35, bottom: 799.37, line: 13 };
 const PAGES = [
   { label: "Versions", url: "/" },
   { label: "Items", url: "/items/" },
@@ -130,6 +181,7 @@ const itemEditor = () => ({
 
   initEditor() {
     this._saver = autosaver(this.$store.cv, () => this.persist());
+    this.$watch("form", (form) => (this.$store.cv.panelOpen = !!form));
   },
 
   openKey(key) {
@@ -250,6 +302,9 @@ const itemEditor = () => ({
 // reactive data, which would wrap them.
 const canvases = new Map();
 
+// The items' word stems for vacancy matching, by content revision.
+let stems = { rev: -1, index: {} };
+
 document.addEventListener("alpine:init", () => {
   Alpine.store("cv", {
     state: null,
@@ -260,6 +315,8 @@ document.addEventListener("alpine:init", () => {
     saveError: "", // the last autosave failed
     invalid: "", // input that is not saved until fixed
     savedAt: 0,
+    savedFlash: false, // "Saved" shows for a moment after a save
+    panelOpen: false, // the item editor is open
     toast: null, // { message, action?: { label, run } }
     paletteOpen: false,
     manageOpen: false,
@@ -318,6 +375,9 @@ document.addEventListener("alpine:init", () => {
         this.setState(await (await api(method, path, body, { keepalive: true })).json());
         this.saveError = "";
         this.savedAt = Date.now();
+        this.savedFlash = true;
+        clearTimeout(this._flashTimer);
+        this._flashTimer = setTimeout(() => (this.savedFlash = false), 2500);
         return true;
       } catch (e) {
         this.saveError = e.message;
@@ -387,6 +447,16 @@ document.addEventListener("alpine:init", () => {
     },
 
     langName: (lang) => LANG_NAMES[lang] || lang,
+
+    cvName() {
+      return this.state?.cvs.find((cv) => cv.id === this.state.user)?.name || this.state?.user || "";
+    },
+
+    // "Alice Example" -> "AE"
+    initials() {
+      const words = this.cvName().split(/[\s-]+/).filter(Boolean);
+      return (words.length > 1 ? words[0][0] + words[words.length - 1][0] : this.cvName().slice(0, 2)).toUpperCase();
+    },
 
     // "2026-11-07" -> "7 Nov 2026"
     day(date) {
@@ -548,6 +618,19 @@ document.addEventListener("alpine:init", () => {
     name: "",
     from: "",
 
+    // Thumbnails are made in the background after a change: look again
+    // until they are all there, for at most half a minute.
+    async waitForThumbs() {
+      for (let i = 0; i < 20 && this.$store.cv.state.versions.some((v) => !v.thumb); i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        try {
+          this.$store.cv.setState(await (await api("GET", "/api/state")).json());
+        } catch {
+          return;
+        }
+      }
+    },
+
     openNew() {
       Object.assign(this, { creating: true, name: "", from: "" }); // focus: see x-effect
     },
@@ -594,6 +677,12 @@ document.addEventListener("alpine:init", () => {
     spacing: 1, // whitespace scale for the PDF, 0.4 (tight) to 1.4 (airy)
     selected: [],
     order: [], // sections, in this version's order
+    theme: { accent: "", font: "", photo: "" }, // empty: the default
+    lookOpen: false,
+    pagesOpen: false,
+    vacancyOpen: false,
+    vacancy: "", // pasted job ad, never saved
+    accents: ACCENTS,
     pages: null,
     fitPages: 2,
     fitting: false,
@@ -604,7 +693,9 @@ document.addEventListener("alpine:init", () => {
     hover: null, // item key under the pointer, in the outline or the preview
     grab: null, // section whose handle is held
     dragging: null, // section being dragged
-    share: { open: false, expires: "" },
+    share: { open: false, expires: "", forever: false },
+    undoStack: [], // settings to go back to, as snapshot() strings
+    redoStack: [],
 
     init() {
       this.initEditor();
@@ -620,7 +711,9 @@ document.addEventListener("alpine:init", () => {
         spacing: v.spacing || 1,
         selected: v.entries.filter((k) => existing.has(k)),
         order: [...(v.order?.length ? v.order : st.profile.order)],
+        theme: { accent: "", font: "", photo: "", ...v.theme },
         pages: v.pages || null,
+        fitPages: v.fit || 2,
       });
       this._savedPages = v.pages;
       this._versionSaver = autosaver(this.$store.cv, () =>
@@ -631,7 +724,9 @@ document.addEventListener("alpine:init", () => {
           spacing: this.spacing,
           entries: this.selected,
           order: this.order,
+          theme: this.theme,
           pages: (this._savedPages = this.pages || 0),
+          fit: this.fitPages,
         }),
       );
       document.title = `${v.name} · CV`;
@@ -640,6 +735,7 @@ document.addEventListener("alpine:init", () => {
         this._versionSaver.schedule();
       });
       this.$watch(() => this.$store.cv.contentRev, () => this.rerender());
+      this.$watch("fitPages", () => this._versionSaver.schedule());
       const key = new URLSearchParams(location.search).get("edit");
       if (key) this.openKey(key);
     },
@@ -653,11 +749,64 @@ document.addEventListener("alpine:init", () => {
     },
 
     // Called from x-effect when a setting changes, and once on load, when
-    // there is nothing to save yet.
+    // there is nothing to save yet. Only the snapshot is taken inside the
+    // effect: what follows reads and writes state, which would run it again.
     settingsChanged() {
-      if (this._loaded) this._versionSaver.schedule();
-      this._loaded = true;
-      this.rerender();
+      const now = this.snapshot();
+      queueMicrotask(() => {
+        if (this._loaded) {
+          this._versionSaver.schedule();
+          this.remember(now);
+        }
+        this._snap = now;
+        this._loaded = true;
+        this.rerender();
+      });
+    },
+
+    // What undo restores: the version's settings. Not its name, which as a
+    // text field has an undo of its own.
+    snapshot() {
+      return JSON.stringify({ lang: this.lang, photo: this.photo, spacing: this.spacing, selected: this.selected, order: this.order, theme: this.theme });
+    },
+
+    // remember keeps the settings from before a change. Changes in quick
+    // succession, like one drag or one slide, are one step.
+    remember(now) {
+      if (now === this._snap) return; // an undo or redo itself
+      if (!this._grouping) {
+        this.undoStack.push(this._snap);
+        this.redoStack = [];
+      }
+      this._grouping = true;
+      clearTimeout(this._groupTimer);
+      this._groupTimer = setTimeout(() => (this._grouping = !!this.dragging), 800);
+    },
+
+    undo() {
+      this.step(this.undoStack, this.redoStack);
+    },
+
+    redo() {
+      this.step(this.redoStack, this.undoStack);
+    },
+
+    step(from, to) {
+      if (!from.length) return;
+      clearTimeout(this._groupTimer);
+      this._grouping = false;
+      to.push(this._snap);
+      this._snap = from.pop();
+      Object.assign(this, JSON.parse(this._snap));
+    },
+
+    // ⌘Z / Ctrl+Z, and with Shift to redo; text fields keep their own.
+    undoKey(event) {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
+      if (event.target.closest?.("textarea, select, input:not([type=checkbox]):not([type=range])")) return;
+      event.preventDefault();
+      if (event.shiftKey) this.redo();
+      else this.undo();
     },
 
     // A new item from the outline goes on this version.
@@ -677,7 +826,7 @@ document.addEventListener("alpine:init", () => {
         fetch(path, {
           method: "POST",
           headers: { "X-CV-App": "1", "Content-Type": "application/json" },
-          body: JSON.stringify({ lang: this.lang, entries: this.selected, photo: this.photo, spacing: this.spacing, order: this.order }),
+          body: JSON.stringify({ lang: this.lang, entries: this.selected, photo: this.photo, spacing: this.spacing, order: this.order, theme: this.theme }),
           signal: abort.signal,
         });
       this.loading = true;
@@ -775,17 +924,6 @@ document.addEventListener("alpine:init", () => {
       return this.order.filter((s) => !this.$store.cv.items(s).length);
     },
 
-    // move swaps a section with its shown neighbour.
-    move(section, step) {
-      const shown = this.shownSections();
-      const other = shown[shown.indexOf(section) + step];
-      const order = [...this.order];
-      const a = order.indexOf(section);
-      const b = order.indexOf(other);
-      [order[a], order[b]] = [order[b], order[a]];
-      this.order = order;
-    },
-
     dragStart(event, section) {
       this.dragging = section;
       event.dataTransfer.effectAllowed = "move";
@@ -803,6 +941,7 @@ document.addEventListener("alpine:init", () => {
     },
 
     dragEnd() {
+      this._grouping = false; // the drag was one step
       this.dragging = null;
       this.grab = null;
     },
@@ -816,6 +955,7 @@ document.addEventListener("alpine:init", () => {
           entries: this.selected,
           photo: this.photo,
           order: this.order,
+          theme: this.theme,
           pages: this.fitPages,
         });
         const fit = await res.json();
@@ -828,6 +968,136 @@ document.addEventListener("alpine:init", () => {
       } finally {
         this.fitting = false;
       }
+    },
+
+    resolvedTheme() {
+      return resolveTheme(this.theme);
+    },
+
+    // The profile holds what new versions start with: a look and an order.
+    isDefault() {
+      const p = this.$store.cv.state.profile;
+      return JSON.stringify(resolveTheme(p.theme)) === JSON.stringify(this.resolvedTheme()) && p.order.join() === this.order.join();
+    },
+
+    makeDefault() {
+      const profile = JSON.parse(JSON.stringify(this.$store.cv.state.profile));
+      return this.$store.cv.send("PUT", "/api/profile", { ...profile, theme: { ...this.theme }, order: [...this.order] }, "New versions start like this one");
+    },
+
+    accentContrast() {
+      return contrastOnWhite(this.resolvedTheme().accent);
+    },
+
+    // The same colour, darkened until text in it is readable on white.
+    darkenAccent() {
+      const base = this.resolvedTheme().accent;
+      let amount = 0;
+      while (contrastOnWhite(darker(base, amount)) < 4.5 && amount < 1) amount += 0.05;
+      this.theme.accent = darker(base, amount);
+    },
+
+    fitTo(n) {
+      this.fitPages = n;
+      this.pagesOpen = false;
+      return this.fit();
+    },
+
+    // How far the content is from the page count to fit on, in lines, from
+    // where Typst put the items.
+    fitHint() {
+      if (!this.pages || !this.pageList.length || this.loading) return "";
+      const target = this.fitPages;
+      const end = (p) => Math.max(PAGE.top, ...p.marks.map((m) => m.top + m.height));
+      const lines = (pt) => Math.max(1, Math.round(pt / PAGE.line));
+      if (this.pageList.length > target) {
+        const over = this.pageList.slice(target).reduce((sum, p) => sum + end(p) - PAGE.top, 0);
+        return `~${lines(over)} lines over ${target === 1 ? "1 page" : target + " pages"}`;
+      }
+      const last = this.pageList[this.pageList.length - 1];
+      const room = PAGE.bottom - end(last) + (target - this.pageList.length) * (PAGE.bottom - PAGE.top);
+      return room < PAGE.line ? "" : `Room for ~${lines(room)} more lines`;
+    },
+
+    // Where pages start, for the outline: at a section (its first item is
+    // on a new page) or at an item within one.
+    breaks() {
+      const page = {};
+      for (const p of this.pageList) for (const m of p.marks) page[m.id] = m.page;
+      const out = { sections: {}, items: {} };
+      let last = 1;
+      for (const section of this.shownSections()) {
+        let first = true;
+        for (const item of this.$store.cv.items(section)) {
+          const n = page[itemKey(item)];
+          if (!n) continue;
+          if (n > last) (first ? out.sections : out.items)[first ? section : itemKey(item)] = n;
+          last = n;
+          first = false;
+        }
+      }
+      return out;
+    },
+
+    // Alt+↑/↓ on a section's handle; the handle keeps the focus.
+    moveSection(section, step) {
+      const shown = this.shownSections();
+      const other = shown[shown.indexOf(section) + step];
+      if (!other) return;
+      const order = [...this.order];
+      const a = order.indexOf(section);
+      const b = order.indexOf(other);
+      [order[a], order[b]] = [order[b], order[a]];
+      this.order = order;
+      this.$nextTick(() => document.querySelector(`[data-handle="${section}"]`)?.focus());
+    },
+
+    // --- vacancy matching
+
+    vacancyTerms() {
+      return [...new Set(terms(this.vacancy))];
+    },
+
+    // The vacancy's words that an item has, in either language.
+    matches(key) {
+      if (!this.vacancy.trim()) return [];
+      const index = this.itemStems();
+      const own = index[key];
+      return own ? this.vacancyTerms().filter((t) => own.has(stem(t))) : [];
+    },
+
+    matchCount() {
+      return Object.keys(this.itemStems()).filter((key) => this.matches(key).length).length;
+    },
+
+    // Frequent vacancy words that no item has.
+    missingTerms() {
+      const all = new Set(Object.values(this.itemStems()).flatMap((s) => [...s]));
+      const count = {};
+      for (const t of terms(this.vacancy)) if (!all.has(stem(t))) count[t] = (count[t] || 0) + 1;
+      return Object.entries(count)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 8)
+        .map(([t]) => t);
+    },
+
+    selectMatches() {
+      this.selected = Object.keys(this.itemStems()).filter((key) => this.matches(key).length);
+    },
+
+    // Each item's word stems, from all its text; kept until the content
+    // changes, outside Alpine's data, as it is filled while rendering.
+    itemStems() {
+      const rev = this.$store.cv.contentRev;
+      if (stems.rev !== rev) {
+        const index = {};
+        for (const item of this.$store.cv.state.items) {
+          const text = [SECTION_NAMES[item.section], ...Object.values(item.text).flatMap((t) => [t.title, t.org, t.location, t.body])].join(" ");
+          index[itemKey(item)] = new Set(terms(text).map(stem));
+        }
+        stems = { rev, index };
+      }
+      return stems.index;
     },
 
     // Selected items without text in the current language.
@@ -852,17 +1122,30 @@ document.addEventListener("alpine:init", () => {
       return `CV ${name} (${this.lang.toUpperCase()}).pdf`;
     },
 
-    openShare() {
-      const link = this.link();
-      this.share = { open: true, expires: link && !link.expired ? link.expires : addDays(this.$store.cv.state.today, 30) };
+    shared() {
+      return !!this.link() && !this.link().expired;
     },
 
-    // Shares the version until the chosen date; the dialog then shows the link.
+    // The expiry to save: a date, or none.
+    shareExpires() {
+      return this.share.forever ? "" : this.share.expires;
+    },
+
+    openShare() {
+      const link = this.shared() && this.link();
+      this.share = {
+        open: true,
+        forever: !!link && !link.expires,
+        expires: link?.expires || addDays(this.$store.cv.state.today, 30),
+      };
+    },
+
+    // Shares the version; the dialog then shows the link.
     async saveShare() {
       const st = this.$store.cv;
-      const had = this.link() && !this.link().expired;
+      const had = this.shared();
       if (!(await this._versionSaver.flush())) return;
-      await st.send("PUT", `/api/versions/${this.id}/share`, { expires: this.share.expires }, had ? "Date changed" : "");
+      await st.send("PUT", `/api/versions/${this.id}/share`, { expires: this.shareExpires() }, had ? "Saved" : "");
     },
 
     async unshare() {
@@ -902,12 +1185,6 @@ document.addEventListener("alpine:init", () => {
     incomplete(lang) {
       const t = this.form.text[lang];
       return Object.values(this.form.text).some((o) => o !== t && ["headline", "location", "summary"].some((k) => o[k] && !t[k]));
-    },
-
-    move(i, step) {
-      const order = this.form.order;
-      [order[i], order[i + step]] = [order[i + step], order[i]];
-      this.changed();
     },
 
     async upload(event) {

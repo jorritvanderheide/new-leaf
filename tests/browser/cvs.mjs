@@ -1,7 +1,7 @@
 // Managing CVs in the editor: create, switch, rename, delete. The CV from
 // the server configuration (the dev user) can't be deleted.
 
-import { api, check, openPage } from "./lib.mjs";
+import { api, check, openPage, sleep } from "./lib.mjs";
 
 export default async function cvs({ base, shots }) {
   const page = await openPage({ shots });
@@ -9,8 +9,10 @@ export default async function cvs({ base, shots }) {
   try {
     await page.go(base + "/");
     const first = await page.js("Alpine.store('cv').state.user");
-    check((await page.js("document.querySelectorAll('aside select').length")) === 0, "one CV: no switcher");
-    await page.click("aside button", "Manage CVs");
+    await page.js("document.querySelector('body > aside [aria-haspopup=menu]').click()");
+    await sleep(300);
+    check((await page.js("document.querySelectorAll('body > aside [role=menuitemradio]').length")) === 1, "one CV in the CV menu");
+    await page.click("[role=menu] button", "Manage CVs…");
     await page.until(`Alpine.store('cv').manageOpen && document.querySelector('${dialog} > div').offsetParent`, "dialog", 3000);
     check(await page.js(`document.querySelector('${dialog} button[aria-label=Delete]').disabled`), "the only CV can't be deleted");
 
@@ -22,10 +24,15 @@ export default async function cvs({ base, shots }) {
     const st = await page.js("JSON.parse(JSON.stringify(Alpine.store('cv').state))");
     check(st.items.length === 0 && st.cvs.length === 2, "the new CV is empty");
     check(JSON.stringify(st.cvs.find((c) => c.id === "bob-builder").owners) === '["bob@"]', "owners saved");
-    check((await page.js("[...document.querySelector('aside select').options].map((o) => o.text).join()")).includes("Bob Builder"), "switcher shows names");
+    await page.go(base + "/v/full-cv/");
+    check((await page.js("document.body.textContent")).includes("Start with your first item"), "an empty CV's version shows how to start");
+    await page.go(base + "/");
+    await page.js("document.querySelector('body > aside [aria-haspopup=menu]').click()");
+    await sleep(300);
+    check((await page.js("[...document.querySelectorAll('body > aside [role=menuitemradio]')].map((o) => o.textContent).join()")).includes("Bob Builder"), "the CV menu shows names");
 
     // Rename the configured CV; it can't be deleted.
-    await page.click("aside button", "Manage");
+    await page.click("[role=menu] button", "Manage CVs…");
     await page.until(`document.querySelector('${dialog} > div').offsetParent`, "dialog", 3000);
     const firstRow = `[...document.querySelectorAll('${dialog} li')].find((li) => !li.querySelector('span.rounded-full'))`;
     await page.js(`(() => { const i = ${firstRow}.querySelector('input'); i.value = 'Alice (configured)'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);

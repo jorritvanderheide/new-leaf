@@ -17,9 +17,10 @@ import local from "./local.mjs";
 import preview from "./preview.mjs";
 import share from "./share.mjs";
 import versions from "./versions.mjs";
+import polish from "./polish.mjs";
 import widths from "./widths.mjs";
 
-const server = { editor, preview, widths, share, versions, cvs };
+const server = { editor, preview, widths, share, versions, polish, cvs };
 const only = process.argv.slice(2);
 const bin = process.env.CV_APP || "cv-app";
 const shots = process.env.SHOTS;

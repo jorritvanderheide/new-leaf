@@ -100,6 +100,20 @@ pkgs.testers.runNixOSTest {
         api("DELETE", "/api/versions/job/share")
         machine.fail(f"test -e /var/lib/cv-app/public/{slug}")
 
+    with subtest("thumbnails of versions render in the sandbox"):
+        machine.wait_until_succeeds(
+            "editor-curl -sf -H 'X-Real-IP: 100.64.0.5' http://cv/api/state"
+            + " | grep -q '\"thumb\":\"[0-9a-f]\\{12\\}\"'",
+            timeout=60,
+        )
+        state = json.loads(api("GET", "/api/state"))
+        v = next(v for v in state["versions"] if v["thumb"])
+        machine.succeed(
+            f"editor-curl -sf -o /tmp/thumb.png -H 'X-Real-IP: 100.64.0.5' 'http://cv/api/versions/{v['id']}/thumb?k={v['thumb']}'"
+            + " && head -c4 /tmp/thumb.png | grep -q PNG"
+        )
+        machine.succeed("ls /var/cache/cv-app/thumbs/alice/*.png")
+
     with subtest("CVs can be managed in the editor, but configured ones not deleted"):
         new = json.loads(api("POST", "/api/cvs", {"name": "Carol Example", "owners": ["carol@"]}))["id"]
         assert new == "carol-example", new

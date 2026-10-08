@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -158,4 +159,17 @@ func (s *Server) renderPDF(ctx context.Context, user string, opt PrintOptions) (
 		return nil, err
 	}
 	return s.typst.PDF(ctx, doc, photo)
+}
+
+// PNG renders a document's first page as an image, and counts its pages.
+func (t *Typst) PNG(ctx context.Context, doc Document, photo string, ppi int) (png []byte, pages int, err error) {
+	err = t.run(ctx, doc, photo, func(dir string) []string {
+		return []string{"compile", "--format", "png", "--ppi", strconv.Itoa(ppi), filepath.Join(dir, "cv.typ"), filepath.Join(dir, "page-{p}.png")}
+	}, func(dir string, _ []byte) error {
+		all, _ := filepath.Glob(filepath.Join(dir, "page-*.png"))
+		pages = len(all)
+		png, err = os.ReadFile(filepath.Join(dir, "page-1.png"))
+		return err
+	})
+	return png, pages, err
 }

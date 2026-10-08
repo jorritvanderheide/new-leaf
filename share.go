@@ -41,9 +41,10 @@ func longDate(t time.Time, lang string) string {
 type sharePage struct {
 	Doc      Document
 	CSS      string // relative URL of the stylesheet
+	ThemeCSS string // and of the theme's, which overrides colour, font and photo shape
 	Langs    []shareLang
 	Download string
-	Expires  string
+	Expires  string       // when the link stops working; empty if it does not
 	Photo    template.URL // inlined thumbnail, so the page is one file
 }
 
@@ -74,7 +75,9 @@ func (s *Server) renderShare(user string, l Link, lang string) ([]byte, error) {
 	page := sharePage{
 		Doc:      BuildDocument(profile, items, opt, ""),
 		Download: shareLabels[lang]["download"],
-		Expires:  fmt.Sprintf(shareLabels[lang]["expires"], longDate(l.ExpiresAt(), lang)),
+	}
+	if l.Expires != "" {
+		page.Expires = fmt.Sprintf(shareLabels[lang]["expires"], longDate(l.ExpiresAt(), lang))
 	}
 	if l.Photo {
 		if page.Photo, err = thumbnail(s.store.PhotoPath(user)); err != nil {
@@ -86,6 +89,8 @@ func (s *Server) renderShare(user string, l Link, lang string) ([]byte, error) {
 		root = "../../"
 	}
 	page.CSS = root + s.shareCSS()
+	themeCSS, _ := l.Theme.css()
+	page.ThemeCSS = root + themeCSS
 	for _, target := range Langs {
 		sl := shareLang{Lang: target, Code: strings.ToUpper(target), Label: shareLabels[target]["language"], Current: target == lang}
 		switch {

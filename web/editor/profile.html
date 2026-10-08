@@ -1,7 +1,7 @@
 {{ define "main" }}
   <form x-data="profile" class="max-w-3xl space-y-6" @submit.prevent @input="changed()" @change="changed()">
     <section class="card flex flex-wrap items-center gap-6 p-6">
-      <div class="grid size-24 place-items-center overflow-hidden rounded-2xl bg-stone-100 text-xs text-stone-400">
+      <div class="grid size-24 place-items-center overflow-hidden rounded-2xl bg-stone-100 text-xs text-stone-600">
         <template x-if="$store.cv.state.profile.photo">
           <img :src="'/api/photo?v=' + photoVersion" alt="" class="size-full object-cover">
         </template>
@@ -43,7 +43,7 @@
         <input id="website" type="url" class="input" x-model="form.website" placeholder="https://">
       </div>
       <div class="space-y-2 sm:col-span-2">
-        <span class="label">Other links <span class="font-normal text-stone-400">(shown by their label, e.g. LinkedIn, Google Scholar, ORCID)</span></span>
+        <span class="label">Other links <span class="font-normal text-stone-500">(shown by their label, e.g. LinkedIn, Google Scholar, ORCID)</span></span>
         <template x-for="(link, i) in form.links" :key="i">
           <div class="flex gap-2">
             <input class="input w-48" x-model="link.label" placeholder="Label" aria-label="Link label">
@@ -88,7 +88,7 @@
             </div>
           </div>
           <div>
-            <label class="label" :for="'summary-' + l">Summary <span class="font-normal text-stone-400">(Markdown, optional)</span></label>
+            <label class="label" :for="'summary-' + l">Summary <span class="font-normal text-stone-500">(Markdown, optional)</span></label>
             <textarea :id="'summary-' + l" class="input min-h-32 leading-relaxed" x-model="form.text[l].summary"></textarea>
           </div>
         </div>
@@ -109,22 +109,6 @@
           <input type="file" accept=".zip,application/zip" class="sr-only" @change="restore($event)">
         </label>
       </div>
-    </section>
-
-    <section class="card p-6">
-      <h2 class="text-sm font-semibold">Default section order</h2>
-      <p class="mt-1 mb-3 text-xs text-stone-500">New versions start with this order; each version can change its own. Empty sections are left out.</p>
-      <ol class="divide-y divide-stone-100 rounded-lg ring-1 ring-stone-200">
-        <template x-for="(section, i) in form.order" :key="section">
-          <li class="flex items-center gap-3 px-3 py-1.5 text-sm">
-            <span class="w-5 text-xs text-stone-400 tabular-nums" x-text="i + 1"></span>
-            <span class="flex-1" :class="!$store.cv.items(section).length && 'text-stone-400'" x-text="$store.cv.sectionName(section)"></span>
-            <span class="text-xs text-stone-400" x-text="$store.cv.items(section).length || ''"></span>
-            <button type="button" class="px-1.5 text-stone-500 hover:text-stone-900 disabled:opacity-25" :disabled="i === 0" @click="move(i, -1)" aria-label="Move up">↑</button>
-            <button type="button" class="px-1.5 text-stone-500 hover:text-stone-900 disabled:opacity-25" :disabled="i === form.order.length - 1" @click="move(i, 1)" aria-label="Move down">↓</button>
-          </li>
-        </template>
-      </ol>
     </section>
   </form>
 {{ end }}

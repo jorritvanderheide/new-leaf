@@ -1,28 +1,39 @@
 {{ define "main" }}
-  <div x-data="versions" class="space-y-4">
+  <div x-data="versions" x-init="waitForThumbs()" class="space-y-4">
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <template x-for="v in $store.cv.state.versions" :key="v.id">
-        <article class="card group relative flex flex-col p-5 transition hover:ring-stone-300">
+        <article class="card group relative flex gap-4 p-4 transition hover:ring-stone-300">
           <a :href="'/v/' + v.id + '/'" class="absolute inset-0 rounded-2xl" :aria-label="'Open ' + v.name"></a>
-          <div class="flex items-start gap-3">
-            <h2 class="min-w-0 flex-1 truncate font-semibold text-stone-900" x-text="v.name"></h2>
-            <span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600 uppercase" x-text="v.lang"></span>
-          </div>
-          <p class="mt-1 text-sm text-stone-500">
-            <span x-text="v.entries.length === 1 ? '1 item' : v.entries.length + ' items'"></span><span x-show="v.pages"> · <span x-text="v.pages === 1 ? '1 page' : v.pages + ' pages'"></span></span>
-          </p>
-          <div class="mt-4 flex items-center gap-2 text-xs">
-            <template x-if="$store.cv.state.sharing">
-              <span
-                class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium"
-                :class="!v.link ? 'bg-stone-100 text-stone-500' : v.link.expired ? 'bg-stone-200 text-stone-600' : 'bg-emerald-100 text-emerald-800'"
-                x-text="!v.link ? 'Not shared' : v.link.expired ? 'Link expired' : 'Shared until ' + $store.cv.day(v.link.expires)"></span>
+          {{/* Page 1, made in the background */}}
+          <div class="aspect-[210/297] w-20 shrink-0 self-start overflow-hidden rounded bg-white shadow-sm ring-1 ring-stone-900/10">
+            <template x-if="v.thumb">
+              <img :src="'/api/versions/' + v.id + '/thumb?k=' + v.thumb" alt="" class="size-full object-cover">
             </template>
-            <span class="text-stone-400" x-text="'Edited ' + $store.cv.ago(v.updated)"></span>
+            <template x-if="!v.thumb">
+              <div class="size-full animate-pulse bg-stone-100"></div>
+            </template>
+          </div>
+          <div class="flex min-w-0 flex-1 flex-col">
+            <div class="flex items-start gap-3">
+              <h2 class="min-w-0 flex-1 truncate font-semibold text-stone-900" x-text="v.name"></h2>
+              <span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600 uppercase" x-text="v.lang"></span>
+            </div>
+            <p class="mt-1 text-sm text-stone-500">
+              <span x-text="v.entries.length === 1 ? '1 item' : v.entries.length + ' items'"></span><span x-show="v.pages"> · <span x-text="v.pages === 1 ? '1 page' : v.pages + ' pages'"></span></span>
+            </p>
+            <div class="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-3 text-xs">
+              <template x-if="$store.cv.state.sharing">
+                <span
+                  class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium whitespace-nowrap"
+                  :class="!v.link ? 'bg-stone-100 text-stone-600' : v.link.expired ? 'bg-stone-200 text-stone-700' : 'bg-emerald-100 text-emerald-800'"
+                  x-text="!v.link ? 'Not shared' : v.link.expired ? 'Link expired' : v.link.expires ? 'Shared until ' + $store.cv.day(v.link.expires) : 'Shared'"></span>
+              </template>
+              <span class="whitespace-nowrap text-stone-500" x-text="'Edited ' + $store.cv.ago(v.updated)"></span>
+            </div>
             {{/* Above the card-wide link */}}
-            <div class="relative ml-auto flex gap-1 opacity-100 transition sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
-              <button type="button" class="rounded-md px-2 py-1 text-stone-500 hover:bg-stone-100 hover:text-stone-900" @click="duplicate(v)">Duplicate</button>
-              <button type="button" class="rounded-md px-2 py-1 text-red-700 hover:bg-red-50" @click="remove(v)">Delete</button>
+            <div class="relative mt-2 -ml-2 flex gap-1 text-xs opacity-100 transition sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+              <button type="button" class="rounded-md px-2 py-1 text-stone-600 hover:bg-stone-100 hover:text-stone-900 max-sm:min-h-11" @click="duplicate(v)">Duplicate</button>
+              <button type="button" class="rounded-md px-2 py-1 text-red-700 hover:bg-red-50 max-sm:min-h-11" @click="remove(v)">Delete</button>
             </div>
           </div>
         </article>

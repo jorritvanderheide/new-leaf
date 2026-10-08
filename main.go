@@ -86,6 +86,7 @@ func serve(args []string) {
 		assets:    assets,
 		publicDir: *publicDir,
 		publicURL: strings.TrimRight(*publicURL, "/"),
+		work:      *workDir,
 		auth:      &Auth{DevUser: *devUser, CVs: NewRegistry(store, declared, *manage), Whois: tailscaleWhois(*tsBin)},
 		sharing:   true,
 	}

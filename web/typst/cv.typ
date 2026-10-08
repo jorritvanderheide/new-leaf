@@ -5,7 +5,8 @@
 #let data = json("data.json")
 #let s = data.spacing // whitespace scale, 1 = default
 
-#let accent = rgb("#00696a")
+#let theme = data.theme // accent colour, font, photo shape (see Theme in theme.go)
+#let accent = rgb(theme.accent)
 #let stone = (
   "200": rgb("#e7e5e4"), "300": rgb("#d6d3d1"), "400": rgb("#a6a09b"), "500": rgb("#79716b"),
   "600": rgb("#57534d"), "700": rgb("#44403b"), "800": rgb("#292524"), "900": rgb("#1c1917"),
@@ -24,7 +25,7 @@
     }
   },
 )
-#set text(font: "Inter", size: base, fill: stone.at("800"), lang: data.lang, hyphenate: false, top-edge: "ascender", bottom-edge: "descender")
+#set text(font: theme.font, size: base, fill: stone.at("800"), lang: data.lang, hyphenate: false, top-edge: "ascender", bottom-edge: "descender")
 #set par(leading: (0.415 + 0.325 * (s - 1)) * 1em, spacing: 0.45em, justify: false)
 // Links in text are underlined; a linked item title is not, as on the web.
 #let underlined(it) = underline(stroke: 0.5pt + stone.at("300"), offset: 2pt, it)
@@ -73,7 +74,8 @@
       .join(h(1.3em))
   },
   if data.at("photo", default: none) != none {
-    box(clip: true, radius: base, image(data.photo, width: base * 7, height: base * 7, fit: "cover"))
+    let radius = (rounded: base, circle: 50%, square: 0pt).at(theme.photo)
+    box(clip: true, radius: radius, image(data.photo, width: base * 7, height: base * 7, fit: "cover"))
   },
 )
 
@@ -124,8 +126,9 @@
   body
 }))
 
-#for section in data.sections {
-  v(base * 2.25 * s, weak: true)
+// The first section keeps more room from the header above it.
+#for (n, section) in data.sections.enumerate() {
+  v(base * (if n == 0 { 3.25 } else { 2.25 }) * s, weak: true)
   block(breakable: false, {
     heading-line(section.title)
     v(base * 1.25 * s)

@@ -42,7 +42,8 @@ export default async function preview({ base, shots }) {
     // Settings are kept on the server: another browser gets them.
     await spacing(0.6);
     await page.js("[...document.querySelectorAll('aside[aria-label=Outline] button')].find((b) => b.textContent.trim() === 'None').click()"); // deselects the first section
-    await sleep(1500);
+    await sleep(500);
+    await page.until("!Alpine.store('cv').dirty && !Alpine.store('cv').saving", "saved", 10000);
     selected = await page.js(`JSON.parse(JSON.stringify(${C}.selected))`);
     check(page.errors.length === 0, "no uncaught JS errors " + JSON.stringify(page.errors));
   } finally {

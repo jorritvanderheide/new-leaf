@@ -39,6 +39,7 @@ func TestEndToEnd(t *testing.T) {
 		store:     store,
 		typst:     typst,
 		assets:    assets,
+		work:      filepath.Join(data, "work"),
 		auth:      &Auth{DevUser: "alice", CVs: NewRegistry(store, []string{"alice"}, true)},
 		sharing:   true,
 		publicDir: public,
@@ -116,7 +117,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("versions = %+v", st.Versions)
 	}
 	shared := []string{"experience/visible-org", "publications/journal-of-tests", "publications/refs", "publications/pending"}
-	call("PUT", "/api/versions/test", Version{Name: "Test", PrintOptions: PrintOptions{Lang: "en", Entries: shared, Spacing: 0.8}})
+	call("PUT", "/api/versions/test", Version{Name: "Test", PrintOptions: PrintOptions{Lang: "en", Entries: shared, Spacing: 0.8, Theme: Theme{Accent: "#b91c1c"}}})
 	putVersion := func(body string) int {
 		r := httptest.NewRequest("PUT", "/api/versions/test", strings.NewReader(body))
 		r.Header.Set("X-CV-App", "1")
@@ -180,12 +181,18 @@ func TestEndToEnd(t *testing.T) {
 	if pdf := readFile(t, filepath.Join(public, slug, "cv.pdf")); PageCount([]byte(pdf)) != 1 {
 		t.Errorf("share PDF pages = %d", PageCount([]byte(pdf)))
 	}
-	css := regexp.MustCompile(`href="?([^" >]+\.css)`).FindStringSubmatch(page)
-	if css == nil {
-		t.Fatal("share page has no stylesheet")
+	// The stylesheet, and the version's look over it.
+	sheets := regexp.MustCompile(`href="?([^" >]+\.css)`).FindAllStringSubmatch(page, -1)
+	if len(sheets) != 2 || !strings.Contains(sheets[1][1], "theme.") {
+		t.Fatalf("share page stylesheets = %q", sheets)
 	}
-	if _, err := os.Stat(filepath.Join(public, slug, css[1])); err != nil {
-		t.Errorf("stylesheet %s not published: %v", css[1], err)
+	for _, sheet := range sheets {
+		if _, err := os.Stat(filepath.Join(public, slug, sheet[1])); err != nil {
+			t.Errorf("stylesheet %s not published: %v", sheet[1], err)
+		}
+	}
+	if !strings.Contains(readFile(t, filepath.Join(public, slug, sheets[1][1])), "#b91c1c") {
+		t.Error("the theme stylesheet lacks the version's accent")
 	}
 
 	// Editing a shared item republishes the link in the background.
@@ -265,6 +272,27 @@ func TestEndToEnd(t *testing.T) {
 	json.Unmarshal(call("POST", "/api/versions", versionRequest{From: "test"}).Body.Bytes(), &st)
 	if i := slices.IndexFunc(st.Versions, func(v versionView) bool { return v.Name == "Copy of Test" }); i < 0 || len(st.Versions[i].Entries) != len(deleted.Entries) {
 		t.Errorf("duplicate: %+v", st.Versions)
+	}
+
+	// Thumbnails and page counts for the overview, made in the background.
+	var withThumbs editorState
+	for deadline := time.Now().Add(60 * time.Second); ; time.Sleep(200 * time.Millisecond) {
+		json.Unmarshal(call("GET", "/api/state", nil).Body.Bytes(), &withThumbs)
+		if v := withThumbs.Versions; len(v) > 0 && !slices.ContainsFunc(v, func(v versionView) bool { return v.Thumb == "" }) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("no thumbnails: %+v", withThumbs.Versions)
+		}
+	}
+	thumb := call("GET", "/api/versions/"+withThumbs.Versions[0].ID+"/thumb?k="+withThumbs.Versions[0].Thumb, nil)
+	if !bytes.HasPrefix(thumb.Body.Bytes(), []byte("\x89PNG")) || withThumbs.Versions[0].Pages < 1 {
+		t.Errorf("thumbnail: %q…, pages %d", thumb.Body.Bytes()[:min(8, thumb.Body.Len())], withThumbs.Versions[0].Pages)
+	}
+	bad := httptest.NewRecorder()
+	h.ServeHTTP(bad, httptest.NewRequest("GET", "/api/versions/"+withThumbs.Versions[0].ID+"/thumb?k=*", nil))
+	if bad.Code != http.StatusNotFound {
+		t.Errorf("thumbnail with a pattern for a key: %d", bad.Code)
 	}
 
 	// Layout: where each selected item is in the PDF.

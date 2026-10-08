@@ -27,6 +27,7 @@ type Server struct {
 	auth      *Auth
 	publicDir string
 	publicURL string
+	work      string // regenerable files, such as thumbnails
 	sharing   bool   // share links (server); off when running locally
 	local     bool   // running on someone's own computer
 	quit      func() // local mode: stop the app
@@ -40,8 +41,9 @@ type userState struct {
 	content sync.Mutex // serialises content writes
 	publish sync.Mutex // one publish at a time, so the newest lands last
 
-	mu                  sync.Mutex
-	publishing, pending bool
+	mu                      sync.Mutex
+	publishing, pending     bool
+	thumbing, thumbsPending bool
 }
 
 func (s *Server) state(user string) *userState {
@@ -82,6 +84,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/versions", s.handle(s.postVersion))
 	mux.HandleFunc("PUT /api/versions/{id}", s.handle(s.putVersion))
 	mux.HandleFunc("DELETE /api/versions/{id}", s.handle(s.deleteVersion))
+	mux.HandleFunc("GET /api/versions/{id}/thumb", s.getThumb)
 	mux.HandleFunc("GET /api/export", s.getExport)
 	mux.HandleFunc("POST /api/import", s.handle(s.postImport))
 	mux.HandleFunc("GET /api/ping", s.getPing)
@@ -243,13 +246,15 @@ func (s *Server) editorState(ctx context.Context, user string) (editorState, err
 		}
 		st.Versions = append(st.Versions, vv)
 	}
+	s.versionThumbs(user, st.Profile, st.Items, st.Versions)
 	return st, nil
 }
 
 // versionView is a version with its share link, if it has one.
 type versionView struct {
 	Version
-	Link *linkView `json:"link"`
+	Link  *linkView `json:"link"`
+	Thumb string    `json:"thumb"` // key of the thumbnail; empty while it is being made
 }
 
 func (s *Server) getState(r *http.Request, user string) error { return nil }
@@ -566,7 +571,7 @@ func (s *Server) postVersion(r *http.Request, user string) error {
 			if err != nil {
 				return err
 			}
-			v.PrintOptions = PrintOptions{Lang: cmp.Or(v.Lang, Langs[0]), Photo: profile.Photo, Spacing: 1, Order: profile.Order, Entries: []string{}}
+			v.PrintOptions = PrintOptions{Lang: cmp.Or(v.Lang, Langs[0]), Photo: profile.Photo, Spacing: 1, Order: profile.Order, Theme: profile.Theme, Entries: []string{}}
 			for _, it := range items {
 				v.Entries = append(v.Entries, it.Section+"/"+it.ID)
 			}
@@ -640,7 +645,7 @@ func sameSettings(a, b Version) bool {
 // follow makes a link show a version.
 func follow(l *Link, v Version) {
 	l.Version, l.Label = v.ID, v.Name
-	l.Lang, l.Entries, l.Photo, l.Spacing, l.Order = v.Lang, v.Entries, v.Photo, v.Spacing, v.Order
+	l.Lang, l.Entries, l.Photo, l.Spacing, l.Order, l.Theme = v.Lang, v.Entries, v.Photo, v.Spacing, v.Order, v.Theme
 }
 
 // deleteVersion deletes a version and takes its link offline.
