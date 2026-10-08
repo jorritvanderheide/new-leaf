@@ -1,7 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#1c1917"/>
-  <path d="M8.5 6H24v12l-8 8H8.5z" fill="#f6f5f0"/>
-  <path d="M11.5 10.5h9M11.5 14h9M11.5 17.5h5" stroke="#1c1917" stroke-width="1.6"/>
-  <path d="M15.5 27c-.3-6.6 3.4-10.4 10-10.5.2 6.6-3.5 10.3-10 10.5z" fill="#22c55e"/>
-  <path d="M17 25.5l7-7.5" stroke="#1c1917" stroke-width="1.1" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- The lines are cut out of the leaf, so they show whatever is behind it, light or dark. -->
+  <mask id="lines">
+    <rect width="200" height="200" fill="#fff"/>
+    <rect x="84" y="70" width="52" height="11" rx="5.5"/>
+    <rect x="66" y="94" width="70" height="11" rx="5.5"/>
+    <rect x="54" y="118" width="56" height="11" rx="5.5"/>
+  </mask>
+  <path d="M30 170C30 80 90 30 170 30c0 80-50 140-140 140z" fill="#15803d" mask="url(#lines)"/>
 </svg>
