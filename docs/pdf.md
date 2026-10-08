@@ -27,7 +27,7 @@ else.
 
 | Key | Value |
 | --- | --- |
-| `lang` | The language code, for hyphenation |
+| `lang` | The language code, for the text's language in the PDF |
 | `spacing` | The whitespace scale, `0.4` to `1.4` |
 | `name`, `headline` | Text |
 | `contacts` | A list of `text`, an optional `url`, and `underline` for labelled links |

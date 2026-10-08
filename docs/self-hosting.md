@@ -9,6 +9,7 @@ It is the same program as on your own computer, started as `new-leaf serve`.
 - [With NixOS](#with-nixos): [Tailscale only](#tailscale-only) or [your own domains](#your-own-domains)
 - [With Docker](#with-docker)
 - [Anything else](#anything-else)
+- [Monitoring](#monitoring)
 - [Command-line options](#command-line-options)
 - [What the server writes](#what-the-server-writes)
 
@@ -157,6 +158,7 @@ host only listens on the tailnet: use a DNS check
 | Option | Default | What it does |
 | --- | --- | --- |
 | `enable` | `false` | Run New Leaf |
+| `package` | this flake's | The New Leaf to run |
 | `publicURL` | from `nginx.share.domain` | Where the share links are |
 | `users` | `[ ]` | CVs that always exist, by tailnet login |
 | `manage` | `true` | Make, rename and delete CVs in the editor |

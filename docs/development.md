@@ -11,7 +11,7 @@ nix run .#dev   # the server, against ./dev
 name, `$USER`), without Tailscale, and serves share links on
 <http://localhost:8081>. It reads the templates and scripts from disk
 (`-dev-assets .`), so edits show on reload, and rebuilds the stylesheets as
-you go. Set `CV_DEV_USER` to open another CV first. Its data is in `dev/`,
+you go. Set `NEW_LEAF_DEV_USER` to open another CV first. Its data is in `dev/`,
 which git ignores; keep real CVs there and nowhere else.
 
 For local mode, `go run .` (or `go run . -data dev/local`, to keep your own
@@ -76,14 +76,15 @@ share page's button and expiry note). `TestLanguagesComplete` checks that none
 is missing. The editor offers it on the Profile page from then on. Ask a
 native speaker to read the words over; they end up on people's CVs.
 
-The code has to be one Typst knows, for hyphenation.
+The code is the text's language in PDFs and share pages; use the ISO 639-1
+code.
 
 ## Releasing
 
 1. Set the version in `nix/package.nix`, and in `CHANGELOG.md` turn
    **Unreleased** into `## X.Y.Z`.
-2. Push the commit and a tag `X.Y.Z` for it to Codeberg, without a `v`, as in
-   the plugins. That is the only remote: GitHub mirrors it. (Go's own tools
+2. Push the commit and a tag `X.Y.Z` for it to Codeberg, without a `v`. That
+   is the only remote: GitHub mirrors it. (Go's own tools
    only know versions tagged `vX.Y.Z`, so `go install` can't ask for one by
    number; the archives, Nix and the image don't need it.)
 3. When the tag reaches GitHub, `.github/workflows/release.yml`:

@@ -25,8 +25,8 @@ readme() {
   cat <<EOF
 New Leaf $version
 
-A CV editor: keep your CV as items in English and Dutch, make versions of
-it for applications, and download them as PDFs. Everything stays on this
+A CV editor: keep your CV as items, in one or two languages, make versions
+of it for applications, and download them as PDFs. Everything stays on this
 computer.
 
 Start it by running $exe. It opens the editor in your browser, and stops

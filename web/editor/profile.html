@@ -9,7 +9,7 @@
       </div>
       <div class="space-y-2">
         <h2 class="text-sm font-semibold">Photo</h2>
-        <p class="text-xs text-stone-500">JPEG, PNG or WebP, cropped to a square. You choose per PDF or link whether to show it.</p>
+        <p class="text-xs text-stone-500">JPEG, PNG or WebP, cropped to a square. You choose per version whether to show it.</p>
         <div class="flex gap-2">
           {{/* Not part of the autosaved form: uploads right away. */}}
           <label class="btn cursor-pointer" @input.stop @change.stop>
@@ -126,7 +126,7 @@
     <section class="card p-6" @input.stop @change.stop>
       <h2 class="text-sm font-semibold">Backup</h2>
       <p class="mt-1 text-xs text-stone-500">
-        Your whole CV (both languages, photo and settings) as one zip file, to keep or to move to another computer.
+        Your whole CV (all its languages, photo and versions) as one zip file, to keep or to move to another computer.
         Restoring replaces your current CV; a copy of the current one is kept.
       </p>
       <div class="mt-3 flex flex-wrap gap-2">

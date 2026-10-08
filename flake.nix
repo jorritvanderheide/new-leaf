@@ -53,7 +53,7 @@
         };
 
         # Local development: rebuilds the stylesheets on change and runs the
-        # server as you ($USER, or CV_DEV_USER) against ./dev, with templates read from
+        # server as you ($USER, or NEW_LEAF_DEV_USER) against ./dev, with templates read from
         # disk; serves the public webroot on :8081 so share links can be
         # clicked through.
         dev = {
@@ -76,7 +76,7 @@
                 tailwindcss --minify -i web/css/share.css -o web/share/share.css --watch=always &
                 tailwindcss --minify -i web/css/editor.css -o web/editor/editor.css --watch=always &
                 go run . serve \
-                  -dev-user "''${CV_DEV_USER:-$USER}" \
+                  -dev-user "''${NEW_LEAF_DEV_USER:-$USER}" \
                   -dev-assets . \
                   -data dev/data \
                   -public dev/public \

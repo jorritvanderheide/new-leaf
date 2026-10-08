@@ -49,7 +49,8 @@ described in [Data model](docs/data-model.md).
 
 New Leaf was called cv-app. The first time it starts, it moves your CVs from
 cv-app's folder (such as `~/.local/share/cv-app`) to its own, and says so.
-Nothing is lost, and nothing changes in the files themselves.
+Nothing is lost. Each CV is brought up to the current file format the first
+time it's opened, so download a backup if you might go back to cv-app.
 
 ## Your CV and versions
 

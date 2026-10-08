@@ -21,11 +21,12 @@ trash/<cv>-<time>/                              a deleted CV
 
 On your own computer the data folder is `~/.local/share/new-leaf` on Linux,
 `~/Library/Application Support/new-leaf` on macOS and `%AppData%\new-leaf` on
-Windows, and there is one CV, named after your login so it can move to a
-server later. On a server it is `-data` (`/var/lib/new-leaf`).
+Windows, and New Leaf starts with one CV, named after your login so it can
+move to a server later; **Manage CVs** makes more. On a server it is `-data` (`/var/lib/new-leaf`).
 
-`<cv>`, `<id>` and `<slug>` are lowercase letters, digits and hyphens, at most
-64 characters, starting with a letter or digit.
+`<cv>`, `<id>` and `<slug>` are lowercase letters, digits and hyphens,
+starting with a letter or digit: at most 32 characters for `<cv>`, 64 for the
+others.
 `<lang>` is a language code, such as `en` (see [Languages](#languages)).
 
 ## The profile
@@ -121,7 +122,7 @@ chooses from them.
 | `theme` | The look (see [Looks](#looks)) |
 | `fit` | The page count to fit on, 1 to 4; none means 2 |
 | `pages` | The page count at the last preview, for the overview |
-| `created`, `updated` | When |
+| `created`, `updated` | When it was made (`YYYY-MM-DD`) and last changed (RFC 3339, such as `2026-10-08T14:30:00Z`) |
 
 A new item joins every version that held every item before it, such as the
 Full CV, and no other. A CV with no `versions/` folder (from before versions)

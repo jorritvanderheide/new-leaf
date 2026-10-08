@@ -11,7 +11,7 @@ import (
 // the editor lists them on the Profile page. The editor itself is in
 // English.
 type Language struct {
-	Code    string `json:"code"`    // ISO 639-1; also what Typst hyphenates by
+	Code    string `json:"code"`    // ISO 639-1; also the text's language in PDFs and share pages
 	Name    string `json:"name"`    // in the language itself
 	English string `json:"english"` // in English
 
