@@ -1,7 +1,10 @@
 package cv
 
 import (
+	"archive/zip"
+	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -403,5 +406,33 @@ func TestNewerFormat(t *testing.T) {
 	}
 	if err := s.Migrate("alice"); err != nil {
 		t.Errorf("Migrate = %v", err)
+	}
+}
+
+// A small zip that unpacks to a lot is refused before anything is written.
+func TestBackupBomb(t *testing.T) {
+	s := newTestStore(t)
+	var b bytes.Buffer
+	zw := zip.NewWriter(&b)
+	w, _ := zw.Create("content/_index.en.md")
+	w.Write([]byte("---\nname: X\n---\n"))
+	zeros := make([]byte, 1<<20)
+	for i := range 11 {
+		w, _ := zw.Create(fmt.Sprintf("content/experience/x%d.en.md", i))
+		w.Write([]byte("---\ntitle: x\nstart: \"2020\"\n---\n"))
+		for range 10 {
+			w.Write(zeros)
+		}
+	}
+	zw.Close()
+	if b.Len() > 1<<20 {
+		t.Fatalf("the zip is %d bytes", b.Len())
+	}
+	if stage, err := s.StageBackup(b.Bytes(), false); err == nil || !strings.Contains(err.Error(), "100 MB") {
+		os.RemoveAll(stage)
+		t.Errorf("StageBackup = %v", err)
+	}
+	if left, _ := filepath.Glob(filepath.Join(s.Root, ".import-*")); len(left) != 0 {
+		t.Errorf("left behind: %v", left)
 	}
 }

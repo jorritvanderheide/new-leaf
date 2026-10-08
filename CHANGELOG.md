@@ -9,6 +9,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 - A backup is checked as fully as opening the CV would: one with versions
   that can't be read is refused, instead of restoring and then never
   opening.
+- A backup may unpack to at most 100 MB and 5,000 files, so a small zip
+  can't fill the disk.
 
 ## 0.6.1
 

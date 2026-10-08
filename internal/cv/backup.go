@@ -24,8 +24,10 @@ import (
 // so it can move between computers and between local and hosted use.
 
 const (
-	MaxBackup     = 50 << 20
-	maxBackupFile = 12 << 20
+	MaxBackup      = 50 << 20  // the zip
+	maxBackupFile  = 12 << 20  // one file in it, unpacked
+	maxBackupTotal = 100 << 20 // all of them, unpacked
+	maxBackupFiles = 5000
 )
 
 // backupFile says whether a zip entry may be restored: only the files a CV
@@ -119,6 +121,17 @@ func (s *Store) StageBackup(data []byte, links bool) (stage string, err error) {
 }
 
 func (s *Store) unpack(stage string, zr *zip.Reader, links bool) error {
+	// The sizes a zip declares are what its reader will give: check them all
+	// before writing anything, so a small zip can't fill the disk.
+	if len(zr.File) > maxBackupFiles {
+		return Invalid{fmt.Errorf("a backup has at most %d files", maxBackupFiles)}
+	}
+	var total uint64
+	for _, f := range zr.File {
+		if total += f.UncompressedSize64; total > maxBackupTotal {
+			return Invalid{errors.New("backup is larger than 100 MB unpacked")}
+		}
+	}
 	found := false
 	for _, f := range zr.File {
 		if f.FileInfo().IsDir() {
