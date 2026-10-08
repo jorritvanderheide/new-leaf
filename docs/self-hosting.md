@@ -41,7 +41,7 @@ the editor itself, so other websites can't change a CV on a visitor's behalf.
   before "@" (`alice`), which is also the CV's name. They can be renamed in
   the editor but not deleted.
 - **More CVs** can be made, renamed and deleted in the editor, under **Manage
-  CVs**, unless that's turned off (`-manage=false`, or `manageInEditor =
+  CVs**, unless that's turned off (`-manage=false`, or `manage =
   false`). Deleted CVs are moved to `trash/` in the data folder.
 - **Which CV opens:** the one picked last in this browser, or one the visitor
   owns (set under **Manage CVs**), or the one named after their login, or the
@@ -159,7 +159,7 @@ host only listens on the tailnet: use a DNS check
 | `enable` | `false` | Run New Leaf |
 | `publicURL` | from `nginx.share.domain` | Where the share links are |
 | `users` | `[ ]` | CVs that always exist, by tailnet login |
-| `manageInEditor` | `true` | Make, rename and delete CVs in the editor |
+| `manage` | `true` | Make, rename and delete CVs in the editor |
 | `ownersOnly` | `false` | Only a CV's owners can open and edit it |
 | `timeZone` | `time.timeZone` | The time zone share links end in; `null` for the system's |
 | `tailscaleServe.enable` | `false` | Serve with Tailscale: the editor on the tailnet, links through Funnel |

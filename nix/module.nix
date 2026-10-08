@@ -21,6 +21,14 @@ let
   '';
 in
 {
+  # The option was called manageInEditor before 0.7.
+  imports = [
+    (lib.mkRenamedOptionModule
+      [ "services" "new-leaf" "manageInEditor" ]
+      [ "services" "new-leaf" "manage" ]
+    )
+  ];
+
   options.services.new-leaf = {
     enable = lib.mkEnableOption "New Leaf, the CV editor";
 
@@ -83,7 +91,7 @@ in
       '';
     };
 
-    manageInEditor = lib.mkOption {
+    manage = lib.mkOption {
       type = lib.types.bool;
       default = true;
       description = ''
@@ -103,7 +111,7 @@ in
         {option}`services.new-leaf.users` are the login it's for; of
         one made in the editor, whoever made it and whoever they add. A CV
         without owners stays open to everyone, and someone without a CV gets
-        their own (with {option}`services.new-leaf.manageInEditor`).
+        their own (with {option}`services.new-leaf.manage`).
       '';
     };
 
@@ -220,8 +228,8 @@ in
       {
         assertions = [
           {
-            assertion = cfg.users != [ ] || cfg.manageInEditor;
-            message = "services.new-leaf: list the CVs in users, or enable manageInEditor.";
+            assertion = cfg.users != [ ] || cfg.manage;
+            message = "services.new-leaf: list the CVs in users, or enable manage.";
           }
         ];
 
@@ -272,7 +280,7 @@ in
                 cfg.publicURL
                 "-users"
                 (lib.concatStringsSep "," cfg.users)
-                "-manage=${lib.boolToString cfg.manageInEditor}"
+                "-manage=${lib.boolToString cfg.manage}"
                 "-owners-only=${lib.boolToString cfg.ownersOnly}"
                 "-tailscale"
                 (lib.getExe cfg.tailscalePackage)

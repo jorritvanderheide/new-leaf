@@ -30,6 +30,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   from before green was the default; the migration writes teal into those, so
   green is the default everywhere.
 - The CV format is now 2; CVs and backups move over when opened or restored.
+- The NixOS option `manageInEditor` is now `manage`, as the flag `-manage`. The
+  old name keeps working, with a warning, until 2.0.
 
 ## 0.6.1
 
