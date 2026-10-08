@@ -4,7 +4,7 @@ What changed in each release of New Leaf, newest first. What counts as
 breaking is in [Compatibility](docs/compatibility.md). Releases before 0.6
 are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/releases).
 
-## Unreleased
+## 0.6.1
 
 - **Security: behind `tailscale serve`, a tailnet user could sign in as
   another** by sending an `X-Real-IP` header with their address. That
