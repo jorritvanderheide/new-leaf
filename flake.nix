@@ -33,6 +33,7 @@
           packages = with pkgs; [
             go
             gopls
+            poppler-utils # pdftotext, for the test of a PDF's text
             tailwindcss_4
             typst
           ];

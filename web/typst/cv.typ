@@ -52,12 +52,18 @@
   }
 }
 
+// The name, the sections and the items are headings (1, 2 and 3), so the PDF
+// has them as such: for screen readers, applicant tracking systems, and
+// bookmarks to the sections. They look exactly as they did as plain text.
+
 // Header: name, headline, contact details, photo.
+#show heading.where(level: 1): set block(spacing: 0.45 * base)
+#show heading.where(level: 1): it => text(size: base * 2.5, weight: 600, fill: stone.at("900"), tracking: -0.02em, it.body)
 #grid(
   columns: (1fr, auto),
   column-gutter: 8mm,
   {
-    text(size: base * 2.5, weight: 600, fill: stone.at("900"), tracking: -0.02em, data.name)
+    heading(level: 1, bookmarked: false, data.name)
     if data.headline != "" {
       v(2pt)
       text(size: base * 1.125, fill: accent, data.headline)
@@ -75,7 +81,7 @@
   },
   if data.at("photo", default: none) != none {
     let radius = (rounded: base, circle: 50%, square: 0pt).at(theme.photo)
-    box(clip: true, radius: radius, image(data.photo, width: base * 7, height: base * 7, fit: "cover"))
+    box(clip: true, radius: radius, image(data.photo, alt: data.name, width: base * 7, height: base * 7, fit: "cover"))
   },
 )
 
@@ -87,13 +93,20 @@
 
 // Sections. Items never split across pages, and a heading stays with its
 // first item.
-#let heading-line(title) = grid(
+#show heading.where(level: 2): set block(spacing: 0.45 * base)
+#show heading.where(level: 2): set text(size: base, weight: "regular")
+#show heading.where(level: 2): it => grid(
   columns: (auto, 1fr),
   column-gutter: 0.75em,
   align: horizon,
-  text(size: base * 0.75, weight: 600, tracking: 0.08em, fill: accent, upper(title)),
+  text(size: base * 0.75, weight: 600, tracking: 0.08em, fill: accent, upper(it.body)),
   line(length: 100%, stroke: 0.5pt + stone.at("200")),
 )
+
+// Item titles. An item without a title keeps the line it would have had.
+#let leading = (0.415 + 0.325 * (s - 1)) * base
+#show heading.where(level: 3): set block(above: 0.45 * base, below: leading)
+#show heading.where(level: 3): it => text(size: base, weight: 600, fill: stone.at("900"), it.body)
 
 #let item(it) = grid(
   columns: (base * 9.5, 1fr),
@@ -103,11 +116,15 @@
     set text(fill: stone.at("800"))
     rich(it.body)
   } else {
-    let title = text(weight: 600, fill: stone.at("900"), it.title)
-    if it.at("link", default: "") != "" { link(it.link, title) } else { title }
+    let title = if it.at("link", default: "") != "" { link(it.link, it.title) } else { it.title }
+    if it.title == "" {
+      block(above: 0.45 * base, below: leading, text(size: base, sym.zws))
+    } else {
+      heading(level: 3, bookmarked: false, title)
+    }
     if it.at("sub", default: "") != "" {
-      linebreak()
-      text(size: small, fill: stone.at("600"), it.sub)
+      // As far below the title as the next line of a paragraph.
+      block(above: leading, below: 0.45 * base, text(size: small, fill: stone.at("600"), it.sub))
     }
     if it.body.len() > 0 {
       v(base * 0.375, weak: true)
@@ -130,7 +147,7 @@
 #for (n, section) in data.sections.enumerate() {
   v(base * (if n == 0 { 3.25 } else { 2.25 }) * s, weak: true)
   block(breakable: false, {
-    heading-line(section.title)
+    heading(level: 2, section.title)
     v(base * 1.25 * s)
     let first = section.items.first()
     marked(first.id, item(first))

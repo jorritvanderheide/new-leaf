@@ -17,4 +17,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   Europe/Amsterdam. Set it with `-timezone` (`NEW_LEAF_TIMEZONE`, or
   `services.new-leaf.timeZone`, which follows `time.timeZone`). The container
   image's own time zone is UTC.
+- **PDFs that machines read well.** The name, sections and items are tagged
+  as headings, the sections are bookmarks, and the photo has alt text, so
+  screen readers and applicant tracking systems get the CV's structure. The
+  PDFs look exactly as before.
 - A new logo.

@@ -58,6 +58,25 @@ to read on white (contrast under 4.5) and offers a darker shade.
 Adding a font means adding its files to both font folders, its licence next
 to them, and a line to `themeFonts`.
 
+## Read by machines
+
+Applicant tracking systems and screen readers read the PDF, not how it looks.
+So:
+
+- **The PDF is tagged.** The name is heading 1, sections heading 2 and items
+  heading 3, styled to look like text. The sections are the PDF's bookmarks,
+  and the photo's alt text is the name. `TestPDFIsAccessible` checks it
+  against PDF/UA-1. The PDFs don't claim PDF/UA themselves, since Typst would
+  then refuse a CV that broke one of its rules.
+- **The text comes out in reading order**, each item's date, title and
+  organisation together, and words whole: there is no hyphenation.
+  `TestPDFText` checks it with `pdftotext`, and pypdf and pdfminer read the
+  same.
+
+A change to the template should keep both tests passing. A change meant to
+leave the look alone can be checked by rendering the pages before and after
+and comparing them pixel by pixel.
+
 ## Pages
 
 A4, margins of 16 mm at the top, 17 mm at the sides and 15 mm at the bottom.
