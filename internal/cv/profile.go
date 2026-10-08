@@ -1,12 +1,19 @@
 package cv
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	_ "golang.org/x/image/webp"
 )
 
 type ProfileText struct {
@@ -213,17 +220,45 @@ func (s *Store) Langs(user string) ([]string, error) {
 	return p.Langs, err
 }
 
+// MaxPhotoPixels is the largest photo New Leaf takes. A small file can
+// declare a huge image, which would take gigabytes to decode.
+const MaxPhotoPixels = 40_000_000
+
+// PhotoPath is the profile photo, if there is one New Leaf can use: one
+// larger than MaxPhotoPixels, from before it was checked, is left out.
 func (s *Store) PhotoPath(user string) string {
 	for _, ext := range photoExts {
 		p := filepath.Join(s.dir(user), "photo"+ext)
-		if _, err := os.Stat(p); err == nil {
-			return p
+		f, err := os.Open(p)
+		if err != nil {
+			continue
 		}
+		err = checkPhoto(f)
+		f.Close()
+		if err != nil {
+			return ""
+		}
+		return p
 	}
 	return ""
 }
 
+// checkPhoto reads only an image's header: its type and size.
+func checkPhoto(r io.Reader) error {
+	cfg, _, err := image.DecodeConfig(r)
+	if err != nil {
+		return Invalid{errors.New("the photo isn't a JPEG, PNG or WebP image New Leaf can read")}
+	}
+	if cfg.Width*cfg.Height > MaxPhotoPixels {
+		return Invalid{fmt.Errorf("the photo is %d by %d pixels; at most %d megapixels", cfg.Width, cfg.Height, MaxPhotoPixels/1_000_000)}
+	}
+	return nil
+}
+
 func (s *Store) SavePhoto(user, ext string, data []byte) error {
+	if err := checkPhoto(bytes.NewReader(data)); err != nil {
+		return err
+	}
 	if err := s.DeletePhoto(user); err != nil {
 		return err
 	}

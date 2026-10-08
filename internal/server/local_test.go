@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"image"
+	"image/png"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -104,7 +106,9 @@ func TestBackupRoundTrip(t *testing.T) {
 	s.store.Init("me")
 	s.store.SaveProfile("me", cv.Profile{Langs: []string{"en"}, Name: "Me", Text: map[string]cv.ProfileText{"en": {Summary: "Hello"}}})
 	s.store.SaveItem("me", cv.Item{Section: "experience", ID: "job", Start: "2020-01", Text: map[string]cv.ItemText{"en": {Title: "Job"}}})
-	os.WriteFile(filepath.Join(s.store.ContentDir("me"), "photo.jpg"), []byte("jpeg"), 0o600)
+	var photo bytes.Buffer
+	png.Encode(&photo, image.NewGray(image.Rect(0, 0, 4, 4)))
+	os.WriteFile(filepath.Join(s.store.ContentDir("me"), "photo.png"), photo.Bytes(), 0o600)
 
 	w := do(h, "GET", "/api/export", nil)
 	if w.Code != http.StatusOK || w.Header().Get("Content-Type") != "application/zip" {

@@ -93,7 +93,7 @@ func TestResumeRoundTrip(t *testing.T) {
 		Theme: Theme{Accent: "#1d4ed8", Font: "serif"}, Spacing: 0.8,
 		Text: map[string]ProfileText{"nl": {Headline: "Ontwerper", Location: "Utrecht", Summary: "Hallo **daar**."}, "en": {Headline: "Designer"}},
 	})
-	os.WriteFile(filepath.Join(s.dir("alice"), "photo.jpg"), []byte("jpeg"), 0o600)
+	os.WriteFile(filepath.Join(s.dir("alice"), "photo.png"), tinyPNG(), 0o600)
 	periods := map[string]bool{}
 	for _, section := range Sections {
 		it := Item{Section: section, ID: section, Start: "2020-01", End: "2021-06", Link: "https://example.com/" + section,

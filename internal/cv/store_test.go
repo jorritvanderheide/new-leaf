@@ -3,8 +3,12 @@ package cv
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/crc32"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -434,5 +438,40 @@ func TestBackupBomb(t *testing.T) {
 	}
 	if left, _ := filepath.Glob(filepath.Join(s.Root, ".import-*")); len(left) != 0 {
 		t.Errorf("left behind: %v", left)
+	}
+}
+
+// tinyPNG is a real photo, 4 by 4 pixels.
+func tinyPNG() []byte {
+	var b bytes.Buffer
+	png.Encode(&b, image.NewGray(image.Rect(0, 0, 4, 4)))
+	return b.Bytes()
+}
+
+// hugePNG is a small file that declares an image of width by height.
+func hugePNG(width, height uint32) []byte {
+	ihdr := binary.BigEndian.AppendUint32(nil, width)
+	ihdr = binary.BigEndian.AppendUint32(ihdr, height)
+	ihdr = append(ihdr, 8, 0, 0, 0, 0) // 8-bit grey
+	chunk := append([]byte("IHDR"), ihdr...)
+	b := []byte("\x89PNG\r\n\x1a\n")
+	b = binary.BigEndian.AppendUint32(b, uint32(len(ihdr)))
+	b = append(b, chunk...)
+	return binary.BigEndian.AppendUint32(b, crc32.ChecksumIEEE(chunk))
+}
+
+// A photo that would take gigabytes to decode is refused, and one already
+// there is left out.
+func TestHugePhoto(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.SavePhoto("alice", ".png", hugePNG(100_000, 100_000)); err == nil {
+		t.Error("saved a 10-gigapixel photo")
+	}
+	if err := s.SavePhoto("alice", ".png", tinyPNG()); err != nil || s.PhotoPath("alice") == "" {
+		t.Fatalf("a small photo: %v", err)
+	}
+	os.WriteFile(filepath.Join(s.dir("alice"), "photo.png"), hugePNG(100_000, 100_000), 0o640)
+	if s.PhotoPath("alice") != "" {
+		t.Error("a huge photo on disk is used")
 	}
 }

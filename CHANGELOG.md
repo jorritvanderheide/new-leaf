@@ -11,6 +11,9 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   opening.
 - A backup may unpack to at most 100 MB and 5,000 files, so a small zip
   can't fill the disk.
+- A photo may be at most 40 megapixels. A small file can claim to be a huge
+  image, which would take the server gigabytes to open; one already there is
+  left out of PDFs and share pages.
 
 ## 0.6.1
 

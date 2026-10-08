@@ -163,6 +163,11 @@ func (s *Store) unpack(stage string, zr *zip.Reader, links bool) error {
 		if err := os.WriteFile(dst, content, 0o640); err != nil {
 			return err
 		}
+		if strings.HasPrefix(f.Name, "content/photo.") {
+			if err := checkPhoto(bytes.NewReader(content)); err != nil {
+				return err
+			}
+		}
 		if filepath.Ext(dst) == ".md" {
 			var fm map[string]any
 			if _, err := readMarkdown(dst, &fm); err != nil {
