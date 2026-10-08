@@ -123,3 +123,22 @@ func TestAccentDefaults(t *testing.T) {
 		t.Errorf("new CV's accent = %q", v.Theme.Accent)
 	}
 }
+
+// The profile's spacing is where new versions start.
+func TestDefaultSpacing(t *testing.T) {
+	s := &Store{Root: t.TempDir()}
+	s.Init("bob")
+	if err := s.SaveProfile("bob", Profile{Langs: []string{"en"}, Spacing: 3}); err == nil {
+		t.Error("saved a spacing out of range")
+	}
+	if err := s.SaveProfile("bob", Profile{Langs: []string{"en"}, Spacing: 0.8}); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := s.Profile("bob"); p.Spacing != 0.8 {
+		t.Errorf("profile spacing = %v", p.Spacing)
+	}
+	s.EnsureVersions("bob")
+	if v, _ := s.Version("bob", "full-cv"); v.Spacing != 0.8 {
+		t.Errorf("new version's spacing = %v", v.Spacing)
+	}
+}

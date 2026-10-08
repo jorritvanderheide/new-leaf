@@ -96,13 +96,24 @@ export default async function versions({ base, shots }) {
     check(look.accent === "#b91c1c" && look.font === "serif", "the look is saved: " + JSON.stringify(look));
     await rendered();
     check(await page.js(`${W}.pages > 0`), "the preview renders in the new look");
+
+    // An inner shadow shows where the preview has more to scroll.
+    const pane = "document.querySelector('[x-ref=pages]').parentElement";
+    check(await page.js(`${pane}.parentElement.hasAttribute('data-below') && !${pane}.parentElement.hasAttribute('data-above')`), "a shadow below the preview, none above");
+    await page.js(`${pane}.scrollTop = 200`);
+    await sleep(200);
+    check(await page.js(`${pane}.parentElement.hasAttribute('data-above')`), "and one above once scrolled");
+    await page.js(`${pane}.scrollTop = 0`);
+    const spacing = await page.js(`${W}.spacing`);
+    await page.js(`${W}.spacing = 0.85`);
     await page.click("[role=dialog][aria-label=Look] button", "Use look and section order for new versions");
-    await page.until("Alpine.store('cv').state.profile.theme?.font === 'serif'", "default look", 5000);
+    await page.until("Alpine.store('cv').state.profile.theme?.font === 'serif' && Alpine.store('cv').state.profile.spacing === 0.85", "default look", 5000);
     const fresh = (await api(base, "POST", "/api/versions", { name: "Look check" })).versions.find((v) => v.id === "look-check");
-    check(fresh.theme.accent === "#b91c1c" && fresh.theme.font === "serif", "new versions start with the default look");
+    check(fresh.theme.accent === "#b91c1c" && fresh.theme.font === "serif" && fresh.spacing === 0.85, "new versions start with the default look and spacing");
     await api(base, "DELETE", "/api/versions/look-check");
     const profile = (await state()).profile;
-    await api(base, "PUT", "/api/profile", { ...profile, theme: {} });
+    await api(base, "PUT", "/api/profile", { ...profile, theme: {}, spacing: 0 });
+    await page.js(`${W}.spacing = ${spacing}`);
 
     // The overview: duplicate, delete, undo.
     await page.go(base + "/");

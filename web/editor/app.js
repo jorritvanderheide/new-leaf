@@ -72,6 +72,21 @@ window.focusSoon = (el, frames = 10) => {
   else if (frames > 0) requestAnimationFrame(() => focusSoon(el, frames - 1));
 };
 
+// scrollShadows marks a scroll box's parent with data-above and data-below
+// while there is more to scroll that way, for the inner shadows of
+// .scroll-shadows (editor.css). Content that grows or shrinks counts too.
+window.scrollShadows = (box) => {
+  const wrap = box.parentElement;
+  const measure = () => {
+    wrap.toggleAttribute("data-above", box.scrollTop > 0);
+    wrap.toggleAttribute("data-below", box.scrollTop + box.clientHeight < box.scrollHeight - 1);
+  };
+  box.addEventListener("scroll", measure, { passive: true });
+  const resized = new ResizeObserver(measure);
+  resized.observe(box);
+  for (const child of box.children) resized.observe(child);
+};
+
 const itemKey = (item) => `${item.section}/${item.id}`;
 
 // Same order as the CV (web/cv/layouts/_partials/cv.html): ongoing first, then
@@ -955,15 +970,16 @@ document.addEventListener("alpine:init", () => {
       return resolveTheme(this.theme);
     },
 
-    // The profile holds what new versions start with: a look and an order.
+    // The profile holds what new versions start with: a look (with the
+    // spacing) and an order.
     isDefault() {
       const p = this.$store.cv.state.profile;
-      return JSON.stringify(resolveTheme(p.theme)) === JSON.stringify(this.resolvedTheme()) && p.order.join() === this.order.join();
+      return JSON.stringify(resolveTheme(p.theme)) === JSON.stringify(this.resolvedTheme()) && (p.spacing || 1) === this.spacing && p.order.join() === this.order.join();
     },
 
     makeDefault() {
       const profile = JSON.parse(JSON.stringify(this.$store.cv.state.profile));
-      return this.$store.cv.send("PUT", "/api/profile", { ...profile, theme: { ...this.theme }, order: [...this.order] }, "New versions start like this one");
+      return this.$store.cv.send("PUT", "/api/profile", { ...profile, theme: { ...this.theme }, spacing: this.spacing, order: [...this.order] }, "New versions start like this one");
     },
 
     accentContrast() {

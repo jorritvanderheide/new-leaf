@@ -174,7 +174,7 @@ export async function openPage({ width = 1440, height = 900, shots } = {}) {
       const exited = new Promise((r) => proc.once("exit", r));
       proc.kill();
       await exited;
-      rmSync(profile, { recursive: true, force: true });
+      rmSync(profile, { recursive: true, force: true, maxRetries: 5 }); // its helpers may still be writing
     },
   };
   await page.viewport(width, height);

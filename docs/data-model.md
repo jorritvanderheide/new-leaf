@@ -42,6 +42,7 @@ The front matter:
 | `links` | no | A list of `label` and `url`, such as LinkedIn |
 | `order` | no | The default section order, for new versions |
 | `theme` | no | The default look, for new versions (see [Looks](#looks)) |
+| `spacing` | no | The default spacing, for new versions, from `0.4` to `1.4`; none means `1` |
 
 Keys that aren't per language are written to every file, and read from the
 first one that has them.

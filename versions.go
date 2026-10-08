@@ -197,7 +197,7 @@ func (s *Store) EnsureVersions(user string) error {
 
 	full := Version{
 		ID: "full-cv", Name: "Full CV", Created: today, Updated: stamp,
-		PrintOptions: PrintOptions{Lang: profile.Langs[0], Photo: profile.Photo, Spacing: 1, Order: profile.Order, Theme: profile.Theme.forNewVersion(), Entries: []string{}},
+		PrintOptions: PrintOptions{Lang: profile.Langs[0], Photo: profile.Photo, Spacing: cmp.Or(profile.Spacing, 1), Order: profile.Order, Theme: profile.Theme.forNewVersion(), Entries: []string{}},
 	}
 	for _, it := range items {
 		full.Entries = append(full.Entries, it.Section+"/"+it.ID)

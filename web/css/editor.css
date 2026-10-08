@@ -109,6 +109,25 @@
   .float {
     @apply shadow-lg shadow-stone-900/10;
   }
+  /* Around a scroll box: a soft inner shadow on an edge while there is more
+     to scroll that way (scrollShadows in app.js). */
+  .scroll-shadows {
+    &::before,
+    &::after {
+      @apply pointer-events-none absolute inset-x-0 z-10 h-3 opacity-0 transition-opacity duration-200;
+      content: "";
+    }
+    &::before {
+      @apply top-0 bg-linear-to-b from-black/8 to-transparent dark:from-black/40;
+    }
+    &::after {
+      @apply bottom-0 bg-linear-to-t from-black/8 to-transparent dark:from-black/40;
+    }
+    &[data-above]::before,
+    &[data-below]::after {
+      @apply opacity-100;
+    }
+  }
   .tag {
     @apply inline-flex items-center gap-1 rounded border px-1.5 py-px text-[0.625rem] font-semibold tracking-wide whitespace-nowrap uppercase;
   }

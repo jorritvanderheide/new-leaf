@@ -90,9 +90,10 @@ type Profile struct {
 	Website string                 `json:"website"`
 	Links   []ProfileLink          `json:"links"` // e.g. LinkedIn, Google Scholar
 	Photo   bool                   `json:"photo"`
-	Order   []string               `json:"order"` // default section order for new versions
-	Langs   []string               `json:"langs"` // the CV's languages, the main one first
-	Theme   Theme                  `json:"theme"` // default look for new versions
+	Order   []string               `json:"order"`   // default section order for new versions
+	Langs   []string               `json:"langs"`   // the CV's languages, the main one first
+	Theme   Theme                  `json:"theme"`   // default look for new versions
+	Spacing float64                `json:"spacing"` // default spacing for new versions; 0 means 1
 	Text    map[string]ProfileText `json:"text"`
 }
 
@@ -106,6 +107,7 @@ type profileFile struct {
 	Links       []ProfileLink `yaml:"links,omitempty"`
 	Order       []string      `yaml:"order,omitempty"`
 	Theme       Theme         `yaml:"theme,omitempty"`
+	Spacing     float64       `yaml:"spacing,omitempty"`
 }
 
 type ProfileLink struct {
@@ -251,7 +253,7 @@ func (s *Store) Profile(user string) (Profile, error) {
 		if !shared {
 			shared = true
 			p.Name, p.Email, p.Phone, p.Website = f.Name, f.Email, f.Phone, f.Website
-			p.Links, p.Order, p.Theme, p.Langs = f.Links, f.Order, f.Theme, f.Languages
+			p.Links, p.Order, p.Theme, p.Spacing, p.Langs = f.Links, f.Order, f.Theme, f.Spacing, f.Languages
 		}
 		f.ProfileText.Summary = body
 		p.Text[lang] = f.ProfileText
@@ -282,6 +284,9 @@ func (p Profile) Validate() error {
 	}
 	if err := p.Theme.Validate(); err != nil {
 		return err
+	}
+	if p.Spacing != 0 && (p.Spacing < MinSpacing || p.Spacing > MaxSpacing) {
+		return fmt.Errorf("spacing must be between %g and %g", MinSpacing, MaxSpacing)
 	}
 	for _, u := range append([]string{p.Website}, linkURLs(p.Links)...) {
 		if u = strings.TrimSpace(u); u != "" && !urlRe.MatchString(u) {
@@ -330,6 +335,7 @@ func (s *Store) SaveProfile(user string, p Profile) error {
 			Website: clean(p.Website), Links: links,
 			Order:       SectionOrder(p.Order),
 			Theme:       p.Theme,
+			Spacing:     p.Spacing,
 			ProfileText: ProfileText{Headline: clean(t.Headline), Location: clean(t.Location)},
 		}
 		if err := writeMarkdown(path, f, t.Summary); err != nil {

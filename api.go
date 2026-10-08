@@ -610,7 +610,7 @@ func (s *Server) postVersion(r *http.Request, user string) error {
 			if err != nil {
 				return err
 			}
-			v.PrintOptions = PrintOptions{Lang: cmp.Or(v.Lang, profile.Langs[0]), Photo: profile.Photo, Spacing: 1, Order: profile.Order, Theme: profile.Theme.forNewVersion(), Entries: []string{}}
+			v.PrintOptions = PrintOptions{Lang: cmp.Or(v.Lang, profile.Langs[0]), Photo: profile.Photo, Spacing: cmp.Or(profile.Spacing, 1), Order: profile.Order, Theme: profile.Theme.forNewVersion(), Entries: []string{}}
 			for _, it := range items {
 				v.Entries = append(v.Entries, it.Section+"/"+it.ID)
 			}

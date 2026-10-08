@@ -81,102 +81,106 @@
       class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]"
       :class="form && 'xl:max-2xl:grid-cols-[minmax(0,1fr)]'">
       {{/* Outline: sections in this version's order, items to tick */}}
-      <aside class="space-y-3 lg:min-h-0 lg:overflow-y-auto lg:p-0.5 lg:pr-2" :class="[view !== 'items' && 'max-lg:hidden', form && 'xl:max-2xl:hidden']" aria-label="Outline">
-        <template x-for="section in shownSections()" :key="section">
-          <div>
-            {{/* Where the PDF starts a new page */}}
-            <template x-if="breaks().sections[section]">
-              <div class="meta mb-3 flex items-center gap-2 px-1" aria-hidden="true">
-                <span class="flex-1 border-t border-dashed border-stone-300"></span>
-                <span x-text="'Page ' + breaks().sections[section]"></span>
-                <span class="flex-1 border-t border-dashed border-stone-300"></span>
+      <div class="scroll-shadows relative lg:min-h-0" :class="[view !== 'items' && 'max-lg:hidden', form && 'xl:max-2xl:hidden']">
+        <aside class="lg:h-full lg:overflow-y-auto lg:p-0.5 lg:pr-2" aria-label="Outline" x-init="scrollShadows($el)">
+          <div class="space-y-3">
+            <template x-for="section in shownSections()" :key="section">
+              <div>
+                {{/* Where the PDF starts a new page */}}
+                <template x-if="breaks().sections[section]">
+                  <div class="meta mb-3 flex items-center gap-2 px-1" aria-hidden="true">
+                    <span class="flex-1 border-t border-dashed border-stone-300"></span>
+                    <span x-text="'Page ' + breaks().sections[section]"></span>
+                    <span class="flex-1 border-t border-dashed border-stone-300"></span>
+                  </div>
+                </template>
+                <div
+                  class="card p-3 transition"
+                  :class="dragging === section && 'opacity-40'"
+                  :draggable="grab === section"
+                  @dragstart="dragStart($event, section)"
+                  @dragover.prevent="dragOver(section)"
+                  @drop.prevent
+                  @dragend="dragEnd()">
+                  <div class="mb-1 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      class="cursor-grab px-0.5 text-stone-500 hover:text-stone-600 focus-visible:text-stone-700"
+                      :data-handle="section"
+                      :aria-label="'Move ' + $store.cv.sectionName(section) + ': drag, or Alt with the arrow keys'"
+                      title="Drag to reorder (or Alt+↑/↓)"
+                      @mousedown="grab = section"
+                      @keydown.alt.arrow-up.prevent="moveSection(section, -1)"
+                      @keydown.alt.arrow-down.prevent="moveSection(section, 1)">
+                      {{ icon "grip" "size-4" }}
+                    </button>
+                    <h2 class="eyebrow min-w-0 flex-1 truncate text-accent" x-text="$store.cv.sectionName(section)"></h2>
+                    <button
+                      type="button"
+                      class="ml-1 w-9 text-right text-xs text-stone-500 hover:text-stone-900 max-lg:min-h-11 max-lg:w-14"
+                      @click="toggleSection(section, sectionState(section) !== 'all')"
+                      x-text="sectionState(section) === 'all' ? 'None' : 'All'"></button>
+                  </div>
+                  <ul class="space-y-0.5">
+                    <template x-for="item in $store.cv.items(section)" :key="$store.cv.key(item)">
+                      <li>
+                        <template x-if="breaks().items[$store.cv.key(item)]">
+                          <div class="meta my-1.5 flex items-center gap-2 px-1.5" aria-hidden="true">
+                            <span class="flex-1 border-t border-dashed border-stone-300"></span>
+                            <span x-text="'Page ' + breaks().items[$store.cv.key(item)]"></span>
+                            <span class="flex-1 border-t border-dashed border-stone-300"></span>
+                          </div>
+                        </template>
+                        <div
+                          class="flex gap-2.5 rounded-md px-1.5 py-1"
+                          :class="isOpen(item) ? 'bg-accent-tint' : hover === $store.cv.key(item) ? 'bg-stone-100' : 'hover:bg-stone-50'"
+                          @mouseenter="hover = $store.cv.key(item)"
+                          @mouseleave="hover = null">
+                          {{/* A bigger tap target than the box itself */}}
+                          <label class="-m-1.5 flex shrink-0 cursor-pointer p-1.5 max-lg:-m-3.5 max-lg:p-3.5">
+                            <input
+                              type="checkbox"
+                              class="mt-1 size-4 accent-accent"
+                              :value="$store.cv.key(item)"
+                              x-model="selected"
+                              :aria-label="'Include ' + $store.cv.text(item, lang).title">
+                          </label>
+                          <button type="button" class="min-w-0 flex-1 text-left text-sm" @click="edit(item)" :title="'Edit ' + $store.cv.text(item, lang).title">
+                            <span class="flex items-center gap-1.5">
+                              <span class="truncate font-medium" :class="selected.includes($store.cv.key(item)) ? 'text-stone-900' : 'text-stone-500'" x-text="$store.cv.text(item, lang).title"></span>
+                              <span
+                                x-show="$store.cv.missing(item, lang)"
+                                class="shrink-0 text-amber-600"
+                                :title="'No ' + $store.cv.langName(lang) + ' text yet; the CV shows an empty title'">
+                                {{ icon "warn" "size-3.5" }}
+                              </span>
+                            </span>
+                            <span class="block truncate text-xs text-stone-500" x-text="[$store.cv.text(item, lang).org, $store.cv.period(item)].filter(Boolean).join(' · ')"></span>
+                          </button>
+                        </div>
+                      </li>
+                    </template>
+                  </ul>
+                  <button type="button" class="mt-1 flex items-center gap-1 px-1.5 text-xs text-stone-500 hover:text-accent max-lg:min-h-11" @click="add(section)" :aria-label="'Add to ' + $store.cv.sectionName(section)">
+                    {{ icon "plus" "size-3.5" }} Add
+                  </button>
+                </div>
               </div>
             </template>
-            <div
-              class="card p-3 transition"
-              :class="dragging === section && 'opacity-40'"
-              :draggable="grab === section"
-              @dragstart="dragStart($event, section)"
-              @dragover.prevent="dragOver(section)"
-              @drop.prevent
-              @dragend="dragEnd()">
-              <div class="mb-1 flex items-center gap-1.5">
-                <button
-                  type="button"
-                  class="cursor-grab px-0.5 text-stone-500 hover:text-stone-600 focus-visible:text-stone-700"
-                  :data-handle="section"
-                  :aria-label="'Move ' + $store.cv.sectionName(section) + ': drag, or Alt with the arrow keys'"
-                  title="Drag to reorder (or Alt+↑/↓)"
-                  @mousedown="grab = section"
-                  @keydown.alt.arrow-up.prevent="moveSection(section, -1)"
-                  @keydown.alt.arrow-down.prevent="moveSection(section, 1)">
-                  {{ icon "grip" "size-4" }}
-                </button>
-                <h2 class="eyebrow min-w-0 flex-1 truncate text-accent" x-text="$store.cv.sectionName(section)"></h2>
-                <button
-                  type="button"
-                  class="ml-1 w-9 text-right text-xs text-stone-500 hover:text-stone-900 max-lg:min-h-11 max-lg:w-14"
-                  @click="toggleSection(section, sectionState(section) !== 'all')"
-                  x-text="sectionState(section) === 'all' ? 'None' : 'All'"></button>
-              </div>
-              <ul class="space-y-0.5">
-                <template x-for="item in $store.cv.items(section)" :key="$store.cv.key(item)">
-                  <li>
-                    <template x-if="breaks().items[$store.cv.key(item)]">
-                      <div class="meta my-1.5 flex items-center gap-2 px-1.5" aria-hidden="true">
-                        <span class="flex-1 border-t border-dashed border-stone-300"></span>
-                        <span x-text="'Page ' + breaks().items[$store.cv.key(item)]"></span>
-                        <span class="flex-1 border-t border-dashed border-stone-300"></span>
-                      </div>
-                    </template>
-                    <div
-                      class="flex gap-2.5 rounded-md px-1.5 py-1"
-                      :class="isOpen(item) ? 'bg-accent-tint' : hover === $store.cv.key(item) ? 'bg-stone-100' : 'hover:bg-stone-50'"
-                      @mouseenter="hover = $store.cv.key(item)"
-                      @mouseleave="hover = null">
-                      {{/* A bigger tap target than the box itself */}}
-                      <label class="-m-1.5 flex shrink-0 cursor-pointer p-1.5 max-lg:-m-3.5 max-lg:p-3.5">
-                        <input
-                          type="checkbox"
-                          class="mt-1 size-4 accent-accent"
-                          :value="$store.cv.key(item)"
-                          x-model="selected"
-                          :aria-label="'Include ' + $store.cv.text(item, lang).title">
-                      </label>
-                      <button type="button" class="min-w-0 flex-1 text-left text-sm" @click="edit(item)" :title="'Edit ' + $store.cv.text(item, lang).title">
-                        <span class="flex items-center gap-1.5">
-                          <span class="truncate font-medium" :class="selected.includes($store.cv.key(item)) ? 'text-stone-900' : 'text-stone-500'" x-text="$store.cv.text(item, lang).title"></span>
-                          <span
-                            x-show="$store.cv.missing(item, lang)"
-                            class="shrink-0 text-amber-600"
-                            :title="'No ' + $store.cv.langName(lang) + ' text yet; the CV shows an empty title'">
-                            {{ icon "warn" "size-3.5" }}
-                          </span>
-                        </span>
-                        <span class="block truncate text-xs text-stone-500" x-text="[$store.cv.text(item, lang).org, $store.cv.period(item)].filter(Boolean).join(' · ')"></span>
-                      </button>
-                    </div>
-                  </li>
-                </template>
-              </ul>
-              <button type="button" class="mt-1 flex items-center gap-1 px-1.5 text-xs text-stone-500 hover:text-accent max-lg:min-h-11" @click="add(section)" :aria-label="'Add to ' + $store.cv.sectionName(section)">
-                {{ icon "plus" "size-3.5" }} Add
-              </button>
-            </div>
+    
+            <select
+              class="w-full rounded-md border border-dashed border-stone-300 bg-transparent py-2 text-sm text-stone-500 hover:border-stone-400 hover:text-stone-900 max-lg:min-h-11"
+              x-show="emptySections().length"
+              aria-label="Add an item to another section"
+              @change="add($event.target.value); $event.target.value = ''">
+              <option value="">+ Add an item to another section…</option>
+              <template x-for="section in emptySections()" :key="section">
+                <option :value="section" x-text="$store.cv.sectionName(section)"></option>
+              </template>
+            </select>
           </div>
-        </template>
-
-        <select
-          class="w-full rounded-md border border-dashed border-stone-300 bg-transparent py-2 text-sm text-stone-500 hover:border-stone-400 hover:text-stone-900 max-lg:min-h-11"
-          x-show="emptySections().length"
-          aria-label="Add an item to another section"
-          @change="add($event.target.value); $event.target.value = ''">
-          <option value="">+ Add an item to another section…</option>
-          <template x-for="section in emptySections()" :key="section">
-            <option :value="section" x-text="$store.cv.sectionName(section)"></option>
-          </template>
-        </select>
-      </aside>
+        </aside>
+      </div>
 
       {{/* Preview, with the layout settings above it */}}
       <section class="flex min-h-0 min-w-0 flex-col" :class="view !== 'preview' && 'max-lg:hidden'">
@@ -287,34 +291,36 @@
           </div>
         </div>
 
-        <div class="mt-4 h-[80vh] overflow-y-auto px-1 pb-4 lg:h-auto lg:min-h-0 lg:flex-1">
-          <div x-show="!selected.length" class="card mx-auto max-w-md p-6 text-center text-sm text-stone-500">
-            Nothing selected yet. Tick the items for this version in the list on the left.
-          </div>
-          <div x-ref="pages" x-show="selected.length" aria-label="PDF preview" class="mx-auto max-w-3xl space-y-6 transition-opacity" :class="loading && 'opacity-60'">
-            <template x-for="p in pageList" :key="p.key">
-              <div class="relative bg-white shadow-md ring-1 ring-stone-900/5" x-init="$el.prepend(canvas(p))">
-                {{/* Each item on the page: hover to see it, click to edit */}}
-                <template x-for="m in p.marks" :key="m.id">
-                  <div
-                    role="button"
-                    tabindex="0"
-                    class="group absolute inset-x-[2%] cursor-pointer rounded-md transition"
-                    :class="isOpenKey(m.id) ? 'bg-accent/5 ring-2 ring-accent' : hover === m.id ? 'bg-accent/5 ring-2 ring-accent/40' : 'focus-visible:ring-2 focus-visible:ring-accent/40'"
-                    :style="markStyle(m, p)"
-                    :aria-label="'Edit ' + markTitle(m.id)"
-                    @mouseenter="hover = m.id"
-                    @mouseleave="hover = null"
-                    @click="openKey(m.id)"
-                    @keydown.enter.prevent="openKey(m.id)">
-                    <div class="absolute top-1.5 right-1.5 gap-1" :class="hover === m.id ? 'flex' : 'hidden group-focus-within:flex'">
-                      <button type="button" class="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm hover:text-accent" @click.stop="openKey(m.id)">Edit</button>
-                      <button type="button" class="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm hover:text-red-700" @click.stop="hide(m.id)" :aria-label="'Hide ' + markTitle(m.id) + ' in this version'">Hide</button>
+        <div class="scroll-shadows relative mt-1 flex h-[80vh] flex-col lg:h-auto lg:min-h-0 lg:flex-1">
+          <div class="min-h-0 flex-1 overflow-y-auto p-3" x-init="scrollShadows($el)">
+            <div x-show="!selected.length" class="card mx-auto max-w-md p-6 text-center text-sm text-stone-500">
+              Nothing selected yet. Tick the items for this version in the list on the left.
+            </div>
+            <div x-ref="pages" x-show="selected.length" aria-label="PDF preview" class="mx-auto max-w-3xl space-y-6 transition-opacity" :class="loading && 'opacity-60'">
+              <template x-for="p in pageList" :key="p.key">
+                <div class="relative bg-white shadow-[0_1px_2px_rgb(28_25_23/0.06),0_2px_10px_rgb(28_25_23/0.08)] ring-1 ring-stone-900/5" x-init="$el.prepend(canvas(p))">
+                  {{/* Each item on the page: hover to see it, click to edit */}}
+                  <template x-for="m in p.marks" :key="m.id">
+                    <div
+                      role="button"
+                      tabindex="0"
+                      class="group absolute inset-x-[2%] cursor-pointer rounded-md transition"
+                      :class="isOpenKey(m.id) ? 'bg-accent/5 ring-2 ring-accent' : hover === m.id ? 'bg-accent/5 ring-2 ring-accent/40' : 'focus-visible:ring-2 focus-visible:ring-accent/40'"
+                      :style="markStyle(m, p)"
+                      :aria-label="'Edit ' + markTitle(m.id)"
+                      @mouseenter="hover = m.id"
+                      @mouseleave="hover = null"
+                      @click="openKey(m.id)"
+                      @keydown.enter.prevent="openKey(m.id)">
+                      <div class="absolute top-1.5 right-1.5 gap-1" :class="hover === m.id ? 'flex' : 'hidden group-focus-within:flex'">
+                        <button type="button" class="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm hover:text-accent" @click.stop="openKey(m.id)">Edit</button>
+                        <button type="button" class="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm hover:text-red-700" @click.stop="hide(m.id)" :aria-label="'Hide ' + markTitle(m.id) + ' in this version'">Hide</button>
+                      </div>
                     </div>
-                  </div>
-                </template>
-              </div>
-            </template>
+                  </template>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
       </section>
