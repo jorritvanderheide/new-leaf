@@ -47,6 +47,8 @@ type CVInfo struct {
 type cvMeta struct {
 	Name   string   `json:"name,omitempty"`
 	Owners []string `json:"owners,omitempty"`
+
+	broken bool // the file is there but can't be read: its owners are unknown
 }
 
 var loginRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._@+-]{0,63}$`)
@@ -87,10 +89,24 @@ func (r *Registry) metaPath(id string) string { return filepath.Join(r.store.Roo
 
 func (r *Registry) meta(id string) cvMeta {
 	var m cvMeta
-	if data, err := os.ReadFile(r.metaPath(id)); err == nil {
-		json.Unmarshal(data, &m)
+	data, err := os.ReadFile(r.metaPath(id))
+	if err == nil {
+		err = json.Unmarshal(data, &m)
 	}
+	m.broken = err != nil && !errors.Is(err, fs.ErrNotExist)
 	return m
+}
+
+// Broken lists the CVs whose cv.json can't be read. With OwnersOnly, nobody
+// but a configured CV's own login can open them until it is fixed.
+func (r *Registry) Broken() []string {
+	var ids []string
+	for _, id := range r.IDs() {
+		if r.meta(id).broken {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // IDs lists the CVs: configured ones, plus those made in the editor.
@@ -313,7 +329,11 @@ func (r *Registry) Owns(id, login string) bool {
 }
 
 // open reports whether nobody owns a CV yet.
-func (r *Registry) open(id string) bool { return !r.declared[id] && len(r.meta(id).Owners) == 0 }
+// A CV whose cv.json can't be read isn't: its owners are unknown.
+func (r *Registry) open(id string) bool {
+	m := r.meta(id)
+	return !r.declared[id] && !m.broken && len(m.Owners) == 0
+}
 
 // MayEdit reports whether a tailnet login may open and change a CV.
 func (r *Registry) MayEdit(id, login string) bool {

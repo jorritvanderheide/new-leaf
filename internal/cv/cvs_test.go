@@ -176,3 +176,21 @@ func TestConfiguredLogins(t *testing.T) {
 		t.Errorf("ForLogin = %q", got)
 	}
 }
+
+// With OwnersOnly, a cv.json that can't be read doesn't open a CV to all.
+func TestBrokenMetaIsClosed(t *testing.T) {
+	store := &Store{Root: t.TempDir()}
+	r := NewRegistry(store, nil, true)
+	r.OwnersOnly = true
+	id, _ := r.Create("Bea", nil, "bea@example.com")
+	os.WriteFile(r.metaPath(id), []byte(`{"owners": ["bea@example.com"`), 0o640) // cut off
+	if r.MayEdit(id, "mallory@example.com") || r.MayEdit(id, "bea@example.com") {
+		t.Error("a CV with a broken cv.json is open")
+	}
+	if err := r.Update(id, "Mine", []string{"mallory@example.com"}, "mallory@example.com"); err == nil {
+		t.Error("someone claimed a CV with a broken cv.json")
+	}
+	if !slices.Equal(r.Broken(), []string{id}) {
+		t.Errorf("Broken = %v", r.Broken())
+	}
+}

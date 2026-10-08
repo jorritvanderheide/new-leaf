@@ -43,6 +43,9 @@ func Serve(ctx context.Context, o ServeOptions) error {
 	store := &cv.Store{Root: filepath.Join(o.Data, "users")}
 	cvs := cv.NewRegistry(store, o.Users, o.Manage)
 	cvs.OwnersOnly = o.OwnersOnly
+	for _, id := range cvs.Broken() {
+		log.Printf("%s/cv.json can't be read; with -owners-only, nobody can open that CV until it is fixed", id)
+	}
 	assets := NewAssets(o.DevAssets)
 	typst, err := render.NewTypst(o.Typst, o.Work, assets.fs)
 	if err != nil {
