@@ -182,6 +182,7 @@ var icons = map[string]string{
 	"undo":    `<path d="M7 5.5 3.75 8.75 7 12"/><path d="M4 8.75h7.5a4.25 4.25 0 0 1 0 8.5H9"/>`,
 	"redo":    `<path d="m13 5.5 3.25 3.25L13 12"/><path d="M16 8.75H8.5a4.25 4.25 0 0 0 0 8.5H11"/>`,
 	"trash":   `<path d="M4 5.75h12M8.25 5.75V4h3.5v1.75M5.75 5.75l.75 10.5h7l.75-10.5"/>`,
+	"more":    `<path d="M4.75 10h.01M10 10h.01M15.25 10h.01" stroke-width="2.4"/>`,
 }
 
 func icon(name, class string) template.HTML {

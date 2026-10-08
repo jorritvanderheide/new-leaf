@@ -2,6 +2,11 @@
 
 **Keep one CV, and turn over a new leaf for every application.**
 
+A CV editor for your own computer, or on a server for everyone on your
+Tailscale network. Your CV is a folder of Markdown files, and every
+application gets a version of it with its own items, order, language and
+look, with the PDF right next to it. See [Getting started](#2-getting-started).
+
 <br/>
 
 [![Checks](https://github.com/jorritvanderheide/new-leaf/actions/workflows/ci.yml/badge.svg)](https://github.com/jorritvanderheide/new-leaf/actions/workflows/ci.yml)

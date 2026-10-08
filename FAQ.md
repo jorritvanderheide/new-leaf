@@ -113,8 +113,8 @@ spacing. The layout is one design, in `web/typst/cv.typ`; see [PDF](docs/pdf.md)
 
 ### My photo isn't on the PDF
 
-Tick **Photo** in the version's toolbar. If it says **Add a photo** instead,
-there's no photo yet: add one on the Profile page.
+Open the version's **Look** and tick **Show** under Photo. If it says **Add a
+photo on your Profile** instead, there's no photo yet: add one there.
 
 ## Share links
 

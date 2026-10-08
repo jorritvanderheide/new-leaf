@@ -12,10 +12,11 @@
     @keydown.window="undoKey($event)"
     class="flex flex-col gap-4 transition-[padding] lg:h-[calc(100dvh-3rem)]"
     :class="form && 'xl:pr-136'">
-    {{/* The version, and what to do with it */}}
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-      {{/* As wide as the outline below it; a row of its own on phones */}}
-      <div class="flex min-w-0 basis-full items-center gap-1 sm:flex-1 sm:basis-auto lg:w-[18rem] lg:flex-none xl:w-[20rem]">
+    {{/* The version, and what to do with it. Below large screens it stands in
+         for the app's top bar, and stays at the top. */}}
+    <div class="flex items-center gap-x-3 max-lg:sticky max-lg:top-0 max-lg:z-20 max-lg:-mx-4 max-lg:border-b max-lg:border-stone-200 max-lg:bg-stone-50 max-lg:px-4 max-lg:py-2 sm:max-lg:-mx-6 sm:max-lg:px-6">
+      {{/* As wide as the outline below it on large screens */}}
+      <div class="flex min-w-0 flex-1 items-center gap-1 lg:w-[18rem] lg:flex-none xl:w-[20rem]">
         <a href="/" class="shrink-0 rounded-md p-1.5 text-stone-500 hover:bg-stone-100 hover:text-stone-900" aria-label="All versions" title="All versions">{{ icon "back" "size-5" }}</a>
         <input
           class="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-lg font-semibold text-stone-900 hover:border-stone-200 focus:border-accent focus:bg-white focus:outline-2 focus:outline-offset-2 focus:outline-accent"
@@ -25,17 +26,28 @@
       </div>
       <span
         x-show="missing().length"
-        class="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-3 py-1 text-sm text-amber-800"
-        :title="missing().map((i) => $store.cv.text(i, $store.cv.main()).title).join('\n')">
+        class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-sm text-amber-800 sm:px-3"
+        :title="missing().map((i) => $store.cv.text(i, $store.cv.main()).title).join('\n')"
+        :aria-label="missing().length + ' without ' + $store.cv.langName(lang) + ' text'">
         {{ icon "warn" "size-4" }}
-        <span x-text="missing().length + ' without ' + $store.cv.langName(lang) + ' text'"></span>
+        <span class="sm:hidden" x-text="missing().length"></span>
+        <span class="max-sm:hidden" x-text="missing().length + ' without ' + $store.cv.langName(lang) + ' text'"></span>
       </span>
       <div class="ml-auto flex shrink-0 items-center gap-2">
-        <div class="flex">
+        <div class="flex max-sm:hidden">
           <button type="button" class="rounded-md p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 disabled:pointer-events-none disabled:opacity-30" @click="undo()" :disabled="!undoStack.length" aria-label="Undo" title="Undo (⌘Z)">{{ icon "undo" "size-5" }}</button>
           <button type="button" class="rounded-md p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 disabled:pointer-events-none disabled:opacity-30" @click="redo()" :disabled="!redoStack.length" aria-label="Redo" title="Redo (⇧⌘Z)">{{ icon "redo" "size-5" }}</button>
         </div>
-        <a class="btn" :href="(selected.length && pdfUrl) || null" :download="filename()" :class="!(selected.length && pdfUrl) && 'pointer-events-none opacity-50'">Download PDF</a>
+        <a class="btn max-sm:hidden" :href="(selected.length && pdfUrl) || null" :download="filename()" :class="!(selected.length && pdfUrl) && 'pointer-events-none opacity-50'">Download PDF</a>
+        {{/* Phones: the same, in a menu */}}
+        <div class="relative sm:hidden" x-data="{ open: false }" @click.outside="open = false" @keydown.escape.stop="open = false">
+          <button type="button" class="grid size-10 place-items-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-900" aria-label="More" aria-haspopup="menu" :aria-expanded="open" @click="open = !open">{{ icon "more" "size-5" }}</button>
+          <div x-cloak x-show="open" x-transition.opacity role="menu" class="card float absolute top-full right-0 z-30 mt-2 w-48 p-1.5">
+            <a role="menuitem" class="flex min-h-11 items-center rounded-md px-2.5 text-sm hover:bg-stone-50" :href="(selected.length && pdfUrl) || null" :download="filename()" :class="!(selected.length && pdfUrl) && 'pointer-events-none opacity-50'" @click="open = false">Download PDF</a>
+            <button type="button" role="menuitem" class="flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-sm hover:bg-stone-50 disabled:opacity-40" :disabled="!undoStack.length" @click="undo(); open = false">Undo</button>
+            <button type="button" role="menuitem" class="flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-sm hover:bg-stone-50 disabled:opacity-40" :disabled="!redoStack.length" @click="redo(); open = false">Redo</button>
+          </div>
+        </div>
         <button type="button" class="btn btn-primary" x-show="$store.cv.state.sharing" @click="openShare()" :disabled="!selected.length">
           <span x-show="shared()" class="size-2 rounded-full bg-on-accent" aria-hidden="true"></span>
           <span x-text="shared() ? 'Shared' : 'Share'"></span>
@@ -66,19 +78,22 @@
       </div>
     </template>
 
-    {{/* Phones: one column at a time */}}
-    <div class="seg w-full lg:hidden" role="tablist" aria-label="View" x-show="$store.cv.state.items.length">
-      <button type="button" role="tab" class="min-h-10 flex-1" :aria-pressed="view === 'items'" :aria-selected="view === 'items'" @click="view = 'items'">
-        Items <span class="font-mono text-xs opacity-70" x-text="selected.length"></span>
-      </button>
-      <button type="button" role="tab" class="min-h-10 flex-1" :aria-pressed="view === 'preview'" :aria-selected="view === 'preview'" @click="view = 'preview'; resized()">
-        Preview <span class="font-mono text-xs opacity-70" x-show="pages && selected.length" x-text="pages === 1 ? '1 page' : pages + ' pages'"></span>
-      </button>
+    {{/* Below large screens one column at a time, switched at the bottom, in
+         reach of a thumb. */}}
+    <div class="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden" x-show="$store.cv.state.items.length">
+      <div class="seg w-full" role="tablist" aria-label="View">
+        <button type="button" role="tab" class="min-h-10 flex-1" :aria-pressed="view === 'items'" :aria-selected="view === 'items'" @click="view = 'items'; scrollTo(0, 0)">
+          Items <span class="font-mono text-xs opacity-70" x-text="selected.length"></span>
+        </button>
+        <button type="button" role="tab" class="min-h-10 flex-1" :aria-pressed="view === 'preview'" :aria-selected="view === 'preview'" @click="view = 'preview'; resized(); scrollTo(0, 0)">
+          Preview <span class="font-mono text-xs opacity-70" x-show="pages && selected.length" x-text="pages === 1 ? '1 page' : pages + ' pages'"></span>
+        </button>
+      </div>
     </div>
 
     <div
       x-show="$store.cv.state.items.length"
-      class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]"
+      class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-6 max-lg:pb-20 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]"
       :class="form && 'xl:max-2xl:grid-cols-[minmax(0,1fr)]'">
       {{/* Outline: sections in this version's order, items to tick */}}
       <div class="scroll-shadows relative lg:min-h-0" :class="[view !== 'items' && 'max-lg:hidden', form && 'xl:max-2xl:hidden']">
@@ -184,29 +199,20 @@
 
       {{/* Preview, with the layout settings above it */}}
       <section class="flex min-h-0 min-w-0 flex-col" :class="view !== 'preview' && 'max-lg:hidden'">
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-stone-200 bg-white px-3 py-2">
+        {{/* Below large screens it stays under the version's header. */}}
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-stone-200 bg-white px-3 py-2 max-lg:sticky max-lg:top-14 max-lg:z-10 sm:gap-x-4">
           <div class="seg" role="group" aria-label="Language" x-show="$store.cv.state.langs.length > 1">
             <template x-for="l in $store.cv.state.langs" :key="l">
               <button type="button" :aria-pressed="lang === l" @click="lang = l" x-text="l.toUpperCase()"></button>
             </template>
           </div>
-          <template x-if="$store.cv.state.profile.photo">
-            <label class="flex items-center gap-2 text-sm text-stone-600">
-              <input type="checkbox" class="size-4 accent-accent" x-model="photo">
-              Photo
-            </label>
-          </template>
-          <template x-if="!$store.cv.state.profile.photo">
-            <a href="/profile/" class="text-sm text-stone-500 underline decoration-stone-300 underline-offset-2 hover:text-stone-900" title="No photo yet: add one on your Profile">Add a photo</a>
-          </template>
-
-          {{/* Look: colour, font, photo shape, spacing */}}
+          {{/* Look: colour, font, photo, spacing */}}
           <div class="relative" @keydown.escape.stop="lookOpen = false" @click.outside="lookOpen = false">
             <button type="button" class="btn py-1" @click="lookOpen = !lookOpen" :aria-expanded="lookOpen">
               <span class="size-3.5 rounded-full ring-1 ring-stone-900/10" :style="{ backgroundColor: resolvedTheme().accent }"></span>
               Look
             </button>
-            <div x-cloak x-show="lookOpen" x-transition.opacity class="card float absolute top-full left-0 z-20 mt-2 w-72 space-y-4 p-4" role="dialog" aria-label="Look">
+            <div x-cloak x-show="lookOpen" x-transition.opacity class="card float absolute top-full left-0 z-20 mt-2 w-72 space-y-4 p-4 max-sm:fixed max-sm:inset-x-4 max-sm:top-28 max-sm:mt-0 max-sm:w-auto" role="dialog" aria-label="Look">
               <div>
                 <p class="label">Colour</p>
                 <div class="flex flex-wrap items-center gap-2">
@@ -237,16 +243,25 @@
                   <button type="button" :aria-pressed="resolvedTheme().font === 'serif'" @click="theme.font = 'serif'">Serif</button>
                 </div>
               </div>
-              <template x-if="$store.cv.state.profile.photo">
-                <div>
-                  <p class="label">Photo</p>
-                  <div class="seg" role="group" aria-label="Photo shape">
-                    <template x-for="shape in ['rounded', 'circle', 'square']" :key="shape">
-                      <button type="button" class="capitalize" :aria-pressed="resolvedTheme().photo === shape" @click="theme.photo = shape" x-text="shape"></button>
-                    </template>
+              <div>
+                <p class="label">Photo</p>
+                <template x-if="$store.cv.state.profile.photo">
+                  <div class="flex flex-wrap items-center gap-3">
+                    <label class="flex items-center gap-2 text-sm text-stone-700">
+                      <input type="checkbox" class="size-4 accent-accent" x-model="photo">
+                      Show
+                    </label>
+                    <div class="seg" role="group" aria-label="Photo shape" x-show="photo">
+                      <template x-for="shape in ['rounded', 'circle', 'square']" :key="shape">
+                        <button type="button" class="capitalize" :aria-pressed="resolvedTheme().photo === shape" @click="theme.photo = shape" x-text="shape"></button>
+                      </template>
+                    </div>
                   </div>
-                </div>
-              </template>
+                </template>
+                <template x-if="!$store.cv.state.profile.photo">
+                  <a href="/profile/" class="text-sm text-stone-500 underline decoration-stone-300 underline-offset-2 hover:text-stone-900">Add a photo on your Profile</a>
+                </template>
+              </div>
               <div>
                 <div class="flex items-center justify-between">
                   <label class="label" for="spacing">Spacing</label>
@@ -291,7 +306,7 @@
           </div>
         </div>
 
-        <div class="scroll-shadows relative mt-1 flex h-[80vh] flex-col lg:h-auto lg:min-h-0 lg:flex-1">
+        <div class="scroll-shadows relative mt-1 flex flex-col lg:min-h-0 lg:flex-1">
           <div class="min-h-0 flex-1 overflow-y-auto p-3" x-init="scrollShadows($el)">
             <div x-show="!selected.length" class="card mx-auto max-w-md p-6 text-center text-sm text-stone-500">
               Nothing selected yet. Tick the items for this version in the list on the left.

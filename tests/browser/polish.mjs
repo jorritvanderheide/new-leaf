@@ -83,14 +83,32 @@ export default async function polish({ base, shots }) {
       "and a page count",
     );
 
-    // Phones: the name has a row of its own, checkboxes a finger-sized target.
+    // Phones: the version's header stands in for the app's top bar and stays
+    // at the top, the preview starts near the top, and Items and Preview
+    // switch at the bottom; checkboxes have a finger-sized target.
     await page.viewport(390, 844);
     await page.go(base + "/v/full-cv/");
     await sleep(800);
-    check((await page.js("document.querySelector('[aria-label=\"Version name\"]').getBoundingClientRect().width")) > 250, "the version name has room on a phone");
+    check(!(await page.js("document.querySelector('body > header').offsetParent")), "no app top bar in a version");
+    check((await page.js("document.querySelector('[aria-label=\"Version name\"]').getBoundingClientRect().width")) > 150, "the version name has room on a phone");
     const target = await page.js("(() => { const r = document.querySelector('aside[aria-label=Outline] label').getBoundingClientRect(); return Math.min(r.width, r.height); })()");
     check(target >= 44, `checkbox tap target ${target}px`);
-    check((await page.js("document.querySelectorAll('header [aria-haspopup=menu]').length")) === 1, "the CV menu is in the top bar");
+    check((await page.js("document.querySelector('[aria-label=View]').getBoundingClientRect().bottom")) > 844 - 60, "Items and Preview switch at the bottom");
+    await page.js("[...document.querySelectorAll('[role=tab]')].find((b) => b.textContent.trim().startsWith('Preview')).click()");
+    await page.until("document.querySelectorAll('[x-ref=pages] canvas').length > 0", "phone preview", 30000);
+    await sleep(800);
+    const top = await page.js("document.querySelector('[x-ref=pages] canvas').getBoundingClientRect().top");
+    check(top < 844 / 4, `the preview starts near the top (${Math.round(top)}px)`);
+    await page.js("scrollTo(0, 800)");
+    await sleep(300);
+    const header = await page.js("document.querySelector('[aria-label=\"Version name\"]').getBoundingClientRect().top");
+    check(header >= 0 && header < 20, `the header stays at the top while scrolling (${Math.round(header)}px)`);
+    await page.js("document.querySelector('[aria-label=More]').click()");
+    await sleep(300);
+    check((await page.js("[...document.querySelectorAll('[role=menu] [role=menuitem]')].filter((m) => m.offsetParent).map((m) => m.textContent.trim()).join()")) === "Download PDF,Undo,Redo", "Download, Undo and Redo are in the ⋯ menu");
+    await page.go(base + "/");
+    await sleep(500);
+    check((await page.js("document.querySelectorAll('header [aria-haspopup=menu]').length")) === 1, "elsewhere the CV menu is in the top bar");
 
     check(page.errors.length === 0, "no uncaught JS errors " + JSON.stringify(page.errors));
   } finally {

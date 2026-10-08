@@ -48,7 +48,8 @@
     </aside>
 
     {{/* Top bar (small screens) */}}
-    <header class="border-b border-stone-200 bg-white lg:hidden">
+    {{/* Not in a version: its own header stands in for this one. */}}
+    <header class="border-b border-stone-200 bg-white lg:hidden{{ if .Workspace }} hidden{{ end }}">
       <div class="flex h-14 items-center gap-3 px-4">
         <a href="/" class="shrink-0" aria-label="New Leaf: versions"><img src="{{ asset "icon.svg" }}" alt="" class="size-8"></a>
         <nav class="flex gap-1 overflow-x-auto text-sm" aria-label="Main">
@@ -62,7 +63,7 @@
     </header>
 
     <main class="lg:pl-60">
-      <div class="{{ if .Workspace }}px-4 py-6 sm:px-6{{ else }}mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8{{ end }}">
+      <div class="{{ if .Workspace }}px-4 pb-6 sm:px-6 lg:pt-6{{ else }}mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8{{ end }}">
         {{/* A version's workspace has no title: it uses the full window. */}}
         {{ if not .Workspace }}
           <div class="mb-6">
@@ -188,12 +189,12 @@
       x-show="$store.cv.state && ($store.cv.saveStatus() === 'saving' || $store.cv.saveStatus() === 'error' || $store.cv.savedFlash)"
       x-transition.opacity.duration.300ms
       class="float pointer-events-none fixed right-4 z-50 max-w-[calc(100vw-2rem)] rounded-md border border-stone-200 bg-white px-3 py-1.5"
-      :class="$store.cv.panelOpen ? 'bottom-24' : 'bottom-4'">
+      :class="$store.cv.panelOpen ? 'bottom-24' : '{{ if .Workspace }}bottom-20 lg:bottom-4{{ else }}bottom-4{{ end }}'">
       {{ template "save-status" . }}
     </div>
 
     {{/* Notifications */}}
-    <div class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4">
+    <div class="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4 {{ if .Workspace }}bottom-20 lg:bottom-4{{ else }}bottom-4{{ end }}">
       <div x-cloak x-show="$store.cv.error" x-transition class="float pointer-events-auto flex max-w-[90vw] items-start gap-3 rounded-lg bg-red-700 px-4 py-3 text-sm text-white" role="alert">
         <pre class="font-sans whitespace-pre-wrap" x-text="$store.cv.error"></pre>
         <button type="button" aria-label="Dismiss" @click="$store.cv.error = ''">{{ icon "close" "size-4" }}</button>

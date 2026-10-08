@@ -5,11 +5,11 @@ import { check, openPage, sleep } from "./lib.mjs";
 export default async function widths({ base, shots }) {
   const page = await openPage({ shots });
   try {
-    for (const [w, h] of [[390, 844], [1024, 760], [1280, 800], [1440, 900]]) {
+    for (const [w, h] of [[390, 844], [768, 1024], [1024, 760], [1280, 800], [1440, 900]]) {
       await page.viewport(w, h);
       await page.go(base + "/v/full-cv/");
       await sleep(800);
-      if (w < 600) {
+      if (w < 1024) {
         check(await page.js("document.documentElement.scrollWidth <= innerWidth"), `${w}px: no sideways overflow on the Items tab`);
         await page.shot(`width-${w}-items`);
         await page.js("[...document.querySelectorAll('[role=tab]')].find((b) => b.textContent.trim().startsWith('Preview')).click()");
