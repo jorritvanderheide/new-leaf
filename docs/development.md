@@ -56,10 +56,12 @@ to have seen it before `nix flake check` will.
   `run.mjs` against a fresh server with a made-up CV (`fixture.mjs`), then
   against local mode. `nix run .#browser-tests -- versions share` runs only
   those suites. Set `SHOTS=<folder>` to keep screenshots.
-- **The VM test** (`nix/test.nix`, `checks.vm`) runs the NixOS module:
-  sign-in, that only the proxy's group can reach the socket, PDFs and
-  thumbnails inside the sandbox, publishing, managing CVs, and moving data
-  from cv-app.
+- **The VM test** (`nix/test.nix`, `checks.vm`) runs the NixOS module in
+  three machines: sign-in, that only the proxy's group can reach the socket,
+  PDFs and thumbnails inside the sandbox, publishing, managing CVs and moving
+  data from cv-app; nginx on its own domains (a visitor on a made-up tailnet
+  address, large uploads, the share links' headers); and Tailscale serve, with
+  a stand-in `tailscale` that notes what it is asked to serve.
 
 Tests and screenshots use made-up people only. Anything that could lose
 someone's CV wants a test before it wants a feature.

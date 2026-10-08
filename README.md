@@ -44,8 +44,12 @@ nix profile install git+https://codeberg.org/BW20/new-leaf  # "New Leaf" in your
 ```
 
 **On a server**, for yourself and others on a [Tailscale](https://tailscale.com)
-network, with share links: see [Self-hosting](docs/self-hosting.md). There is a
-NixOS module and a Docker setup that needs no domain of its own.
+network, with share links: see [Self-hosting](docs/self-hosting.md). The NixOS
+module serves it in one of two ways: with
+[Tailscale only](docs/self-hosting.md#tailscale-only), with no domain, web
+server or open port, or with nginx on
+[your own domains](docs/self-hosting.md#your-own-domains). There is a Docker
+setup too.
 
 <br/>
 

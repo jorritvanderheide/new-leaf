@@ -1,11 +1,16 @@
-# Runs the hardened service in a VM with a stub `tailscale whois`: checks
-# identity, PDF rendering under the systemd sandbox, publishing, and that
-# published files are readable by a web server while user content is not.
+# Runs the hardened service in VMs with a stub `tailscale`: checks identity,
+# PDF rendering under the systemd sandbox, publishing, that published files
+# are readable by a web server while user content is not, and the two
+# ready-made ways to serve it (nginx on your own domains, and Tailscale).
 self:
 { pkgs, ... }:
 let
-  # Maps the tailnet IPs used below to users, like `tailscale whois --json`.
+  # Maps the tailnet IPs used below to users, like `tailscale whois --json`,
+  # and notes what it was asked to serve.
   whois = pkgs.writeShellScriptBin "tailscale" ''
+    case "$1" in
+      serve|funnel) echo "$@" >> /run/tailscale-calls; exit 0 ;;
+    esac
     case "$3" in
       100.64.0.5) echo '{"Node":{"Tags":[]},"UserProfile":{"LoginName":"alice@"}}' ;;
       100.64.0.6) echo '{"Node":{"Tags":[]},"UserProfile":{"LoginName":"mallory@"}}' ;;
@@ -41,9 +46,41 @@ pkgs.testers.runNixOSTest {
     };
   };
 
+  # nginx on its own domains.
+  nodes.web = {
+    imports = [ self.nixosModules.default ];
+    networking.hosts."127.0.0.1" = [
+      "cv-editor.test"
+      "cv.test"
+    ];
+    services.new-leaf = {
+      enable = true;
+      users = [ "alice" ];
+      tailscalePackage = whois;
+      nginx.editor.domain = "cv-editor.test";
+      nginx.share = {
+        domain = "cv.test";
+        rootRedirect = "https://example.test/";
+      };
+    };
+  };
+
+  # Tailscale serve and Funnel.
+  nodes.ts = {
+    imports = [ self.nixosModules.default ];
+    services.new-leaf = {
+      enable = true;
+      users = [ "alice" ];
+      tailscalePackage = whois;
+      publicURL = "https://ts.example.ts.net";
+      tailscaleServe.enable = true;
+    };
+  };
+
   testScript = ''
     import json
 
+    start_all()
     machine.wait_for_unit("new-leaf.service")
     machine.wait_for_unit("new-leaf.socket")
 
@@ -143,5 +180,38 @@ pkgs.testers.runNixOSTest {
         machine.wait_until_succeeds("test -e /var/lib/new-leaf/public/.new-leaf-public")  # claimed as New Leaf starts
         machine.succeed("stat -c %U /var/lib/new-leaf/users/alice | grep -x new-leaf")
         assert json.loads(api("GET", "/api/state"))["profile"]["name"] == "Alice Example"
+
+    with subtest("nginx: the editor through its domain, with the visitor's tailnet address"):
+        web.wait_for_unit("nginx.service")
+        web.wait_for_unit("new-leaf.socket")
+        web.succeed("ip addr add 100.64.0.5/32 dev lo")  # the visitor, as if on the tailnet
+        visitor = "curl -sf --interface 100.64.0.5 -H 'X-New-Leaf: 1'"
+        assert json.loads(web.succeed(f"{visitor} http://cv-editor.test/api/state"))["user"] == "alice"
+        web.fail("curl -sf http://cv-editor.test/api/state")  # 127.0.0.1 is no tailnet device
+        web.succeed("stat -c '%G' /run/new-leaf/editor.sock | grep -x nginx")
+        web.succeed("systemctl cat new-leaf.service | grep -q -- '-public-url https://cv.test'")
+
+    with subtest("nginx: backups up to 50 MB get through to New Leaf"):
+        web.succeed("head -c 20M /dev/urandom > /tmp/big")
+        code = web.succeed(
+            "curl -s -o /dev/null -w '%{http_code}' --interface 100.64.0.5 -H 'X-New-Leaf: 1' "
+            + "-F backup=@/tmp/big http://cv-editor.test/api/import"
+        )
+        assert code == "400", code  # New Leaf's answer (not a zip), not nginx's 413
+
+    with subtest("nginx: share links with their headers, and nothing else"):
+        web.wait_until_succeeds("test -s /var/lib/new-leaf/public/fonts/OFL.txt")
+        headers = web.succeed("curl -sfI http://cv.test/fonts/OFL.txt")
+        assert "noindex" in headers and "default-src 'none'" in headers, headers
+        web.succeed("curl -s -o /dev/null -w '%{http_code}' http://cv.test/.new-leaf-public | grep -x 404")
+        web.succeed("curl -sI http://cv.test/ | grep -i '^location: https://example.test/'")
+
+    with subtest("Tailscale: the editor on the tailnet, share links through Funnel"):
+        ts.wait_for_unit("new-leaf-tailscale-serve.service")
+        calls = ts.succeed("cat /run/tailscale-calls")
+        assert "serve --bg --yes --https=8443 unix:/run/new-leaf/editor.sock" in calls, calls
+        assert "funnel --bg --yes --https=443 http://127.0.0.1:8081" in calls, calls
+        ts.succeed("stat -c '%G' /run/new-leaf/editor.sock | grep -x new-leaf")  # only root and New Leaf
+        ts.wait_until_succeeds("curl -sfI http://127.0.0.1:8081/fonts/OFL.txt | grep -qi '^x-robots-tag: noindex'")
   '';
 }
