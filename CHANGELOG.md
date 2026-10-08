@@ -14,6 +14,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 - A photo may be at most 40 megapixels. A small file can claim to be a huge
   image, which would take the server gigabytes to open; one already there is
   left out of PDFs and share pages.
+- An item named after a long organisation, over 64 characters, can be saved:
+  its id is shortened. JSON Resume imports with one failed altogether.
 
 ## 0.6.1
 

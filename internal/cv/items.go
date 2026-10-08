@@ -111,6 +111,9 @@ func (s *Store) NewItemID(user string, it Item) string {
 			break
 		}
 	}
+	if len(base) > 40 {
+		base = strings.Trim(base[:40], "-")
+	}
 	if base == "" {
 		base = "item"
 	}

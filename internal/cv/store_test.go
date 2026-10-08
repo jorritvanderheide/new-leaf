@@ -97,6 +97,13 @@ func TestNewItemID(t *testing.T) {
 	if id := s.NewItemID("alice", it); id != "universitat-zurich-and-co-2" {
 		t.Errorf("duplicate id = %q", id)
 	}
+
+	// A long name makes an id that is still one an item can have.
+	it = Item{Section: "experience", Start: "2020", Text: map[string]ItemText{"en": {Org: "Netherlands Organisation for Applied Scientific Research and Innovation Programme"}}}
+	it.ID = s.NewItemID("alice", it)
+	if err := s.SaveItem("alice", it); err != nil || len(it.ID) > 40 {
+		t.Errorf("long name: id %q, %v", it.ID, err)
+	}
 }
 
 func TestProfileRoundTrip(t *testing.T) {
