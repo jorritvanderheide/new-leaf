@@ -11,9 +11,9 @@ import (
 func TestRegistry(t *testing.T) {
 	data := t.TempDir()
 	store := &Store{Root: filepath.Join(data, "users")}
-	r := NewRegistry(store, []string{"jorrit"}, true)
+	r := NewRegistry(store, []string{"carol"}, true)
 
-	if got := r.IDs(); !slices.Equal(got, []string{"jorrit"}) {
+	if got := r.IDs(); !slices.Equal(got, []string{"carol"}) {
 		t.Fatalf("declared CVs exist from the start: %v", got)
 	}
 	a, err := r.Create("  Bea   de Vries ", []string{"Bea@", ""})
@@ -38,24 +38,24 @@ func TestRegistry(t *testing.T) {
 	if got := r.ForLogin("bea@"); got != a {
 		t.Errorf("owner login opens %q", got)
 	}
-	if got := r.ForLogin("jorrit@"); got != "jorrit" {
+	if got := r.ForLogin("carol@"); got != "carol" {
 		t.Errorf("a CV named after the login opens by default: %q", got)
 	}
 	if got := r.ForLogin(""); got != "" {
 		t.Errorf("no login, no own CV: %q", got)
 	}
 
-	if err := r.Update("jorrit", "Jorrit", []string{"jorrit@"}); err != nil {
+	if err := r.Update("carol", "Carol", []string{"carol@"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := r.Update("nobody", "x", nil); err == nil {
 		t.Error("Update of a missing CV")
 	}
-	if list := r.List(); list[2].ID != "jorrit" || list[2].Label != "Jorrit" || !list[2].Declared {
+	if list := r.List(); list[2].ID != "carol" || list[2].Label != "Carol" || !list[2].Declared {
 		t.Errorf("after rename: %+v", list)
 	}
 
-	if err := r.Delete("jorrit"); err == nil {
+	if err := r.Delete("carol"); err == nil {
 		t.Error("configured CVs can't be deleted")
 	}
 	if err := r.Delete(b); err != nil {
@@ -71,15 +71,15 @@ func TestRegistry(t *testing.T) {
 	if err := r.Delete(a); err != nil {
 		t.Fatal(err)
 	}
-	if err := NewRegistry(store, nil, true).Delete("jorrit"); err == nil {
+	if err := NewRegistry(store, nil, true).Delete("carol"); err == nil {
 		t.Error("the only CV can't be deleted")
 	}
 
-	fixed := NewRegistry(store, []string{"jorrit"}, false)
+	fixed := NewRegistry(store, []string{"carol"}, false)
 	if _, err := fixed.Create("x", nil); err == nil {
 		t.Error("Create without -manage")
 	}
-	if err := fixed.Update("jorrit", "x", nil); err == nil {
+	if err := fixed.Update("carol", "x", nil); err == nil {
 		t.Error("Update without -manage")
 	}
 	store.Init("stray")

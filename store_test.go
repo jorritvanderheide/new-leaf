@@ -286,14 +286,14 @@ func TestProfileLinks(t *testing.T) {
 func TestProfileLocationPerLanguage(t *testing.T) {
 	s := newTestStore(t)
 	in := Profile{Langs: []string{"en", "nl"}, Name: "Alice", Text: map[string]ProfileText{
-		"en": {Location: "Eindhoven, the Netherlands"},
-		"nl": {Location: "Eindhoven, Nederland"},
+		"en": {Location: "Exampletown, the Netherlands"},
+		"nl": {Location: "Exampletown, Nederland"},
 	}}
 	if err := s.SaveProfile("alice", in); err != nil {
 		t.Fatal(err)
 	}
 	p, _ := s.Profile("alice")
-	if p.Text["en"].Location != "Eindhoven, the Netherlands" || p.Text["nl"].Location != "Eindhoven, Nederland" {
+	if p.Text["en"].Location != "Exampletown, the Netherlands" || p.Text["nl"].Location != "Exampletown, Nederland" {
 		t.Errorf("locations = %q, %q", p.Text["en"].Location, p.Text["nl"].Location)
 	}
 }

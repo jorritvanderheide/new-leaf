@@ -7,8 +7,8 @@ nix develop     # go, tailwindcss, typst
 nix run .#dev   # the server, against ./dev
 ```
 
-`nix run .#dev` runs the editor on <http://localhost:8080> as a fixed user,
-without Tailscale, and serves share links on <http://localhost:8081>. It reads
+`nix run .#dev` runs the editor on <http://localhost:8080> as you (your login
+name, `$USER`), without Tailscale, and serves share links on <http://localhost:8081>. It reads
 the templates and scripts from disk (`-dev-assets .`), so edits show on reload,
 and rebuilds the stylesheets as you go. Set `CV_DEV_USER` to open another CV
 first. Its data is in `dev/`, which git ignores; keep real CVs there and

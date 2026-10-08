@@ -89,7 +89,7 @@ window.scrollShadows = (box) => {
 
 const itemKey = (item) => `${item.section}/${item.id}`;
 
-// Same order as the CV (web/cv/layouts/_partials/cv.html): ongoing first, then
+// Same order as the CV (sortItems in document.go): ongoing first, then
 // by end date; on equal end dates the longer item first. Single-date items
 // (no end, point section) sort by their date, undated ones last; an undated
 // publication by the year in its reference, e.g. "(2026)".

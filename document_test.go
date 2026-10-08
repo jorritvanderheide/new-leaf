@@ -54,7 +54,7 @@ func TestBuildDocument(t *testing.T) {
 		{Section: "volunteering", ID: "skip", Start: "2010-01", End: "2011-01", Text: text("Skip", "")},
 	}
 	p := Profile{Name: "Alice", Email: "a@example.com", Links: []ProfileLink{{Label: "Scholar", URL: "https://scholar.example"}},
-		Order: []string{"education", "publications", "experience"}, Text: map[string]ProfileText{"en": {Location: "Eindhoven"}}}
+		Order: []string{"education", "publications", "experience"}, Text: map[string]ProfileText{"en": {Location: "Exampletown"}}}
 	sel := []string{"education/ma", "education/thesis", "experience/now", "experience/old", "publications/review", "publications/paper"}
 
 	doc := BuildDocument(p, items, PrintOptions{Lang: "en", Entries: sel}, "photo.jpg")
@@ -82,7 +82,7 @@ func TestBuildDocument(t *testing.T) {
 	if doc.Sections[2].Items[0].Date != "Apr 2023 – Present" {
 		t.Errorf("date = %q", doc.Sections[2].Items[0].Date)
 	}
-	if g := toJSON(doc.Contacts); g != `[{"text":"a@example.com","url":"mailto:a@example.com"},{"text":"Scholar","url":"https://scholar.example","underline":true},{"text":"Eindhoven"}]` {
+	if g := toJSON(doc.Contacts); g != `[{"text":"a@example.com","url":"mailto:a@example.com"},{"text":"Scholar","url":"https://scholar.example","underline":true},{"text":"Exampletown"}]` {
 		t.Errorf("contacts = %s", g)
 	}
 

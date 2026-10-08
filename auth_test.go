@@ -51,14 +51,14 @@ func TestClientIPForwardedFor(t *testing.T) {
 
 func TestAuthUser(t *testing.T) {
 	ids := map[string]Identity{
-		"100.64.0.1": {LoginName: "jorrit@"},
+		"100.64.0.1": {LoginName: "carol@"},
 		"100.64.0.2": {LoginName: "Alice@example.com"},
 		"100.64.0.3": {LoginName: "mallory@"},
-		"100.64.0.4": {LoginName: "jorrit@", Tagged: true},
+		"100.64.0.4": {LoginName: "carol@", Tagged: true},
 	}
 	calls := 0
 	a := &Auth{
-		CVs: NewRegistry(&Store{Root: t.TempDir()}, []string{"jorrit", "alice"}, false),
+		CVs: NewRegistry(&Store{Root: t.TempDir()}, []string{"carol", "alice"}, false),
 		Whois: func(_ context.Context, ip string) (Identity, error) {
 			calls++
 			if id, ok := ids[ip]; ok {
@@ -69,7 +69,7 @@ func TestAuthUser(t *testing.T) {
 	}
 	// Every human tailnet user gets in; their own CV by default, otherwise
 	// the first. Tagged nodes and non-peers are refused.
-	want := map[string]string{"100.64.0.1": "jorrit", "100.64.0.2": "alice", "100.64.0.3": "alice", "100.64.0.4": "", "100.64.0.5": ""}
+	want := map[string]string{"100.64.0.1": "carol", "100.64.0.2": "alice", "100.64.0.3": "alice", "100.64.0.4": "", "100.64.0.5": ""}
 	for ip, user := range want {
 		got, err := a.User(tailnetRequest(ip, ""))
 		if got != user || (user == "") != errors.Is(err, errForbidden) {
@@ -86,15 +86,15 @@ func TestAuthUser(t *testing.T) {
 
 func TestCVCookie(t *testing.T) {
 	a := &Auth{
-		CVs: NewRegistry(&Store{Root: t.TempDir()}, []string{"jorrit", "bob"}, false),
+		CVs: NewRegistry(&Store{Root: t.TempDir()}, []string{"carol", "bob"}, false),
 		Whois: func(_ context.Context, ip string) (Identity, error) {
 			if ip == "100.64.0.1" {
-				return Identity{LoginName: "jorrit@"}, nil
+				return Identity{LoginName: "carol@"}, nil
 			}
 			return Identity{}, errForbidden
 		},
 	}
-	for cookie, want := range map[string]string{"bob": "bob", "jorrit": "jorrit", "mallory": "jorrit", "": "jorrit"} {
+	for cookie, want := range map[string]string{"bob": "bob", "carol": "carol", "mallory": "carol", "": "carol"} {
 		if got, _ := a.User(tailnetRequest("100.64.0.1", cookie)); got != want {
 			t.Errorf("cookie %q: CV %q, want %q", cookie, got, want)
 		}
@@ -103,8 +103,8 @@ func TestCVCookie(t *testing.T) {
 		t.Errorf("a cookie must not let a non-peer in: %v", err)
 	}
 
-	dev := &Auth{DevUser: "jorrit", CVs: NewRegistry(&Store{Root: t.TempDir()}, []string{"jorrit", "bob"}, false)}
-	for cookie, want := range map[string]string{"bob": "bob", "mallory": "jorrit", "": "jorrit"} {
+	dev := &Auth{DevUser: "carol", CVs: NewRegistry(&Store{Root: t.TempDir()}, []string{"carol", "bob"}, false)}
+	for cookie, want := range map[string]string{"bob": "bob", "mallory": "carol", "": "carol"} {
 		if got, _ := dev.User(tailnetRequest("", cookie)); got != want {
 			t.Errorf("dev mode, cookie %q: CV %q, want %q", cookie, got, want)
 		}

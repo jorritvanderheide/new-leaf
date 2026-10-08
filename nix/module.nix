@@ -69,7 +69,7 @@ in
     users = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      example = [ "jorrit" ];
+      example = [ "alice" ];
       description = ''
         CVs that always exist, named after their owner's tailnet login (in
         full or the part before "@"). Every human tailnet user can open and

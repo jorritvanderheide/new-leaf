@@ -79,7 +79,7 @@ type itemFile struct {
 
 type ProfileText struct {
 	Headline string `json:"headline" yaml:"headline,omitempty"`
-	Location string `json:"location" yaml:"location,omitempty"` // e.g. "Eindhoven, the Netherlands"
+	Location string `json:"location" yaml:"location,omitempty"` // e.g. "Utrecht, the Netherlands"
 	Summary  string `json:"summary"  yaml:"-"`
 }
 

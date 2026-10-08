@@ -130,6 +130,7 @@ func (t *Typst) run(ctx context.Context, doc Document, photo string, args func(d
 	out, err := cmd.Output()
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
+			//lint:ignore ST1005 shown to the user as it is
 			return errors.New(typstHelp)
 		}
 		return fmt.Errorf("typst: %v: %s", err, tail(stderr.Bytes(), 800))
