@@ -95,7 +95,6 @@ func (s *Store) readVersion(path string) (Version, error) {
 	if f.Entries == nil {
 		f.Entries = []string{}
 	}
-	f.Theme = f.Theme.fromFile()
 	return Version{Name: f.Name, PrintOptions: f.PrintOptions, Pages: f.Pages, Fit: f.Fit, Created: f.Created, Updated: f.Updated}, nil
 }
 
@@ -125,6 +124,10 @@ func (s *Store) SaveVersion(user string, v Version) error {
 		v.Entries = []string{}
 	}
 	v.Order = SectionOrder(v.Order)
+	return s.writeVersion(user, v)
+}
+
+func (s *Store) writeVersion(user string, v Version) error {
 	data, err := json.MarshalIndent(versionFile{
 		Name: v.Name, PrintOptions: v.PrintOptions, Pages: v.Pages, Fit: v.Fit, Created: v.Created, Updated: v.Updated,
 	}, "", "  ")

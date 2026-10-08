@@ -318,39 +318,59 @@ func TestProfileLocationPerLanguage(t *testing.T) {
 	}
 }
 
-func TestLinksInEveryLanguage(t *testing.T) {
+// A share link is one file. One from before format 2, a file per language,
+// is read as it was, and Migrate makes it one file, with the teal it had.
+func TestLinkFile(t *testing.T) {
 	s := newTestStore(t)
-	l := Link{Slug: "uva-abcdefgh", Label: "UvA", Lang: "nl", Entries: []string{"experience/acme"}, Expires: "2030-01-01", Created: "2026-10-07"}
+	l := Link{Slug: "uva-abcdefgh", Label: "UvA", Lang: "nl", Entries: []string{"experience/acme"}, Theme: Theme{Accent: "#1d4ed8"}, Expires: "2030-01-01", Created: "2026-10-07"}
 	if err := s.SaveLink("alice", l); err != nil {
 		t.Fatal(err)
 	}
-	for lang, url := range map[string]string{"nl": "/uva-abcdefgh/", "en": "/uva-abcdefgh/en/"} {
-		raw, err := os.ReadFile(filepath.Join(s.dir("alice"), "links", "uva-abcdefgh."+lang+".md"))
-		if err != nil || !strings.Contains(string(raw), "url: "+url) {
-			t.Errorf("%s file: %v\n%s", lang, err, raw)
+	raw, _ := os.ReadFile(filepath.Join(s.dir("alice"), "links", "uva-abcdefgh.md"))
+	for _, want := range []string{"name: UvA", "lang: nl", `expires: "2030-01-01"`} {
+		if !strings.Contains(string(raw), want) {
+			t.Errorf("file lacks %q:\n%s", want, raw)
 		}
 	}
-	if links, _ := s.Links("alice"); len(links) != 1 || links[0].Lang != "nl" {
-		t.Errorf("links = %+v", links)
+	if got, _ := s.Link("alice", "uva-abcdefgh"); !reflect.DeepEqual(got, l) {
+		t.Errorf("link = %+v", got)
 	}
 
-	// A link from before the toggle: a single file. Upgrading adds the rest.
-	old := linkFile{Title: "Old", URL: "/old-abcdefgh/", Entries: []string{"experience/acme"}, ExpiryDate: "2030-01-01", Created: "2026-10-01"}
-	writeMarkdown(filepath.Join(s.dir("alice"), "links", "old-abcdefgh.en.md"), old, "")
+	// From before format 2: Dutch at /old-abcdefgh/, English next to it.
+	for lang, url := range map[string]string{"nl": "/old-abcdefgh/", "en": "/old-abcdefgh/en/"} {
+		writeMarkdown(filepath.Join(s.dir("alice"), "links", "old-abcdefgh."+lang+".md"), legacyLinkFile{
+			Title: "Old", URL: url, Entries: []string{"experience/acme"}, ExpiryDate: "2030-01-01", Created: "2026-10-01",
+		}, "")
+	}
+	if got, _ := s.Link("alice", "old-abcdefgh"); got.Lang != "nl" || got.Label != "Old" || got.Expires != "2030-01-01" {
+		t.Errorf("old link = %+v", got)
+	}
+	os.WriteFile(s.sharedProfilePath("alice"), []byte("---\nformat: 1\nlanguages: [en, nl]\n---\n"), 0o640)
+	if err := s.Migrate("alice"); err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := filepath.Glob(filepath.Join(s.dir("alice"), "links", "old-abcdefgh.*")); len(m) != 1 {
+		t.Errorf("files after migrating: %v", m)
+	}
+	if got, _ := s.Link("alice", "old-abcdefgh"); got.Lang != "nl" || got.Theme.Accent != oldAccent {
+		t.Errorf("migrated link = %+v", got)
+	}
+
+	// A CV that loses the link's language: it opens in the main one.
+	p, _ := s.Profile("alice")
+	p.Langs = []string{"en"}
+	s.SaveProfile("alice", p)
 	if changed, err := s.UpgradeLinks("alice"); !changed || err != nil {
 		t.Fatalf("UpgradeLinks = %v, %v", changed, err)
 	}
-	if got, _ := s.Link("alice", "old-abcdefgh"); got.Lang != "en" || !sameSet(got.langs, []string{"en", "nl"}) {
-		t.Errorf("upgraded link = %+v", got)
-	}
-	if changed, _ := s.UpgradeLinks("alice"); changed {
-		t.Error("second upgrade changed something")
+	if got, _ := s.Link("alice", "old-abcdefgh"); got.Lang != "en" {
+		t.Errorf("link = %+v", got)
 	}
 
-	if err := s.DeleteLink("alice", "uva-abcdefgh"); err != nil {
+	if err := s.DeleteLink("alice", "old-abcdefgh"); err != nil {
 		t.Fatal(err)
 	}
-	if m, _ := filepath.Glob(filepath.Join(s.dir("alice"), "links", "uva-abcdefgh.*")); len(m) != 0 {
+	if m, _ := filepath.Glob(filepath.Join(s.dir("alice"), "links", "old-abcdefgh*")); len(m) != 0 {
 		t.Errorf("files left after delete: %v", m)
 	}
 }
@@ -382,7 +402,7 @@ func TestMigrate(t *testing.T) {
 		t.Errorf("profile changed:\n%+v\n%+v", before, after)
 	}
 	data, _ := os.ReadFile(filepath.Join(dir, "_index.md"))
-	if !strings.Contains(string(data), "format: 1") || !strings.Contains(string(data), "name: Old Example") {
+	if !strings.Contains(string(data), fmt.Sprintf("format: %d", Format)) || !strings.Contains(string(data), "name: Old Example") {
 		t.Errorf("_index.md = %s", data)
 	}
 	for _, lang := range []string{"en", "nl", "de"} {
@@ -411,7 +431,7 @@ func TestMigrate(t *testing.T) {
 // A CV from a newer New Leaf is refused, not read half and written back.
 func TestNewerFormat(t *testing.T) {
 	s := newTestStore(t)
-	os.WriteFile(filepath.Join(s.dir("alice"), "_index.md"), []byte("---\nformat: 2\nname: Alice\n---\n"), 0o640)
+	os.WriteFile(filepath.Join(s.dir("alice"), "_index.md"), []byte("---\nformat: 3\nname: Alice\n---\n"), 0o640)
 	if _, err := s.Profile("alice"); !errors.Is(err, ErrNewerFormat) {
 		t.Errorf("Profile = %v", err)
 	}

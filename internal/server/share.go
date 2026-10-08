@@ -12,6 +12,7 @@ import (
 
 	_ "image/png"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -21,21 +22,31 @@ import (
 )
 
 // Share pages are rendered from the same Document as the PDF, so what a
-// visitor sees online and in the PDF always match.
+// visitor sees online and in the PDF always match. A link is one page with
+// every language of the CV in it: the link's own shows, and the others are
+// at #<lang> on the same page, shown by the stylesheet alone (share.css).
 
 type sharePage struct {
-	Doc      cv.Document
+	Lang     string // the language the page opens in
+	Name     string
 	CSS      string // relative URL of the stylesheet
 	ThemeCSS string // and of the theme's, which overrides colour, font and photo shape
 	Langs    []shareLang
-	Download string
-	Expires  string       // when the link stops working; empty if it does not
+	Blocks   []shareBlock // one per language, the page's own first
 	Photo    template.URL // inlined thumbnail, so the page is one file
 }
 
+// shareBlock is the CV in one language, with what goes around it.
+type shareBlock struct {
+	Lang     string
+	Doc      cv.Document
+	PDF      string // its URL, relative to the page
+	Download string
+	Expires  string // when the link stops working; empty if it does not
+}
+
 type shareLang struct {
-	Lang, Code, Label, URL string
-	Current                bool
+	Lang, Code, Label string
 }
 
 // shareCSS is the stylesheet's name in the webroot; the hash in it lets
@@ -44,9 +55,17 @@ func (s *Server) shareCSS() string {
 	return "css/share." + s.assets.Version("share/share.css") + ".css"
 }
 
-// renderShare renders a link's page in one language. The link's own
-// language lives at /<slug>/, the others at /<slug>/<lang>/.
-func (s *Server) renderShare(user string, l cv.Link, lang string) ([]byte, error) {
+// sharePDF is where a link's PDF in lang is, relative to its page: next to
+// it in the link's own language, in <lang>/ for the others.
+func sharePDF(l cv.Link, lang string) string {
+	if lang == l.Lang {
+		return "cv.pdf"
+	}
+	return lang + "/cv.pdf"
+}
+
+// renderShare renders a link's page, at /<slug>/, in the CV's languages.
+func (s *Server) renderShare(user string, l cv.Link, langs []string) ([]byte, error) {
 	profile, err := s.store.Profile(user)
 	if err != nil {
 		return nil, err
@@ -55,48 +74,43 @@ func (s *Server) renderShare(user string, l cv.Link, lang string) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
-	opt := l.Print()
-	opt.Lang = lang
-	page := sharePage{
-		Doc:      cv.BuildDocument(profile, items, opt, ""),
-		Download: cv.LanguageOf(lang).DownloadLabel,
-	}
-	if l.Expires != "" {
-		page.Expires = fmt.Sprintf(cv.LanguageOf(lang).ExpiryNote, cv.LanguageOf(lang).LongDate(l.ExpiresAt()))
-	}
+	page := sharePage{Lang: l.Lang, Name: profile.Name, CSS: "../" + s.shareCSS()}
+	themeCSS, _ := l.Theme.CSS()
+	page.ThemeCSS = "../" + themeCSS
 	if l.Photo {
 		if page.Photo, err = thumbnail(s.store.PhotoPath(user)); err != nil {
 			return nil, err
 		}
 	}
-	root := "../"
-	if lang != l.Lang {
-		root = "../../"
+	order := append([]string{l.Lang}, slices.DeleteFunc(slices.Clone(langs), func(lang string) bool { return lang == l.Lang })...)
+	for _, lang := range langs {
+		page.Langs = append(page.Langs, shareLang{Lang: lang, Code: strings.ToUpper(lang), Label: cv.LanguageOf(lang).Name})
 	}
-	page.CSS = root + s.shareCSS()
-	themeCSS, _ := l.Theme.CSS()
-	page.ThemeCSS = root + themeCSS
-	for _, target := range profile.Langs {
-		sl := shareLang{Lang: target, Code: strings.ToUpper(target), Label: cv.LanguageOf(target).Name, Current: target == lang}
-		switch {
-		case target == l.Lang && lang == l.Lang:
-			sl.URL = "./"
-		case target == l.Lang:
-			sl.URL = "../"
-		case lang == l.Lang:
-			sl.URL = target + "/"
-		default:
-			sl.URL = "../" + target + "/"
+	for _, lang := range order {
+		opt := l.Print()
+		opt.Lang = lang
+		b := shareBlock{Lang: lang, Doc: cv.BuildDocument(profile, items, opt, ""), PDF: sharePDF(l, lang), Download: cv.LanguageOf(lang).DownloadLabel}
+		if l.Expires != "" {
+			b.Expires = fmt.Sprintf(cv.LanguageOf(lang).ExpiryNote, cv.LanguageOf(lang).LongDate(l.ExpiresAt()))
 		}
-		page.Langs = append(page.Langs, sl)
+		page.Blocks = append(page.Blocks, b)
 	}
+	return s.renderTemplate("share/page.html", page)
+}
 
-	t, err := s.assets.Template("share/page.html")
+// renderMoved is the page at /<slug>/<lang>/, where a link's other
+// languages were before they joined its page: it sends visitors on.
+func (s *Server) renderMoved(name, lang string) ([]byte, error) {
+	return s.renderTemplate("share/moved.html", struct{ Name, Lang string }{name, lang})
+}
+
+func (s *Server) renderTemplate(name string, data any) ([]byte, error) {
+	t, err := s.assets.Template(name)
 	if err != nil {
 		return nil, err
 	}
 	var b bytes.Buffer
-	if err := t.Execute(&b, page); err != nil {
+	if err := t.Execute(&b, data); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil

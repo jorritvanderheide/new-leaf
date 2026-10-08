@@ -2,6 +2,7 @@ package cv
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
 	"image"
@@ -11,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	_ "golang.org/x/image/webp"
@@ -40,7 +42,11 @@ type Profile struct {
 // `format` in content/_index.md. A CV without that file is from before it
 // (format 0), and Migrate moves it over. To change the layout again, raise
 // Format and teach Migrate to move a CV up from the one before.
-const Format = 1
+//
+//	1: the profile's shared fields in _index.md, its text per language
+//	2: a share link in one file, links/<slug>.md; versions and links
+//	   without an accent from before green, written out as teal
+const Format = 2
 
 // profileShared is content/_index.md: what the profile has once, whatever
 // the language.
@@ -129,24 +135,71 @@ func (s *Store) profilePath(user, lang string) string {
 	return filepath.Join(s.dir(user), "_index."+lang+".md")
 }
 
-// Migrate moves a CV from before format 1 over: its profile's shared fields
-// go to content/_index.md, and out of every language's file, also those of
-// languages it no longer has. The shared file is written first, so a
-// migration that is cut off loses nothing: the language files then keep
-// fields that are no longer read.
+// Migrate moves a CV from an older format over, one step at a time. Each
+// step leaves what it read readable, and the format is written last, so a
+// migration that is cut off just runs again.
 func (s *Store) Migrate(user string) error {
-	if _, err := os.Stat(s.sharedProfilePath(user)); !errors.Is(err, fs.ErrNotExist) {
+	var shared profileShared
+	format := 0
+	if _, err := readMarkdown(s.sharedProfilePath(user), &shared); err == nil {
+		format = max(shared.Format, 1)
+	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
+	}
+	if format >= Format {
+		return nil // a newer one is refused by Profile
 	}
 	p, err := s.Profile(user)
 	if err != nil {
 		return err
 	}
-	if err := s.writeSharedProfile(user, p); err != nil {
+	if format < 1 {
+		// The shared fields go to _index.md, and out of every language's
+		// file, also those of languages it no longer has; _index.md first.
+		if err := s.writeSharedProfile(user, p, 1); err != nil {
+			return err
+		}
+		for lang, t := range p.Text {
+			if err := writeMarkdown(s.profilePath(user, lang), t, t.Summary); err != nil {
+				return err
+			}
+		}
+	}
+	if format < 2 {
+		if err := s.migrateLinksAndAccents(user, p); err != nil {
+			return err
+		}
+	}
+	return s.writeSharedProfile(user, p, Format)
+}
+
+// migrateLinksAndAccents is format 2: each share link in one file, opening
+// in its own language (or the CV's main one), and an accent written out in
+// versions and links without one, which were teal. Files are written as
+// they are, unchecked: one that isn't valid must not stop the CV opening.
+func (s *Store) migrateLinksAndAccents(user string, p Profile) error {
+	versions, err := s.Versions(user)
+	if err != nil {
 		return err
 	}
-	for lang, t := range p.Text {
-		if err := writeMarkdown(s.profilePath(user, lang), t, t.Summary); err != nil {
+	for _, v := range versions {
+		if v.Theme.Accent == "" {
+			v.Theme.Accent = oldAccent
+			if err := s.writeVersion(user, v); err != nil {
+				return err
+			}
+		}
+	}
+	links, err := s.Links(user)
+	if err != nil {
+		return err
+	}
+	for _, l := range links {
+		l.Theme.Accent = cmp.Or(l.Theme.Accent, oldAccent)
+		if !slices.Contains(p.Langs, l.Lang) {
+			l.Lang = p.Langs[0]
+		}
+		if err := s.writeLink(user, l); err != nil {
 			return err
 		}
 	}
@@ -185,7 +238,7 @@ func (s *Store) SaveProfile(user string, p Profile) error {
 	if err := p.Validate(); err != nil {
 		return err
 	}
-	if err := s.writeSharedProfile(user, p); err != nil {
+	if err := s.writeSharedProfile(user, p, Format); err != nil {
 		return err
 	}
 	for _, lang := range p.Langs {
@@ -197,7 +250,7 @@ func (s *Store) SaveProfile(user string, p Profile) error {
 	return nil
 }
 
-func (s *Store) writeSharedProfile(user string, p Profile) error {
+func (s *Store) writeSharedProfile(user string, p Profile, format int) error {
 	var links []ProfileLink
 	for _, l := range p.Links {
 		if l.URL = strings.TrimSpace(l.URL); l.URL != "" {
@@ -205,7 +258,7 @@ func (s *Store) writeSharedProfile(user string, p Profile) error {
 		}
 	}
 	return writeMarkdown(s.sharedProfilePath(user), profileShared{
-		Format: Format, Languages: p.Langs,
+		Format: format, Languages: p.Langs,
 		Name: Clean(p.Name), Email: Clean(p.Email), Phone: Clean(p.Phone), Website: Clean(p.Website),
 		Links:   links,
 		Order:   SectionOrder(p.Order),

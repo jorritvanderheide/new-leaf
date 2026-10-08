@@ -769,7 +769,7 @@ document.addEventListener("alpine:init", () => {
     hover: null, // item key under the pointer, in the outline or the preview
     grab: null, // section whose handle is held
     dragging: null, // section being dragged
-    share: { open: false, expires: "", forever: false },
+    share: { open: false, expires: "", forever: false, lang: "" },
     undoStack: [], // settings to go back to, as snapshot() strings
     redoStack: [],
 
@@ -830,7 +830,7 @@ document.addEventListener("alpine:init", () => {
 
     // The share form would save what the link already has.
     shareUnchanged() {
-      return this.shared() && this.shareExpires() === this.link().expires;
+      return this.shared() && this.shareExpires() === this.link().expires && this.share.lang === this.link().lang;
     },
 
     // Escape closes the item, unless the palette or the share form is open.
@@ -1217,6 +1217,7 @@ document.addEventListener("alpine:init", () => {
         open: true,
         forever: !!link && !link.expires,
         expires: link?.expires || addDays(this.$store.cv.state.today, 30),
+        lang: link?.lang || this.lang,
       };
     },
 
@@ -1225,7 +1226,7 @@ document.addEventListener("alpine:init", () => {
       const st = this.$store.cv;
       const had = this.shared();
       if (!(await this._versionSaver.flush())) return;
-      await st.send("PUT", `/api/versions/${this.id}/share`, { expires: this.shareExpires() }, had ? "Saved" : "");
+      await st.send("PUT", `/api/versions/${this.id}/share`, { expires: this.shareExpires(), lang: this.share.lang }, had ? "Saved" : "");
     },
 
     async unshare() {

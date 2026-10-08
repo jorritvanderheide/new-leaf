@@ -13,7 +13,7 @@ users/<cv>/content/_index.md                    profile: what it has once, and t
 users/<cv>/content/_index.<lang>.md             profile: its text, per language
 users/<cv>/content/photo.{jpg,png,webp}         profile photo
 users/<cv>/content/<section>/<id>.<lang>.md     one item, per language
-users/<cv>/content/links/<slug>.<lang>.md       share link of a version (server only)
+users/<cv>/content/links/<slug>.md              share link of a version (server only)
 users/<cv>/versions/<id>.json                   one version
 users/<cv>/backups/before-import-<time>.zip     what a restore replaced
 trash/<cv>-<time>/                              a deleted CV
@@ -34,7 +34,7 @@ server later. On a server it is `-data` (`/var/lib/new-leaf`).
 
 | Key | Value |
 | --- | --- |
-| `format` | The layout of the CV's files, `1` (see [Compatibility](compatibility.md#data-files)) |
+| `format` | The layout of the CV's files, `2` (see [Compatibility](compatibility.md#data-files)) |
 | `languages` | The CV's languages, the main one first (see [Languages](#languages)) |
 | `name` | Your name |
 | `email`, `phone`, `website` | Contact details |
@@ -98,8 +98,9 @@ adds to a PDF and share page.
   files still get the shared keys (dates, links) when those change, and the
   text comes back with the language. Versions in it move to the main language; a shared
   version keeps it from being removed.
-- **A share link** is published in each of the CV's languages, and its files
-  follow them.
+- **A share link** has every language of the CV on its page, and opens in
+  one of them, chosen when sharing. A link whose language the CV loses opens
+  in the main language instead.
 
 A CV from before languages could be chosen has no `languages` key. It is read
 as English, plus Dutch if it has Dutch files, which is what it was.
@@ -138,17 +139,22 @@ The `theme` of a version, and of the profile for new versions:
 
 ## Share links
 
-On a server only. `links/<slug>.<lang>.md` is a link to a version, rendered in
-`<lang>`. The slug is the version's name plus 8 random characters, so the
-address can't be guessed. Sharing again makes a new one.
+On a server only. `links/<slug>.md` is a link to a version, published as one
+page with every language of the CV on it. The slug is the version's name plus
+8 random characters, so the address can't be guessed. Sharing again makes a
+new one.
 
 | Key | Value |
 | --- | --- |
 | `version` | The version it shows |
-| `title`, `entries`, `photo`, `spacing`, `order`, `theme` | A copy of the version, kept up to date |
-| `url` | Where it's published |
-| `expiryDate` | `YYYY-MM-DD`: offline from the start of that day, in the server's time zone (`-timezone`). None: no end date |
+| `lang` | The language the page opens in; the others are a click away on it |
+| `name`, `entries`, `photo`, `spacing`, `order`, `theme` | A copy of the version, kept up to date (`name` is the version's) |
+| `expires` | `YYYY-MM-DD`: offline from the start of that day, in the server's time zone (`-timezone`). None: no end date |
 | `created` | `YYYY-MM-DD` |
+
+Before format 2 a link was a file per language, `links/<slug>.<lang>.md`, with
+`title` for `name` and `expiryDate` for `expires`, and the link's own language
+the one whose `url` was `/<slug>/`. Those are read as they are and moved over.
 
 What a link publishes is described in
 [Self-hosting](self-hosting.md#what-the-server-writes).

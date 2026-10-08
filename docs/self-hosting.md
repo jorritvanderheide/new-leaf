@@ -257,9 +257,9 @@ as `NEW_LEAF_` and its name in capitals: `NEW_LEAF_PUBLIC_URL` for
 
 - **CVs:** in the data folder, as on your own computer. See
   [Data model](data-model.md).
-- **Share links:** published into the public folder: a page and a PDF per
-  language, and a stylesheet per look. Only the items of the version are in
-  them. New Leaf only manages a folder that is empty or that it made itself (it
+- **Share links:** published into the public folder: a page with every
+  language of the CV on it, a PDF per language, and a stylesheet per look.
+  Only the items of the version are in them. New Leaf only manages a folder that is empty or that it made itself (it
   leaves a `.new-leaf-public` file in it), and every five minutes it removes
   what no link needs anymore, such as expired links.
 - **Thumbnails and fonts:** in the work folder.

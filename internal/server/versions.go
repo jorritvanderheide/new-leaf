@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"codeberg.org/BW20/new-leaf/internal/cv"
@@ -123,10 +124,11 @@ func sameSettings(a, b cv.Version) bool {
 	return bytes.Equal(x, y)
 }
 
-// follow makes a link show a version.
+// follow makes a link show a version. The language it opens in is the
+// link's own, chosen when sharing.
 func follow(l *cv.Link, v cv.Version) {
 	l.Version, l.Label = v.ID, v.Name
-	l.Lang, l.Entries, l.Photo, l.Spacing, l.Order, l.Theme = v.Lang, v.Entries, v.Photo, v.Spacing, v.Order, v.Theme
+	l.Entries, l.Photo, l.Spacing, l.Order, l.Theme = v.Entries, v.Photo, v.Spacing, v.Order, v.Theme
 }
 
 // deleteVersion deletes a version and takes its link offline.
@@ -153,11 +155,13 @@ func (s *Server) deleteVersion(r *http.Request, user string) error {
 	return s.reconcile()
 }
 
-// putShare shares a version until a date, or changes that date. The link is
+// putShare shares a version until a date, or changes that date, and the
+// language the page opens in (by default the version's). The link is
 // published before the answer, so it works as soon as the editor shows it.
 func (s *Server) putShare(r *http.Request, user string) error {
 	var req struct {
 		Expires string `json:"expires"`
+		Lang    string `json:"lang"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		return err
@@ -177,6 +181,12 @@ func (s *Server) putShare(r *http.Request, user string) error {
 		}
 	}
 	follow(link, v)
+	link.Lang = cmp.Or(req.Lang, link.Lang, v.Lang)
+	if langs, err := s.store.Langs(user); err != nil {
+		return err
+	} else if !slices.Contains(langs, link.Lang) {
+		return badRequest{fmt.Errorf("the CV has no %s", cv.LanguageOf(link.Lang).English)}
+	}
 	link.Expires = req.Expires
 	return s.saveLink(r.Context(), user, *link)
 }

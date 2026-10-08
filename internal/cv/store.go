@@ -52,6 +52,7 @@ var LinkZone = time.Local
 
 type Store struct{ Root string }
 
+// quoted forces YAML double quotes, so "2023-09" and "2026-12-01" stay
 // strings for every YAML parser instead of becoming dates.
 type quoted string
 

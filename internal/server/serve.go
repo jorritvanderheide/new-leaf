@@ -64,6 +64,17 @@ func Serve(ctx context.Context, o ServeOptions) error {
 	if err := claimPublicDir(o.Public); err != nil {
 		return err
 	}
+	// Every CV in the current format before anything is published: links in
+	// an older one are read too, but this way the files are the same for all.
+	users, err := store.Users()
+	if err != nil {
+		return err
+	}
+	for _, u := range users {
+		if err := store.Migrate(u); err != nil {
+			log.Printf("%s: %v", u, err)
+		}
+	}
 
 	// Bring every user's published links up to date (new app version, links
 	// that expired while we were down), then keep expiring.

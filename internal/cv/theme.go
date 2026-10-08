@@ -20,8 +20,8 @@ type Theme struct {
 // the default never changes a version.
 const defaultAccent = "#15803d"
 
-// oldAccent is the accent of a version or share link saved without one.
-// Those are from when teal was the default, and keep it.
+// oldAccent was the default before green: format 2 writes it into the
+// versions and share links that were saved without an accent.
 const oldAccent = "#00696a"
 
 // themeFonts are the bundled fonts: the family for Typst (web/typst/fonts)
@@ -69,14 +69,6 @@ func (t Theme) Resolved() Theme {
 func (t Theme) ForNewVersion() Theme {
 	if t.Accent == "" {
 		t.Accent = defaultAccent
-	}
-	return t
-}
-
-// fromFile is a theme as read from a version or share link.
-func (t Theme) fromFile() Theme {
-	if t.Accent == "" {
-		t.Accent = oldAccent
 	}
 	return t
 }

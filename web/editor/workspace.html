@@ -378,6 +378,15 @@
           </div>
           <p class="text-xs text-stone-500" x-text="share.forever ? 'The link works until you stop sharing.' : 'The link stops working at the start of this day.'"></p>
         </div>
+        <div x-show="$store.cv.state.langs.length > 1">
+          <label class="label" for="share-lang">Opens in</label>
+          <select id="share-lang" class="input" x-model="share.lang">
+            <template x-for="l in $store.cv.state.langs" :key="l">
+              <option :value="l" x-text="$store.cv.langName(l)"></option>
+            </template>
+          </select>
+          <p class="mt-1 text-xs text-stone-500">The page has every language of your CV; visitors can switch.</p>
+        </div>
         <div class="flex flex-wrap justify-end gap-2">
           <template x-if="link()">
             <button type="button" class="btn btn-danger mr-auto" @click="unshare()" :disabled="$store.cv.busy">Stop sharing</button>

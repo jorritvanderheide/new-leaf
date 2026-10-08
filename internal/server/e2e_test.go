@@ -142,23 +142,36 @@ func TestEndToEnd(t *testing.T) {
 	slug := link.Slug
 	page := readFile(t, filepath.Join(public, slug, "index.html"))
 
-	// Every language is published; the toggle links them both ways.
-	nlPage := readFile(t, filepath.Join(public, slug, "nl", "index.html"))
-	if !strings.Contains(nlPage, "Publieke rol") || !strings.Contains(nlPage, `lang="nl"`) {
-		t.Error("Dutch share page lacks its Dutch content")
+	// Every language is on the one page, the link's own first; the toggle
+	// switches between them on it. The Dutch PDF is in nl/, with a page that
+	// sends visitors of the old Dutch address on.
+	if en, nl := strings.Index(page, `id="en" lang="en"`), strings.Index(page, `id="nl" lang="nl"`); en < 0 || nl < en || !strings.Contains(page[nl:], "Publieke rol") {
+		t.Errorf("share page lacks its languages in order (%d, %d)", en, nl)
 	}
-	if !strings.Contains(page, `href="nl/"`) || !strings.Contains(nlPage, `href="../"`) {
-		re := regexp.MustCompile(`href="[^"]*" hreflang="[^"]*"`)
-		t.Errorf("language toggle does not link the pages to each other: %q / %q", re.FindAllString(page, -1), re.FindAllString(nlPage, -1))
+	if !strings.Contains(page, `href="#nl"`) || !strings.Contains(page, `href="#en"`) || !strings.Contains(page, `href="nl/cv.pdf"`) {
+		re := regexp.MustCompile(`href="[^"]*"`)
+		t.Errorf("language toggle or PDFs: %q", re.FindAllString(page, -1))
 	}
-	for _, leak := range []string{"Hidden Org", "Confidential"} {
-		if strings.Contains(nlPage, leak) {
-			t.Errorf("Dutch share page leaks unselected %q", leak)
-		}
+	if moved := readFile(t, filepath.Join(public, slug, "nl", "index.html")); !strings.Contains(moved, `url=../#nl`) {
+		t.Errorf("the old Dutch address doesn't send visitors on:\n%s", moved)
 	}
 	if pdf := readFile(t, filepath.Join(public, slug, "nl", "cv.pdf")); render.PageCount([]byte(pdf)) < 1 {
 		t.Error("Dutch PDF missing")
 	}
+
+	// The page can open in another of the CV's languages; the version's
+	// language doesn't change with it.
+	call("PUT", "/api/versions/test/share", map[string]string{"expires": expires, "lang": "nl"})
+	if dutch := readFile(t, filepath.Join(public, slug, "index.html")); !strings.Contains(dutch, `<html lang="nl">`) || strings.Index(dutch, `id="nl"`) > strings.Index(dutch, `id="en"`) {
+		t.Error("the link doesn't open in Dutch")
+	}
+	if _, err := os.Stat(filepath.Join(public, slug, "en", "cv.pdf")); err != nil {
+		t.Errorf("English PDF: %v", err)
+	}
+	if v, _ := store.Version("alice", "test"); v.Lang != "en" {
+		t.Errorf("the version's language became %q", v.Lang)
+	}
+	call("PUT", "/api/versions/test/share", map[string]string{"expires": expires, "lang": "en"})
 	for _, want := range []string{"Visible Org", "Shared detail.", "Alice Example", `href="https://doi.org/10.1000/xyz"`, ">Mar 2021<"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("share page lacks %q", want)

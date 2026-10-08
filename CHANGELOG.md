@@ -20,6 +20,16 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   going on until now.
 - Two small races: deleting two CVs at once could remove the last one, and a
   restore could briefly take the CV's share pages offline.
+- **One share page per link, with every language on it.** It opens in the
+  language you choose when sharing (the version's, unless you pick another),
+  and visitors switch with the language buttons, on the same page and without
+  script. Addresses you already shared keep working: `/<slug>/<lang>/` sends
+  visitors on. A link is one file now, `links/<slug>.md`, with `name`, `lang`
+  and `expires`.
+- **One default accent.** A version or link saved without an accent was teal,
+  from before green was the default; the migration writes teal into those, so
+  green is the default everywhere.
+- The CV format is now 2; CVs and backups move over when opened or restored.
 
 ## 0.6.1
 

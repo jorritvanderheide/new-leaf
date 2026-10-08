@@ -1,0 +1,11 @@
+<!doctype html>
+{{/* Where a share link's other languages were before they joined its page,
+     /<slug>/<lang>/: sends visitors on to /<slug>/#<lang>. */}}
+<html lang="{{ .Lang }}">
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="refresh" content="0; url=../#{{ .Lang }}">
+  <title>CV {{ .Name }}</title>
+  <a href="../#{{ .Lang }}">CV {{ .Name }}</a>
+</html>

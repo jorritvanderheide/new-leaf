@@ -50,7 +50,10 @@ warning, until the next major release. Adding one is not breaking.
 
 A share link's address, `<public url>/<slug>/`, and its PDF, `cv.pdf` next to
 the page, keep working for as long as the link is shared and hasn't expired,
-also across major releases. The other languages are at `<slug>/<lang>/`.
+also across major releases. The page has every language of the CV on it, at
+`<slug>/#<lang>`; the PDF in another language is at `<slug>/<lang>/cv.pdf`,
+and `<slug>/<lang>/`, where that language's page was before 0.7, sends
+visitors on.
 
 ## Not covered
 

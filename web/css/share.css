@@ -174,3 +174,15 @@
     }
   }
 }
+
+/* A share page holds every language of the CV, its own first. The one the
+   address names (#nl) shows, or else the first: no script needed. */
+.cv-lang ~ .cv-lang {
+  display: none;
+}
+.cv-lang:target {
+  display: block;
+}
+body:has(.cv-lang:target) .cv-lang:not(:target) {
+  display: none;
+}

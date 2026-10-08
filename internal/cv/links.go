@@ -13,14 +13,14 @@ import (
 	"time"
 )
 
-// A share link is published in every language of the CV: one file per
-// language, all with the same fields. The link's own language (that of its
-// version) opens at /<slug>/, the others at /<slug>/<lang>/.
+// A share link is one file, links/<slug>.md, published as one page at
+// /<slug>/ with every language of the CV in it. The page opens in the
+// link's language; the others are a click away, at /<slug>/#<lang>.
 
 type Link struct {
 	Slug    string   `json:"slug"`
-	Label   string   `json:"label"`
-	Lang    string   `json:"lang"` // opens at /<slug>/; the other languages at /<slug>/<lang>/
+	Label   string   `json:"label"` // the version's name
+	Lang    string   `json:"lang"`  // the language the page opens in
 	Entries []string `json:"entries"`
 	Photo   bool     `json:"photo"`
 	Spacing float64  `json:"spacing"` // as in PrintOptions
@@ -29,15 +29,30 @@ type Link struct {
 	Theme   Theme    `json:"theme"`
 	Expires string   `json:"expires"` // YYYY-MM-DD, the link stops working at the start of this day; empty: never
 	Created string   `json:"created"`
-
-	langs []string // the languages it has files for
 }
 
 func (l Link) Print() PrintOptions {
 	return PrintOptions{Lang: l.Lang, Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order, Theme: l.Theme}
 }
 
+// linkFile is links/<slug>.md.
 type linkFile struct {
+	Name    string   `yaml:"name"`
+	Lang    string   `yaml:"lang"`
+	Version string   `yaml:"version,omitempty"`
+	Entries []string `yaml:"entries"`
+	Photo   bool     `yaml:"photo"`
+	Spacing float64  `yaml:"spacing,omitempty"`
+	Order   []string `yaml:"order,omitempty"`
+	Theme   Theme    `yaml:"theme,omitempty"`
+	Expires quoted   `yaml:"expires,omitempty"` // none: the link does not expire
+	Created quoted   `yaml:"created"`
+}
+
+// legacyLinkFile is links/<slug>.<lang>.md, from before format 2: one per
+// language, alike but for the url, which is /<slug>/ in the link's own
+// language.
+type legacyLinkFile struct {
 	Title      string   `yaml:"title"`
 	URL        string   `yaml:"url"`
 	Entries    []string `yaml:"entries"`
@@ -46,7 +61,7 @@ type linkFile struct {
 	Order      []string `yaml:"order,omitempty"`
 	Version    string   `yaml:"version,omitempty"`
 	Theme      Theme    `yaml:"theme,omitempty"`
-	ExpiryDate quoted   `yaml:"expiryDate,omitempty"` // none: the link does not expire
+	ExpiryDate quoted   `yaml:"expiryDate,omitempty"`
 	Created    quoted   `yaml:"created"`
 }
 
@@ -60,46 +75,55 @@ func (l Link) ExpiresAt() time.Time {
 
 func (l Link) Expired(now time.Time) bool { return l.Expires != "" && !now.Before(l.ExpiresAt()) }
 
-// quoted forces YAML double quotes, so "2023-09" and "2026-12-01" stay
-// LinkDir is where a link's page in lang lives, relative to the webroot.
-func (l Link) LinkDir(lang string) string {
-	if lang == l.Lang {
-		return l.Slug
-	}
-	return filepath.Join(l.Slug, lang)
+func (s *Store) linkPath(user, slug string) string {
+	return filepath.Join(s.dir(user), "links", slug+".md")
 }
 
+// Links reads a CV's share links, also those from before format 2 that
+// Migrate hasn't moved over yet: a link must never seem gone, or its page
+// would be taken offline.
 func (s *Store) Links(user string) ([]Link, error) {
 	files, _ := filepath.Glob(filepath.Join(s.dir(user), "links", "*.md"))
-	bySlug := map[string]*Link{}
+	bySlug := map[string]Link{}
+	legacy := map[string]bool{}
 	for _, path := range files {
-		slug, lang, ok := splitLangFile(filepath.Base(path))
-		if !ok {
+		name := strings.TrimSuffix(filepath.Base(path), ".md")
+		if IDRe.MatchString(name) {
+			var f linkFile
+			if _, err := readMarkdown(path, &f); err != nil {
+				return nil, err
+			}
+			bySlug[name] = Link{
+				Slug: name, Label: f.Name, Lang: f.Lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing, Order: f.Order,
+				Version: f.Version, Theme: f.Theme, Expires: string(f.Expires), Created: string(f.Created),
+			}
+			delete(legacy, name)
 			continue
 		}
-		var f linkFile
+		slug, lang, ok := splitLangFile(filepath.Base(path))
+		if _, done := bySlug[slug]; !ok || done && !legacy[slug] {
+			continue
+		}
+		var f legacyLinkFile
 		if _, err := readMarkdown(path, &f); err != nil {
 			return nil, err
 		}
-		l := bySlug[slug]
-		if l == nil {
-			l = &Link{Slug: slug}
-			bySlug[slug] = l
-		}
-		l.langs = append(l.langs, lang)
-		// The files agree on everything but the URL; the one at /<slug>/
-		// is the link's own language. Links from before the toggle have a
-		// single file, which is then that language.
-		if l.Lang == "" || f.URL == "/"+slug+"/" {
-			*l = Link{
-				Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing, Order: f.Order, Version: f.Version, Theme: f.Theme.fromFile(),
-				Expires: string(f.ExpiryDate), Created: string(f.Created), langs: l.langs,
+		// The file at /<slug>/ is the link's own language. Links from
+		// before languages could be chosen have a single file.
+		if _, seen := bySlug[slug]; !seen || f.URL == "/"+slug+"/" {
+			bySlug[slug] = Link{
+				Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing, Order: f.Order,
+				Version: f.Version, Theme: f.Theme, Expires: string(f.ExpiryDate), Created: string(f.Created),
 			}
+			legacy[slug] = true
 		}
 	}
 	links := []Link{}
 	for _, l := range bySlug {
-		links = append(links, *l)
+		if l.Entries == nil {
+			l.Entries = []string{}
+		}
+		links = append(links, l)
 	}
 	sort.Slice(links, func(i, j int) bool {
 		if links[i].Created != links[j].Created {
@@ -136,8 +160,7 @@ func (l Link) Validate() error {
 	return l.Print().Validate()
 }
 
-// SaveLink writes a link in each of the CV's languages, and removes the
-// files of languages it no longer has.
+// SaveLink writes a link, in place of its files from before format 2.
 func (s *Store) SaveLink(user string, l Link) error {
 	if err := l.Validate(); err != nil {
 		return err
@@ -149,29 +172,32 @@ func (s *Store) SaveLink(user string, l Link) error {
 	if !slices.Contains(langs, l.Lang) {
 		return fmt.Errorf("the CV has no %s", LanguageOf(l.Lang).English)
 	}
+	return s.writeLink(user, l)
+}
+
+func (s *Store) writeLink(user string, l Link) error {
+	f := linkFile{
+		Name: Clean(l.Label), Lang: l.Lang, Version: l.Version,
+		Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order, Theme: l.Theme,
+		Expires: quoted(l.Expires), Created: quoted(l.Created),
+	}
+	if err := writeMarkdown(s.linkPath(user, l.Slug), f, ""); err != nil {
+		return err
+	}
+	return s.removeLegacyLink(user, l.Slug)
+}
+
+func (s *Store) removeLegacyLink(user, slug string) error {
 	for _, lang := range langCodes() {
-		path := filepath.Join(s.dir(user), "links", l.Slug+"."+lang+".md")
-		if !slices.Contains(langs, lang) {
-			if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return err
-			}
-			continue
-		}
-		f := linkFile{
-			Title: Clean(l.Label), URL: "/" + filepath.ToSlash(l.LinkDir(lang)) + "/",
-			Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order, Version: l.Version, Theme: l.Theme,
-			ExpiryDate: quoted(l.Expires), Created: quoted(l.Created),
-		}
-		if err := writeMarkdown(path, f, ""); err != nil {
+		if err := os.Remove(filepath.Join(s.dir(user), "links", slug+"."+lang+".md")); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
 	}
 	return nil
 }
 
-// UpgradeLinks brings links in line with the CV's languages: links from
-// before the language toggle, and links of a CV that gained or lost a
-// language. It reports whether anything changed.
+// UpgradeLinks makes links of a CV that lost their language open in its
+// main language instead. It reports whether anything changed.
 func (s *Store) UpgradeLinks(user string) (bool, error) {
 	links, err := s.Links(user)
 	if err != nil {
@@ -183,7 +209,8 @@ func (s *Store) UpgradeLinks(user string) (bool, error) {
 	}
 	changed := false
 	for _, l := range links {
-		if !sameSet(l.langs, langs) {
+		if !slices.Contains(langs, l.Lang) {
+			l.Lang = langs[0]
 			if err := s.SaveLink(user, l); err != nil {
 				return changed, fmt.Errorf("link %s: %w", l.Slug, err)
 			}
@@ -197,12 +224,10 @@ func (s *Store) DeleteLink(user, slug string) error {
 	if _, err := s.Link(user, slug); err != nil {
 		return err
 	}
-	for _, lang := range langCodes() {
-		if err := os.Remove(filepath.Join(s.dir(user), "links", slug+"."+lang+".md")); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+	if err := os.Remove(s.linkPath(user, slug)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
 	}
-	return nil
+	return s.removeLegacyLink(user, slug)
 }
 
 // NewSlug is a readable label plus a random suffix, so share links can't be

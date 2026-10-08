@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,8 +20,9 @@ import (
 // Share links are published as static files into a webroot that a public
 // web server serves:
 //
-//	<public>/<slug>/index.html, cv.pdf          the link's own language
-//	<public>/<slug>/<lang>/index.html, cv.pdf   the other languages
+//	<public>/<slug>/index.html, cv.pdf          the page, in every language; the PDF in the link's
+//	<public>/<slug>/<lang>/cv.pdf, index.html   the PDF in another language, and a page that
+//	                                            sends visitors on to /<slug>/#<lang>
 //	<public>/css/, fonts/                       shared by every share page
 //
 // Nothing else is allowed in the webroot: reconcile removes whatever is not
@@ -53,10 +55,10 @@ func claimPublicDir(dir string) error {
 	return os.WriteFile(filepath.Join(dir, publicMarker), nil, 0o644)
 }
 
-// publishLink writes a link's pages and PDFs, one of each per language. PDFs
-// are only re-rendered when a page changed, since the pages carry everything
-// the PDFs show. Publishes of one user run one at a time, so the newest
-// content always lands last.
+// publishLink writes a link's page and its PDFs. PDFs are only rendered
+// again when the page changed, since it carries everything they show.
+// Publishes of one user run one at a time, so the newest content always
+// lands last.
 func (s *Server) publishLink(ctx context.Context, user string, l cv.Link) error {
 	st := s.state(user)
 	st.publish.Lock()
@@ -66,13 +68,17 @@ func (s *Server) publishLink(ctx context.Context, user string, l cv.Link) error 
 	if err != nil {
 		return err
 	}
-	pages := map[string][]byte{}
+	page, err := s.renderShare(user, l, langs)
+	if err != nil {
+		return fmt.Errorf("link %s: %w", l.Slug, err)
+	}
+	files := map[string][]byte{"index.html": page}
 	for _, lang := range langs {
-		page, err := s.renderShare(user, l, lang)
-		if err != nil {
-			return fmt.Errorf("link %s (%s): %w", l.Slug, lang, err)
+		if lang != l.Lang {
+			if files[lang+"/index.html"], err = s.renderMoved(l.Label, lang); err != nil {
+				return err
+			}
 		}
-		pages[lang] = page
 	}
 	if err := s.syncAssets(); err != nil {
 		return err
@@ -80,7 +86,7 @@ func (s *Server) publishLink(ctx context.Context, user string, l cv.Link) error 
 	if err := s.syncTheme(l.Theme); err != nil {
 		return err
 	}
-	if s.isPublished(l, pages) {
+	if s.isPublished(l, langs, files) {
 		return nil
 	}
 
@@ -90,21 +96,20 @@ func (s *Server) publishLink(ctx context.Context, user string, l cv.Link) error 
 	}
 	defer os.RemoveAll(stage)
 	for _, lang := range langs {
-		rel, _ := filepath.Rel(l.Slug, l.LinkDir(lang)) // "." or the language
-		dir := filepath.Join(stage, rel)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
-		}
 		opt := l.Print()
 		opt.Lang = lang
 		pdf, err := s.renderPDF(ctx, user, opt)
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(filepath.Join(dir, "index.html"), pages[lang], 0o644); err != nil {
+		files[sharePDF(l, lang)] = pdf
+	}
+	for name, data := range files {
+		dst := filepath.Join(stage, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(filepath.Join(dir, "cv.pdf"), pdf, 0o644); err != nil {
+		if err := os.WriteFile(dst, data, 0o644); err != nil {
 			return err
 		}
 	}
@@ -125,21 +130,24 @@ func (s *Server) publishLink(ctx context.Context, user string, l cv.Link) error 
 	return os.Rename(stage, dst)
 }
 
-// isPublished reports whether the webroot already has these pages, with PDFs,
-// and no others: a language the CV no longer has makes it publish again.
-func (s *Server) isPublished(l cv.Link, pages map[string][]byte) bool {
-	subdirs, _ := os.ReadDir(filepath.Join(s.publicDir, l.Slug))
+// isPublished reports whether the webroot already has these files, with a
+// PDF in every language, and no other languages: a language the CV no longer
+// has makes it publish again.
+func (s *Server) isPublished(l cv.Link, langs []string, files map[string][]byte) bool {
+	dir := filepath.Join(s.publicDir, l.Slug)
+	subdirs, _ := os.ReadDir(dir)
 	for _, e := range subdirs {
-		if _, ok := pages[e.Name()]; e.IsDir() && !ok {
+		if e.IsDir() && !slices.Contains(langs, e.Name()) {
 			return false
 		}
 	}
-	for lang, page := range pages {
-		dir := filepath.Join(s.publicDir, l.LinkDir(lang))
-		if cur, err := os.ReadFile(filepath.Join(dir, "index.html")); err != nil || !bytes.Equal(cur, page) {
+	for name, data := range files {
+		if cur, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(name))); err != nil || !bytes.Equal(cur, data) {
 			return false
 		}
-		if _, err := os.Stat(filepath.Join(dir, "cv.pdf")); err != nil {
+	}
+	for _, lang := range langs {
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(sharePDF(l, lang)))); err != nil {
 			return false
 		}
 	}

@@ -101,20 +101,30 @@ func TestDocumentUsesVersionOrder(t *testing.T) {
 }
 
 // Versions and links saved without an accent are from when teal was the
-// default, and keep it; new versions get today's default written out.
+// default: format 2 writes it out, so missing means green everywhere since.
 func TestAccentDefaults(t *testing.T) {
 	s := newTestStore(t)
 	if err := s.SaveVersion("alice", Version{ID: "old", Name: "Old", PrintOptions: PrintOptions{Lang: "en"}}); err != nil {
 		t.Fatal(err)
 	}
-	if v, _ := s.Version("alice", "old"); v.Theme.Accent != oldAccent {
-		t.Errorf("old version's accent = %q", v.Theme.Accent)
-	}
 	if err := s.SaveLink("alice", Link{Slug: "old-abcdefgh", Label: "Old", Lang: "en", Entries: []string{"experience/acme"}, Created: "2026-01-02"}); err != nil {
 		t.Fatal(err)
 	}
+	os.WriteFile(s.sharedProfilePath("alice"), []byte("---\nformat: 1\nlanguages: [en, nl]\n---\n"), 0o640)
+	if err := s.Migrate("alice"); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := s.Version("alice", "old"); v.Theme.Accent != oldAccent {
+		t.Errorf("old version's accent = %q", v.Theme.Accent)
+	}
 	if l, _ := s.Link("alice", "old-abcdefgh"); l.Theme.Accent != oldAccent {
 		t.Errorf("old link's accent = %q", l.Theme.Accent)
+	}
+	if v, _ := s.Version("alice", "old"); v.Theme.Resolved().Accent != oldAccent {
+		t.Errorf("old version resolves to %q", v.Theme.Resolved().Accent)
+	}
+	if (Theme{}).Resolved().Accent != defaultAccent {
+		t.Error("a theme without an accent isn't green")
 	}
 
 	s.Init("bob")
