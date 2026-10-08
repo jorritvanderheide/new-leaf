@@ -4,7 +4,7 @@ What changed in each release of New Leaf, newest first. What counts as
 breaking is in [Compatibility](docs/compatibility.md). Releases before 0.6
 are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/releases).
 
-## Unreleased
+## 0.7.1
 
 - A new share link's address is 12 random characters, without the version's
   name: that told whoever got a link what the version was made for, such as
