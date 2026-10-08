@@ -67,14 +67,24 @@ whole sections into the order that suits each version.
 ### An item has a warning sign
 
 It has no text in the language of this version yet, so the PDF would show an
-empty title. Click it and fill in the other language; **Start from English**
-(or Dutch) copies the text over for you to translate.
+empty title. Click it and fill in this language; **Start from** the other one
+copies its text over for you to translate.
 
-### Why only English and Dutch?
+### Which languages can my CV be in?
 
-Those are the languages it was made for, and the labels on the PDF and share
-page exist in both. Adding a language means translating those labels; open an
-issue if you'd like one.
+One or two of English, Dutch, German, French, Spanish, Italian and
+Portuguese, chosen under **Languages** on the Profile page. New Leaf adds a
+few words of its own to the PDF and share page, such as the section titles and
+the months, and those are translated for these languages. Missing yours, or a
+title that reads wrong? Open an issue: a language is one table of words
+(`languages.go`).
+
+### I removed a language. Is its text gone?
+
+No. It stays on disk, and in backups, and comes back when you add the language
+again. Versions in that language move to your main one; a shared version keeps
+the language from being removed until you stop sharing it or change its
+language.
 
 ### How do I move my CV to another computer?
 

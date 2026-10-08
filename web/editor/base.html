@@ -22,27 +22,27 @@
     @beforeunload.window="$store.cv.beforeUnload()">
     {{/* Sidebar (large screens) */}}
     <aside class="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-stone-200 bg-white lg:flex">
-      <a href="/" class="flex h-16 items-center gap-2.5 px-5 font-semibold text-stone-900">
+      <a href="/" class="flex h-16 shrink-0 items-center gap-2.5 px-5 font-semibold text-stone-900">
         <img src="{{ asset "icon.svg" }}" alt="" class="size-8">
         New Leaf
       </a>
-      <button type="button" class="mx-3 mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-500 ring-1 ring-stone-200 hover:text-stone-900" @click="$store.cv.paletteOpen = true">
+      <button type="button" class="mx-3 mb-3 flex items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-sm text-stone-500 hover:border-line hover:text-stone-900" @click="$store.cv.paletteOpen = true">
         {{ icon "search" "size-4" }}
         Search
-        <kbd class="ml-auto font-sans text-xs text-stone-500">⌘K</kbd>
+        <kbd class="meta ml-auto">⌘K</kbd>
       </button>
       <nav class="flex-1 space-y-0.5 px-3" aria-label="Main">
         {{ range .Nav }}
           <a
             href="{{ .URL }}"
-            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-600 hover:bg-stone-50 hover:text-stone-900{{ end }}"
+            class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-600 hover:bg-stone-50 hover:text-stone-900{{ end }}"
             {{ if .Active }}aria-current="page"{{ end }}>
             {{ icon .Icon (cond .Active "size-5 text-accent" "size-5 text-stone-500") }}
             {{ .Name }}
           </a>
         {{ end }}
       </nav>
-      <div class="border-t border-stone-100 p-3" x-cloak x-show="$store.cv.state">
+      <div class="border-t border-stone-200 p-3" x-cloak x-show="$store.cv.state">
         {{ template "cv-menu" "sidebar" }}
       </div>
     </aside>
@@ -53,7 +53,7 @@
         <a href="/" class="shrink-0" aria-label="New Leaf: versions"><img src="{{ asset "icon.svg" }}" alt="" class="size-8"></a>
         <nav class="flex gap-1 overflow-x-auto text-sm" aria-label="Main">
           {{ range .Nav }}
-            <a href="{{ .URL }}" class="rounded-lg px-2.5 py-1.5 font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-500{{ end }}">{{ .Name }}</a>
+            <a href="{{ .URL }}" class="rounded-md px-2.5 py-1.5 font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-500{{ end }}">{{ .Name }}</a>
           {{ end }}
         </nav>
         <button type="button" class="ml-auto grid size-10 place-items-center text-stone-500" aria-label="Search" @click="$store.cv.paletteOpen = true">{{ icon "search" "" }}</button>
@@ -67,7 +67,7 @@
         {{ if not .Workspace }}
           <div class="mb-6">
             <h1 class="text-xl font-semibold text-stone-900">{{ .Title }}</h1>
-            {{ with .Description }}<p class="mt-1 text-sm text-stone-500">{{ . }}</p>{{ end }}
+            {{ with .Description }}<p class="mt-1 text-sm text-stone-600">{{ . }}</p>{{ end }}
           </div>
         {{ end }}
         <div x-show="!$store.cv.state && !$store.cv.error" class="py-24 text-center text-sm text-stone-500">Loading…</div>
@@ -85,8 +85,8 @@
       class="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-[12vh]"
       @keydown.escape.window="$store.cv.paletteOpen = false"
       x-effect="$store.cv.paletteOpen && focusSoon($refs.q)">
-      <div class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200" @click.outside="$store.cv.paletteOpen = false">
-        <div class="flex items-center gap-3 border-b border-stone-100 px-4">
+      <div class="card float w-full max-w-lg overflow-hidden" @click.outside="$store.cv.paletteOpen = false">
+        <div class="flex items-center gap-3 border-b border-stone-200 px-4">
           {{ icon "search" "size-5 text-stone-500" }}
           <input
             x-ref="q"
@@ -97,12 +97,12 @@
             placeholder="Jump to an item, page or CV…"
             aria-label="Search">
         </div>
-        <ul class="max-h-80 overflow-y-auto p-2" role="listbox">
+        <ul class="max-h-80 overflow-y-auto p-1.5" role="listbox">
           <template x-for="(r, i) in results()" :key="i">
             <li
               role="option"
               :aria-selected="i === index"
-              class="flex cursor-pointer items-baseline gap-3 rounded-lg px-3 py-2 text-sm"
+              class="flex cursor-pointer items-baseline gap-3 rounded-md px-3 py-2 text-sm"
               :class="i === index && 'bg-stone-100'"
               @mouseenter="index = i"
               @click="run(r)">
@@ -122,18 +122,18 @@
       x-show="$store.cv.manageOpen"
       class="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4"
       @keydown.escape.window="$store.cv.manageOpen = false">
-      <div class="card max-h-[90vh] w-full max-w-lg space-y-5 overflow-y-auto p-6" @click.outside="$store.cv.manageOpen = false">
+      <div class="card float max-h-[90vh] w-full max-w-lg space-y-5 overflow-y-auto p-6" @click.outside="$store.cv.manageOpen = false">
         <div>
           <h2 class="text-base font-semibold">CVs</h2>
           <p class="mt-1 text-sm text-stone-500" x-show="!$store.cv.state?.local">Everyone on the tailnet can open and edit every CV. Owners get their CV when they open the editor.</p>
         </div>
-        <ul class="divide-y divide-stone-100">
+        <ul class="divide-y divide-stone-200">
           <template x-for="cv in $store.cv.state?.cvs || []" :key="cv.id">
             <li class="space-y-2 py-3" x-data="{ name: cv.label, owners: cv.owners.join(', ') }">
               <div class="flex items-center gap-2">
                 <input class="input" x-model="name" :placeholder="cv.name" aria-label="Name" maxlength="80" @change="save(cv, name, owners)">
                 <template x-if="cv.id === $store.cv.state.user">
-                  <span class="w-16 shrink-0 rounded-full bg-stone-100 py-0.5 text-center text-xs font-semibold text-stone-600">Current</span>
+                  <span class="tag w-16 shrink-0 justify-center border-stone-200 py-1 text-stone-600">Current</span>
                 </template>
                 <template x-if="cv.id !== $store.cv.state.user">
                   <button type="button" class="btn w-16 shrink-0 py-1.5" @click="$store.cv.switchUser(cv.id)">Open</button>
@@ -157,7 +157,7 @@
             </li>
           </template>
         </ul>
-        <form class="space-y-2 border-t border-stone-100 pt-4" @submit.prevent="create()">
+        <form class="space-y-2 border-t border-stone-200 pt-4" @submit.prevent="create()">
           <label class="label" for="new-cv">New CV</label>
           <div class="flex gap-2">
             <input id="new-cv" class="input" x-model="newName" placeholder="Name, e.g. Alice Example" maxlength="80" required>
@@ -187,23 +187,23 @@
       x-cloak
       x-show="$store.cv.state && ($store.cv.saveStatus() === 'saving' || $store.cv.saveStatus() === 'error' || $store.cv.savedFlash)"
       x-transition.opacity.duration.300ms
-      class="pointer-events-none fixed right-4 z-50 max-w-[calc(100vw-2rem)] rounded-xl bg-white px-3 py-1.5 shadow-md ring-1 ring-stone-200"
+      class="float pointer-events-none fixed right-4 z-50 max-w-[calc(100vw-2rem)] rounded-md border border-stone-200 bg-white px-3 py-1.5"
       :class="$store.cv.panelOpen ? 'bottom-24' : 'bottom-4'">
       {{ template "save-status" . }}
     </div>
 
     {{/* Notifications */}}
     <div class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4">
-      <div x-cloak x-show="$store.cv.error" x-transition class="pointer-events-auto flex max-w-[90vw] items-start gap-3 rounded-xl bg-red-700 px-4 py-3 text-sm text-white shadow-lg" role="alert">
+      <div x-cloak x-show="$store.cv.error" x-transition class="float pointer-events-auto flex max-w-[90vw] items-start gap-3 rounded-lg bg-red-700 px-4 py-3 text-sm text-white" role="alert">
         <pre class="font-sans whitespace-pre-wrap" x-text="$store.cv.error"></pre>
         <button type="button" aria-label="Dismiss" @click="$store.cv.error = ''">{{ icon "close" "size-4" }}</button>
       </div>
-      <div x-cloak x-show="$store.cv.toast" x-transition class="pointer-events-auto flex items-center gap-4 rounded-xl bg-stone-900 px-4 py-2.5 text-sm text-white shadow-lg" role="status">
+      <div x-cloak x-show="$store.cv.toast" x-transition class="float pointer-events-auto flex items-center gap-4 rounded-lg bg-stone-900 px-4 py-2.5 text-sm text-white" role="status">
         <span x-text="$store.cv.toast?.message"></span>
         <button
           type="button"
           x-show="$store.cv.toast?.action"
-          class="font-semibold text-teal-300 hover:text-teal-200"
+          class="font-semibold text-accent-inverse hover:underline"
           @click="$store.cv.runToastAction()"
           x-text="$store.cv.toast?.action?.label"></button>
       </div>

@@ -2,10 +2,19 @@
 @source "../editor/*.html";
 @source "../editor/app.js";
 
+/* Quiet and plain: a warm paper background, hairlines rather than boxes,
+   small radii, a soft shadow only on what floats (menus, dialogs, the PDF
+   page), monospace only for readouts (counts, pages, lines), and a leaf
+   green accent for what is chosen. */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-accent: oklch(0.47 0.085 195);
-  --color-accent-dark: oklch(0.4 0.08 195);
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-stone-50: oklch(97.4% 0.006 95); /* paper */
+  --color-line: var(--color-stone-300); /* around controls; cards use stone-200 */
+  --color-accent: oklch(52.7% 0.154 150.069);
+  --color-accent-dark: oklch(44.8% 0.119 151.328);
+  --color-accent-tint: oklch(95.5% 0.035 150); /* behind what's open */
+  --color-accent-inverse: oklch(84% 0.14 150); /* the accent on ink */
   --color-on-accent: #fff; /* text on the accent */
 }
 
@@ -35,16 +44,12 @@
   --color-amber-700: oklch(87.9% 0.169 91.605);
   --color-amber-800: oklch(92.4% 0.12 95.746);
   --color-amber-900: oklch(96.2% 0.059 95.617);
-  --color-emerald-100: oklch(37.8% 0.077 168.94);
-  --color-emerald-200: oklch(43.2% 0.095 166.913);
-  --color-emerald-800: oklch(90.5% 0.093 164.15);
-  --color-teal-50: oklch(27.7% 0.046 192.524);
-  --color-teal-200: oklch(43.7% 0.078 188.216);
-  --color-teal-300: oklch(51.1% 0.096 186.391);
   --color-red-50: oklch(25.8% 0.092 26.042);
   --color-red-700: oklch(70.4% 0.191 22.216);
-  --color-accent: oklch(0.74 0.1 192);
-  --color-accent-dark: oklch(0.82 0.09 192);
+  --color-accent: oklch(80% 0.15 150);
+  --color-accent-dark: oklch(87% 0.12 150);
+  --color-accent-tint: oklch(29% 0.06 150);
+  --color-accent-inverse: oklch(45% 0.13 150);
   --color-on-accent: oklch(14.7% 0.004 49.25);
 }
 
@@ -54,6 +59,13 @@
   font-weight: 400 600;
   font-display: swap;
   src: url("../fonts/inter-latin-wght-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/jetbrains-mono-nl-latin-500.woff2") format("woff2");
 }
 
 @layer base {
@@ -68,30 +80,45 @@
 
 @layer components {
   .input {
-    @apply block w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-stone-900 shadow-xs ring-1 ring-stone-300 placeholder:text-stone-400 focus:ring-2 focus:ring-accent focus:outline-none;
+    @apply block w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-accent focus:outline-2 focus:-outline-offset-1 focus:outline-accent;
   }
   .label {
     @apply mb-1 block text-xs font-medium text-stone-600;
   }
+  /* A small label over a group: section names, menu headings. */
+  .eyebrow {
+    @apply text-[0.6875rem] font-semibold tracking-wider text-stone-500 uppercase;
+  }
+  /* Readouts: counts, pages, lines. */
+  .meta {
+    @apply font-mono text-[0.6875rem] text-stone-500;
+  }
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-medium text-stone-700 shadow-xs ring-1 ring-stone-300 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply bg-accent text-on-accent ring-accent hover:bg-accent-dark;
+    @apply border-accent bg-accent text-on-accent hover:border-accent-dark hover:bg-accent-dark;
   }
   .btn-danger {
     @apply text-red-700 hover:bg-red-50;
   }
   .card {
-    @apply rounded-2xl bg-white shadow-xs ring-1 ring-stone-200;
+    @apply rounded-lg border border-stone-200 bg-white;
+  }
+  /* What floats over the page: menus, popovers, dialogs. */
+  .float {
+    @apply shadow-lg shadow-stone-900/10;
+  }
+  .tag {
+    @apply inline-flex items-center gap-1 rounded border px-1.5 py-px text-[0.625rem] font-semibold tracking-wide whitespace-nowrap uppercase;
   }
   .seg {
-    @apply inline-flex rounded-lg bg-stone-100 p-0.5 text-sm;
+    @apply inline-flex rounded-md border border-line bg-white p-0.5 text-sm;
     & button {
-      @apply rounded-md px-3 py-1 font-medium text-stone-600;
+      @apply rounded px-3 py-1 font-medium text-stone-500 hover:text-stone-900;
     }
     & button[aria-pressed="true"] {
-      @apply bg-white text-stone-900 shadow-xs;
+      @apply bg-accent-tint text-accent-dark;
     }
   }
 }

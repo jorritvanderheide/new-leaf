@@ -5,7 +5,7 @@
       <div class="card mb-6 p-8 text-center">
         <h2 class="text-base font-semibold text-stone-900">Start your CV</h2>
         <p class="mx-auto mt-1 max-w-md text-sm text-stone-500">
-          Add the things you have done, one item at a time. Each item gets English and Dutch text; you choose per application which ones to show.
+          Add the things you have done, one item at a time, and choose per application which ones to show.
         </p>
         <div class="mt-4 flex justify-center gap-2">
           <button type="button" class="btn btn-primary" @click="add('experience')">Add a job</button>
@@ -17,7 +17,7 @@
     <div class="space-y-6 transition-[padding] lg:pr-0" :class="form && 'xl:pr-[34rem]'">
       <template x-for="section in $store.cv.sections()" :key="section">
         <section class="card overflow-hidden">
-          <div class="flex items-center justify-between px-5 py-3" :class="$store.cv.items(section).length && 'border-b border-stone-100'">
+          <div class="flex items-center justify-between px-5 py-3" :class="$store.cv.items(section).length && 'border-b border-stone-200'">
             <h2 class="text-sm font-semibold" :class="!$store.cv.items(section).length && 'text-stone-500'" x-text="$store.cv.sectionName(section)"></h2>
             <button type="button" class="btn py-1.5" @click="add(section)" :aria-label="'Add to ' + $store.cv.sectionName(section)">
               {{ icon "plus" "size-4" }}
@@ -30,18 +30,18 @@
                 <button
                   type="button"
                   class="flex w-full items-baseline gap-4 px-5 py-3 text-left hover:bg-stone-50"
-                  :class="isOpen(item) && 'bg-teal-50/60 hover:bg-teal-50/60'"
+                  :class="isOpen(item) && 'bg-accent-tint hover:bg-accent-tint'"
                   @click="edit(item)">
                   <span class="w-36 shrink-0 text-xs text-stone-500 tabular-nums" x-text="$store.cv.period(item) || 'No date'"></span>
                   <span class="min-w-0 flex-1">
-                    <span class="block truncate text-sm font-medium" x-text="$store.cv.text(item, 'en').title"></span>
-                    <span class="block truncate text-xs text-stone-500" x-text="$store.cv.text(item, 'en').org"></span>
+                    <span class="block truncate text-sm font-medium" x-text="$store.cv.text(item, $store.cv.main()).title"></span>
+                    <span class="block truncate text-xs text-stone-500" x-text="$store.cv.text(item, $store.cv.main()).org"></span>
                   </span>
-                  <span class="flex shrink-0 gap-1">
+                  <span class="flex shrink-0 gap-1" x-show="$store.cv.state.langs.length > 1">
                     <template x-for="l in $store.cv.state.langs" :key="l">
                       <span
-                        class="rounded px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase"
-                        :class="$store.cv.missing(item, l) ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-600'"
+                        class="tag"
+                        :class="$store.cv.missing(item, l) ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-stone-200 text-stone-500'"
                         :title="$store.cv.missing(item, l) ? 'No ' + $store.cv.langName(l) + ' text yet' : ''"
                         x-text="l"></span>
                     </template>

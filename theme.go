@@ -15,7 +15,14 @@ type Theme struct {
 	Photo  string `json:"photo,omitempty"  yaml:"photo,omitempty"`  // rounded, circle or square
 }
 
-const defaultAccent = "#00696a"
+// defaultAccent is the accent of a profile without one, so new versions
+// start with it. They get it written out (forNewVersion), so that changing
+// the default never changes a version.
+const defaultAccent = "#15803d"
+
+// oldAccent is the accent of a version or share link saved without one.
+// Those are from when teal was the default, and keep it.
+const oldAccent = "#00696a"
 
 // themeFonts are the bundled fonts: the family for Typst (web/typst/fonts)
 // and the CSS font stack for share pages (web/share/fonts). The first is
@@ -53,6 +60,23 @@ func (t Theme) Resolved() Theme {
 	t.Font = t.font().Key
 	if _, ok := photoRadius[t.Photo]; !ok {
 		t.Photo = "rounded"
+	}
+	return t
+}
+
+// forNewVersion is the theme for a new version: this one, with the accent
+// written out.
+func (t Theme) forNewVersion() Theme {
+	if t.Accent == "" {
+		t.Accent = defaultAccent
+	}
+	return t
+}
+
+// fromFile is a theme as read from a version or share link.
+func (t Theme) fromFile() Theme {
+	if t.Accent == "" {
+		t.Accent = oldAccent
 	}
 	return t
 }

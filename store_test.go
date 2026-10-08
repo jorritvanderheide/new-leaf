@@ -8,10 +8,14 @@ import (
 	"time"
 )
 
+// newTestStore has one CV, alice's, in English and Dutch.
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 	s := &Store{Root: t.TempDir()}
 	if err := s.Init("alice"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveProfile("alice", Profile{Langs: []string{"en", "nl"}}); err != nil {
 		t.Fatal(err)
 	}
 	return s
@@ -87,7 +91,7 @@ func TestNewItemID(t *testing.T) {
 
 func TestProfileRoundTrip(t *testing.T) {
 	s := newTestStore(t)
-	in := Profile{
+	in := Profile{Langs: []string{"en", "nl"},
 		Name: "Alice  Example", Email: "a@example.com",
 		Text: map[string]ProfileText{"en": {Headline: "Designer", Summary: "Hello."}, "nl": {Headline: "Ontwerper"}},
 	}
@@ -187,7 +191,7 @@ func TestSplitLangFile(t *testing.T) {
 		"alltrons.en.md":      {"alltrons", "en"},
 		"tue-msc.nl.md":       {"tue-msc", "nl"},
 		"alltrons.md":         {},
-		"alltrons.de.md":      {},
+		"alltrons.xx.md":      {},
 		".tmp-123":            {},
 		"../evil.en.md":       {},
 		"Upper.en.md":         {},
@@ -236,7 +240,7 @@ func TestSectionOrder(t *testing.T) {
 	}
 
 	s := newTestStore(t)
-	if err := s.SaveProfile("alice", Profile{Name: "Alice", Order: []string{"publications"}}); err != nil {
+	if err := s.SaveProfile("alice", Profile{Langs: []string{"en", "nl"}, Name: "Alice", Order: []string{"publications"}}); err != nil {
 		t.Fatal(err)
 	}
 	p, _ := s.Profile("alice")
@@ -263,7 +267,7 @@ func TestFlexibleDates(t *testing.T) {
 
 func TestProfileLinks(t *testing.T) {
 	s := newTestStore(t)
-	in := Profile{Name: "Alice", Links: []ProfileLink{
+	in := Profile{Langs: []string{"en", "nl"}, Name: "Alice", Links: []ProfileLink{
 		{Label: " Google  Scholar ", URL: "https://scholar.google.com/citations?user=x"},
 		{Label: "empty", URL: " "}, // dropped
 	}}
@@ -274,14 +278,14 @@ func TestProfileLinks(t *testing.T) {
 	if len(p.Links) != 1 || p.Links[0].Label != "Google Scholar" {
 		t.Errorf("links = %+v", p.Links)
 	}
-	if err := s.SaveProfile("alice", Profile{Links: []ProfileLink{{Label: "x", URL: "javascript:alert(1)"}}}); err == nil {
+	if err := s.SaveProfile("alice", Profile{Langs: []string{"en"}, Links: []ProfileLink{{Label: "x", URL: "javascript:alert(1)"}}}); err == nil {
 		t.Error("non-http profile link accepted")
 	}
 }
 
 func TestProfileLocationPerLanguage(t *testing.T) {
 	s := newTestStore(t)
-	in := Profile{Name: "Alice", Text: map[string]ProfileText{
+	in := Profile{Langs: []string{"en", "nl"}, Name: "Alice", Text: map[string]ProfileText{
 		"en": {Location: "Eindhoven, the Netherlands"},
 		"nl": {Location: "Eindhoven, Nederland"},
 	}}
@@ -316,7 +320,7 @@ func TestLinksInEveryLanguage(t *testing.T) {
 	if changed, err := s.UpgradeLinks("alice"); !changed || err != nil {
 		t.Fatalf("UpgradeLinks = %v, %v", changed, err)
 	}
-	if got, _ := s.Link("alice", "old-abcdefgh"); got.Lang != "en" || got.files != len(Langs) {
+	if got, _ := s.Link("alice", "old-abcdefgh"); got.Lang != "en" || !sameSet(got.langs, []string{"en", "nl"}) {
 		t.Errorf("upgraded link = %+v", got)
 	}
 	if changed, _ := s.UpgradeLinks("alice"); changed {

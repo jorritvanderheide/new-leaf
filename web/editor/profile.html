@@ -1,7 +1,7 @@
 {{ define "main" }}
   <form x-data="profile" class="max-w-3xl space-y-6" @submit.prevent @input="changed()" @change="changed()">
     <section class="card flex flex-wrap items-center gap-6 p-6">
-      <div class="grid size-24 place-items-center overflow-hidden rounded-2xl bg-stone-100 text-xs text-stone-600">
+      <div class="grid size-24 place-items-center overflow-hidden rounded-lg bg-stone-100 text-xs text-stone-600">
         <template x-if="$store.cv.state.profile.photo">
           <img :src="'/api/photo?v=' + photoVersion" alt="" class="size-full object-cover">
         </template>
@@ -60,14 +60,41 @@
       </div>
     </section>
 
+    {{/* Not part of the autosaved form: the form's tabs follow the languages. */}}
+    <section class="card grid gap-4 p-6 sm:grid-cols-2" @input.stop @change.stop>
+      <div class="sm:col-span-2">
+        <h2 class="text-sm font-semibold">Languages</h2>
+        <p class="text-xs text-stone-500">
+          Your CV in one language, or two. New versions start in the main one. A language you remove keeps its text, hidden, for when you add it back.
+        </p>
+      </div>
+      <div>
+        <label class="label" for="lang-main">Main language</label>
+        <select id="lang-main" class="input" :disabled="$store.cv.busy" @change="pickLang(0, $event.target.value, $el)">
+          <template x-for="l in $store.cv.state.languages" :key="l.code">
+            <option :value="l.code" :selected="l.code === $store.cv.state.langs[0]" x-text="l.name === l.english ? l.name : l.name + ' (' + l.english + ')'"></option>
+          </template>
+        </select>
+      </div>
+      <div>
+        <label class="label" for="lang-second">Second language</label>
+        <select id="lang-second" class="input" :disabled="$store.cv.busy" @change="pickLang(1, $event.target.value, $el)">
+          <option value="" :selected="!$store.cv.state.langs[1]">None</option>
+          <template x-for="l in $store.cv.state.languages.filter((l) => l.code !== $store.cv.state.langs[0])" :key="l.code">
+            <option :value="l.code" :selected="l.code === $store.cv.state.langs[1]" x-text="l.name === l.english ? l.name : l.name + ' (' + l.english + ')'"></option>
+          </template>
+        </select>
+      </div>
+    </section>
+
     <section class="card p-6">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-sm font-semibold">Introduction</h2>
-          <p class="text-xs text-stone-500">Per language.</p>
+          <p class="text-xs text-stone-500" x-show="$store.cv.state.langs.length > 1">Per language.</p>
         </div>
-        <div class="seg" role="tablist" aria-label="Language">
-          <template x-for="l in $store.cv.state.langs" :key="l">
+        <div class="seg" role="tablist" aria-label="Language" x-show="$store.cv.state.langs.length > 1">
+          <template x-for="l in Object.keys(form.text)" :key="l">
             <button type="button" role="tab" :aria-selected="tab === l" :aria-pressed="tab === l" class="flex items-center gap-1.5" @click="tab = l">
               <span x-text="$store.cv.langName(l)"></span>
               <span x-show="incomplete(l)" class="text-amber-600" title="Missing text that another language has">{{ icon "warn" "size-3.5" }}</span>
@@ -75,16 +102,16 @@
           </template>
         </div>
       </div>
-      <template x-for="l in $store.cv.state.langs" :key="l">
+      <template x-for="l in Object.keys(form.text)" :key="l">
         <div class="mt-4 space-y-3" x-show="tab === l">
           <div class="grid gap-3 sm:grid-cols-2">
             <div>
               <label class="label" :for="'headline-' + l">Headline</label>
-              <input :id="'headline-' + l" class="input" x-model="form.text[l].headline" :placeholder="l === 'nl' ? 'bijv. Onderzoeker' : 'e.g. Researcher'">
+              <input :id="'headline-' + l" class="input" x-model="form.text[l].headline" :placeholder="l === 'en' ? 'e.g. Researcher' : ''">
             </div>
             <div>
               <label class="label" :for="'location-' + l">Location</label>
-              <input :id="'location-' + l" class="input" x-model="form.text[l].location" :placeholder="l === 'nl' ? 'bijv. Eindhoven, Nederland' : 'e.g. Eindhoven, the Netherlands'">
+              <input :id="'location-' + l" class="input" x-model="form.text[l].location" :placeholder="l === 'en' ? 'e.g. Eindhoven, the Netherlands' : ''">
             </div>
           </div>
           <div>

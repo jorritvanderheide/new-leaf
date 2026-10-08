@@ -18,7 +18,7 @@ export default async function widths({ base, shots }) {
       await sleep(1200);
       check(await page.js("document.documentElement.scrollWidth <= innerWidth"), `${w}px: no sideways overflow`);
       const overflow = await page.js(`(() => {
-        const bar = document.querySelector('#spacing').closest('.rounded-xl');
+        const bar = document.querySelector('#spacing').closest('section > div'); // the settings bar
         const r = bar.getBoundingClientRect();
         return [...bar.children].some((c) => c.getBoundingClientRect().right > r.right + 1);
       })()`);

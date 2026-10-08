@@ -11,7 +11,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
@@ -19,24 +18,6 @@ import (
 
 // Share pages are rendered from the same Document as the PDF, so what a
 // visitor sees online and in the PDF always match.
-
-var shareLabels = map[string]map[string]string{
-	"en": {"download": "Download PDF", "expires": "This link expires on %s.", "language": "English"},
-	"nl": {"download": "Download pdf", "expires": "Deze link verloopt op %s.", "language": "Nederlands"},
-}
-
-var longMonths = map[string][]string{
-	"en": {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"},
-	"nl": {"januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"},
-}
-
-func longDate(t time.Time, lang string) string {
-	m := longMonths[lang][t.Month()-1]
-	if lang == "en" {
-		return fmt.Sprintf("%s %d, %d", m, t.Day(), t.Year())
-	}
-	return fmt.Sprintf("%d %s %d", t.Day(), m, t.Year())
-}
 
 type sharePage struct {
 	Doc      Document
@@ -74,10 +55,10 @@ func (s *Server) renderShare(user string, l Link, lang string) ([]byte, error) {
 	opt.Lang = lang
 	page := sharePage{
 		Doc:      BuildDocument(profile, items, opt, ""),
-		Download: shareLabels[lang]["download"],
+		Download: language(lang).download,
 	}
 	if l.Expires != "" {
-		page.Expires = fmt.Sprintf(shareLabels[lang]["expires"], longDate(l.ExpiresAt(), lang))
+		page.Expires = fmt.Sprintf(language(lang).expires, language(lang).date(l.ExpiresAt()))
 	}
 	if l.Photo {
 		if page.Photo, err = thumbnail(s.store.PhotoPath(user)); err != nil {
@@ -91,8 +72,8 @@ func (s *Server) renderShare(user string, l Link, lang string) ([]byte, error) {
 	page.CSS = root + s.shareCSS()
 	themeCSS, _ := l.Theme.css()
 	page.ThemeCSS = root + themeCSS
-	for _, target := range Langs {
-		sl := shareLang{Lang: target, Code: strings.ToUpper(target), Label: shareLabels[target]["language"], Current: target == lang}
+	for _, target := range profile.Langs {
+		sl := shareLang{Lang: target, Code: strings.ToUpper(target), Label: language(target).Name, Current: target == lang}
 		switch {
 		case target == l.Lang && lang == l.Lang:
 			sl.URL = "./"

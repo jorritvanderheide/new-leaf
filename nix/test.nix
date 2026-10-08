@@ -140,7 +140,7 @@ pkgs.testers.runNixOSTest {
         machine.succeed("systemctl start new-leaf.service")
         machine.wait_for_unit("new-leaf.service")
         machine.succeed("test -d /var/lib/new-leaf/users/alice")
-        machine.succeed("test -e /var/lib/new-leaf/public/.new-leaf-public")
+        machine.wait_until_succeeds("test -e /var/lib/new-leaf/public/.new-leaf-public")  # claimed as New Leaf starts
         machine.succeed("stat -c %U /var/lib/new-leaf/users/alice | grep -x new-leaf")
         assert json.loads(api("GET", "/api/state"))["profile"]["name"] == "Alice Example"
   '';

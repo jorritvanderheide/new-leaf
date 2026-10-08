@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -54,7 +55,7 @@ func (s *Server) backupFile(name string) (ok, skip bool) {
 				return true, false
 			}
 		}
-		for _, lang := range Langs {
+		for _, lang := range langCodes() {
 			if file == "_index."+lang+".md" {
 				return true, false
 			}
@@ -182,7 +183,7 @@ func (s *Server) postImport(r *http.Request, user string) error {
 				return badRequest{fmt.Errorf("%s: %v", f.Name, err)}
 			}
 		}
-		found = found || f.Name == "content/_index.en.md" || f.Name == "content/_index.nl.md"
+		found = found || slices.ContainsFunc(langCodes(), func(lang string) bool { return f.Name == "content/_index."+lang+".md" })
 	}
 	if !found {
 		return badRequest{errors.New("this is not a CV backup: it has no profile")}

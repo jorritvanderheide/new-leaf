@@ -60,7 +60,7 @@ func TestEndToEnd(t *testing.T) {
 		return w
 	}
 
-	call("PUT", "/api/profile", Profile{Name: "Alice Example", Email: "alice@example.com"})
+	call("PUT", "/api/profile", Profile{Langs: []string{"en", "nl"}, Name: "Alice Example", Email: "alice@example.com"})
 	call("POST", "/api/items", Item{Section: "experience", Start: "2020-01", Text: map[string]ItemText{
 		"en": {Title: "Public role", Org: "Visible Org", Body: "Shared detail."},
 		"nl": {Title: "Publieke rol", Org: "Visible Org"},
@@ -217,6 +217,36 @@ func TestEndToEnd(t *testing.T) {
 	}
 	if code := putVersion(`{"name":"Test","lang":"en","entries":[]}`); code != http.StatusBadRequest {
 		t.Errorf("emptying a shared version: %d", code)
+	}
+
+	// A CV that loses a language takes it off its links; the language of a
+	// shared version can't be removed.
+	r1 := httptest.NewRequest("PUT", "/api/profile", strings.NewReader(`{"name":"Alice Example","langs":["nl"]}`))
+	r1.Header.Set("X-New-Leaf", "1")
+	w1 := httptest.NewRecorder()
+	h.ServeHTTP(w1, r1)
+	if w1.Code != http.StatusBadRequest || !strings.Contains(w1.Body.String(), "shared") {
+		t.Errorf("removing a shared version's language: %d %s", w1.Code, w1.Body)
+	}
+	call("PUT", "/api/profile", Profile{Langs: []string{"en"}, Name: "Alice Example", Email: "alice@example.com"})
+	if _, err := os.Stat(filepath.Join(store.dir("alice"), "links", slug+".nl.md")); err == nil {
+		t.Error("the link kept its Dutch file")
+	}
+	for _, err := os.Stat(filepath.Join(public, slug, "nl")); err == nil; _, err = os.Stat(filepath.Join(public, slug, "nl")) {
+		if time.Now().After(deadline) {
+			t.Fatal("the link kept its Dutch page")
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if !strings.Contains(readFile(t, filepath.Join(public, slug, "index.html")), "Hidden Org") {
+		t.Error("the link lost its English page")
+	}
+	call("PUT", "/api/profile", Profile{Langs: []string{"en", "nl"}, Name: "Alice Example", Email: "alice@example.com"})
+	for _, err := os.Stat(filepath.Join(public, slug, "nl", "index.html")); err != nil; _, err = os.Stat(filepath.Join(public, slug, "nl", "index.html")) {
+		if time.Now().After(deadline) {
+			t.Fatal("the Dutch page did not come back")
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Writes without the anti-CSRF header are refused.

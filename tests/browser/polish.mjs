@@ -62,6 +62,7 @@ export default async function polish({ base, shots }) {
     await sleep(300);
 
     // A hard-to-read accent gets a warning and a darker shade.
+    const accent = await page.js(`${W}.theme.accent`);
     await page.click("button", "Look");
     await page.js(`${W}.theme.accent = '#f5c518'`);
     await sleep(200);
@@ -70,7 +71,7 @@ export default async function polish({ base, shots }) {
     await sleep(200);
     check((await page.js(`${W}.accentContrast()`)) >= 4.5, `the darker shade is readable: ${await page.js(`${W}.theme.accent`)}`);
     check(!(await page.js("document.querySelector('[role=dialog][aria-label=Look] [role=status]').offsetParent")), "and the warning is gone");
-    await page.js(`${W}.theme.accent = ''`);
+    await page.js(`${W}.theme.accent = '${accent}'`);
     await page.js(`${W}.lookOpen = false`);
 
     // Thumbnails on the overview.

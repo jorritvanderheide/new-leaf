@@ -73,8 +73,12 @@ func (s *Server) publishLink(ctx context.Context, user string, l Link) error {
 	st.publish.Lock()
 	defer st.publish.Unlock()
 
+	langs, err := s.store.Langs(user)
+	if err != nil {
+		return err
+	}
 	pages := map[string][]byte{}
-	for _, lang := range Langs {
+	for _, lang := range langs {
 		page, err := s.renderShare(user, l, lang)
 		if err != nil {
 			return fmt.Errorf("link %s (%s): %w", l.Slug, lang, err)
@@ -96,7 +100,7 @@ func (s *Server) publishLink(ctx context.Context, user string, l Link) error {
 		return err
 	}
 	defer os.RemoveAll(stage)
-	for _, lang := range Langs {
+	for _, lang := range langs {
 		rel, _ := filepath.Rel(l.Slug, l.LinkDir(lang)) // "." or the language
 		dir := filepath.Join(stage, rel)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -132,8 +136,15 @@ func (s *Server) publishLink(ctx context.Context, user string, l Link) error {
 	return os.Rename(stage, dst)
 }
 
-// isPublished reports whether the webroot already has these pages, with PDFs.
+// isPublished reports whether the webroot already has these pages, with PDFs,
+// and no others: a language the CV no longer has makes it publish again.
 func (s *Server) isPublished(l Link, pages map[string][]byte) bool {
+	subdirs, _ := os.ReadDir(filepath.Join(s.publicDir, l.Slug))
+	for _, e := range subdirs {
+		if _, ok := pages[e.Name()]; e.IsDir() && !ok {
+			return false
+		}
+	}
 	for lang, page := range pages {
 		dir := filepath.Join(s.publicDir, l.LinkDir(lang))
 		if cur, err := os.ReadFile(filepath.Join(dir, "index.html")); err != nil || !bytes.Equal(cur, page) {

@@ -99,3 +99,27 @@ func TestDocumentUsesVersionOrder(t *testing.T) {
 		t.Errorf("without a version order: %+v", doc.Sections)
 	}
 }
+
+// Versions and links saved without an accent are from when teal was the
+// default, and keep it; new versions get today's default written out.
+func TestAccentDefaults(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.SaveVersion("alice", Version{ID: "old", Name: "Old", PrintOptions: PrintOptions{Lang: "en"}}); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := s.Version("alice", "old"); v.Theme.Accent != oldAccent {
+		t.Errorf("old version's accent = %q", v.Theme.Accent)
+	}
+	if err := s.SaveLink("alice", Link{Slug: "old-abcdefgh", Label: "Old", Lang: "en", Entries: []string{"experience/acme"}, Created: "2026-01-02"}); err != nil {
+		t.Fatal(err)
+	}
+	if l, _ := s.Link("alice", "old-abcdefgh"); l.Theme.Accent != oldAccent {
+		t.Errorf("old link's accent = %q", l.Theme.Accent)
+	}
+
+	s.Init("bob")
+	s.EnsureVersions("bob")
+	if v, _ := s.Version("bob", "full-cv"); v.Theme.Accent != defaultAccent {
+		t.Errorf("new CV's accent = %q", v.Theme.Accent)
+	}
+}

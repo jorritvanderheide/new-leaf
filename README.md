@@ -5,8 +5,8 @@
 <br/>
 
 [![Checks](https://github.com/jorritvanderheide/new-leaf/actions/workflows/ci.yml/badge.svg)](https://github.com/jorritvanderheide/new-leaf/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/jorritvanderheide/new-leaf?style=flat-square&color=0f5e57)](https://github.com/jorritvanderheide/new-leaf/releases)
-![Linux, macOS and Windows](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-0f5e57?style=flat-square)
+[![Release](https://img.shields.io/github/v/release/jorritvanderheide/new-leaf?style=flat-square&color=15803d)](https://github.com/jorritvanderheide/new-leaf/releases)
+![Linux, macOS and Windows](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-15803d?style=flat-square)
 [![License: EUPL-1.2](https://img.shields.io/badge/license-EUPL--1.2-blue?style=flat-square)](LICENSE)
 
 ![A version of a CV in New Leaf: the items on the left, the PDF on the right, with its page count and how much room is left](images/hero.png)
@@ -18,13 +18,13 @@ cut, reorder, translate, and nudge the spacing until it fits. A month later
 you have six copies, each with a different version of the job you changed in
 the meantime, and you no longer know which one you sent where.
 
-New Leaf keeps everything you have done once, as items in English and Dutch.
+New Leaf keeps everything you have done once, as items in one language or two.
 For each application you make a *version*: you tick the items it shows, drag
 the sections into the order that suits it, and pick its language and look.
 The PDF is there next to it as you work, with its page count and how much is
 left before the next page. Click anything in the PDF to change it, and every
 version that shows it is up to date at once. When you want to send it, you
-download the PDF, or share a link to a page with it in both languages.
+download the PDF, or share a link to a page with it in each of your languages.
 
 <br/>
 
@@ -55,8 +55,9 @@ Start New Leaf. It opens in your browser, and keeps running until you choose
 **Quit** in the menu at the bottom of the sidebar, or a few minutes after you
 close the tab. Then:
 
-1. **Fill in your profile.** Your name, contact details and a short summary,
-   in English and Dutch if you need both. Add a photo if you want one.
+1. **Fill in your profile.** Your name, contact details and a short summary.
+   Your CV starts in English: under **Languages**, pick another main language
+   or add a second one. Add a photo if you want one.
 2. **Add your items.** Jobs, education, publications, teaching, anything that
    could go on a CV, each once. Dates are a month and a year, or a year.
 3. **Open the Full CV.** It's the first version, with every item. Tick items
@@ -65,7 +66,7 @@ close the tab. Then:
    page, from all items or as a copy of another one. Pick how many pages it
    should fit on, and New Leaf sets the spacing to fill them.
 5. **Send it.** **Download PDF**. On a server you can also **Share** it, as a
-   link to a web page with the PDF, in English and Dutch.
+   link to a web page with the PDF, in each of your languages.
 
 Changes save as you go. ⌘K (Ctrl+K) finds any item, page or version.
 
@@ -130,9 +131,12 @@ files:
 
 Everything you have done is an item: a job, a degree, a paper, a talk, a
 course you taught. Each has a period or a date, an organisation and a place,
-and a description in Markdown, in English and in Dutch. A warning shows where
-one language is still missing, and **Start from English** fills in the rest
-for you to translate.
+and a description in Markdown.
+
+A CV is in one language or two, chosen on the Profile page: English, Dutch,
+German, French, Spanish, Italian or Portuguese. With two, each item has text
+in both; a warning shows where one is still missing, and **Start from
+English** (or the other language) fills it in for you to translate.
 
 Publications are written as their reference, the way your field cites them,
 with the DOI as a link. Undated ones, like a paper under review, go last.
@@ -167,8 +171,8 @@ order for new versions** makes it the starting point for the next one.
 
 ![A shared version as a web page, with a switch between English and Dutch and a button to download the PDF](images/share.png)
 
-On a server, a version can be shared as a web page with its PDF, in English
-and Dutch, until a date you choose or for as long as you like. See
+On a server, a version can be shared as a web page with its PDF, in each of
+your languages, until a date you choose or for as long as you like. See
 [Share links](#7-share-links).
 
 ### 5.6 Light and dark
@@ -203,7 +207,7 @@ fixed everywhere. A version only holds choices:
   item, like the Full CV, and not the ones you tailored.
 - **The order of the sections**, by dragging them, or with Alt+↑/↓ on the
   handle. Within a section, items are always newest first.
-- **The language**, English or Dutch.
+- **The language**, if your CV has two.
 - **The look**: colour, typeface, photo shape, spacing.
 - **How many pages** it should fit on.
 
@@ -219,8 +223,8 @@ the last page.
 
 ### 6.3 Missing translations
 
-A version in Dutch shows a warning next to the items that have no Dutch text
-yet, and the header counts them. Click one to fill it in.
+A version in your second language shows a warning next to the items that have
+no text in it yet, and the header counts them. Click one to fill it in.
 
 <br/>
 
@@ -232,8 +236,8 @@ Share links are for running New Leaf on a server, see
 - **Share** publishes a version as a web page at an address like
   `https://cv.example.com/uva-k7f3q9ab/`. The random part means nobody finds it
   by guessing.
-- The page has the version in both languages, with a switch, and each language
-  has its PDF. It opens in the language of the version.
+- The page has the version in each of your languages, with a switch, and each
+  language has its PDF. It opens in the language of the version.
 - The link **follows the version**: change an item, its order or its look, and
   the page is updated within seconds.
 - It works **until a date** you choose, or until you stop sharing. Stopping
@@ -353,8 +357,8 @@ Liberapay:
 
 Copyright © 2026 Jorrit van der Heide. Licensed under the [EUPL-1.2](LICENSE).
 
-Bundled: Alpine.js (MIT), pdf.js (Apache-2.0), and the Inter and Source Serif 4
-typefaces (SIL Open Font License 1.1), each with its licence next to it under
-`web/`. The release archives and the container image include
+Bundled: Alpine.js (MIT), pdf.js (Apache-2.0), and the Inter, Source Serif 4 and
+JetBrains Mono typefaces (SIL Open Font License 1.1), each with its licence next
+to it under `web/`. The release archives and the container image include
 [Typst](https://github.com/typst/typst) (Apache-2.0), with its licence in the
 archives.

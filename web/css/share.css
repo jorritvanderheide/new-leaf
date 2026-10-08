@@ -3,8 +3,9 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-accent: oklch(0.47 0.085 195);
-  --color-accent-dark: oklch(0.4 0.08 195);
+  --color-stone-50: oklch(97.4% 0.006 95); /* paper, as in the editor */
+  --color-accent: oklch(52.7% 0.154 150.069); /* per version: theme.go */
+  --color-accent-dark: oklch(44.8% 0.119 151.328);
 }
 
 /* Inter for the share pages, Latin and Latin Extended subsets. Paths are

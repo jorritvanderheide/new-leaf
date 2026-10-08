@@ -27,7 +27,7 @@ else.
 
 | Key | Value |
 | --- | --- |
-| `lang` | `en` or `nl`, for hyphenation and the labels |
+| `lang` | The language code, for hyphenation |
 | `spacing` | The whitespace scale, `0.4` to `1.4` |
 | `name`, `headline` | Text |
 | `contacts` | A list of `text`, an optional `url`, and `underline` for labelled links |

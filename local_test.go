@@ -84,7 +84,7 @@ func TestLocalHasNoSharing(t *testing.T) {
 func TestBackupRoundTrip(t *testing.T) {
 	s, h := newLocalServer(t)
 	s.store.Init("me")
-	s.store.SaveProfile("me", Profile{Name: "Me", Text: map[string]ProfileText{"en": {Summary: "Hello"}}})
+	s.store.SaveProfile("me", Profile{Langs: []string{"en"}, Name: "Me", Text: map[string]ProfileText{"en": {Summary: "Hello"}}})
 	s.store.SaveItem("me", Item{Section: "experience", ID: "job", Start: "2020-01", Text: map[string]ItemText{"en": {Title: "Job"}}})
 	os.WriteFile(filepath.Join(s.store.dir("me"), "photo.jpg"), []byte("jpeg"), 0o600)
 

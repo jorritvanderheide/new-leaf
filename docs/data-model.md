@@ -9,9 +9,9 @@ page lists every file it reads and writes.
 
 ```
 users/<cv>/cv.json                              display name and owners
-users/<cv>/content/_index.{en,nl}.md            profile
+users/<cv>/content/_index.<lang>.md             profile, per language
 users/<cv>/content/photo.{jpg,png,webp}         profile photo
-users/<cv>/content/<section>/<id>.{en,nl}.md    one item, per language
+users/<cv>/content/<section>/<id>.<lang>.md     one item, per language
 users/<cv>/content/links/<slug>.<lang>.md       share link of a version (server only)
 users/<cv>/versions/<id>.json                   one version
 users/<cv>/backups/before-import-<time>.zip     what a restore replaced
@@ -25,14 +25,16 @@ server later. On a server it is `-data` (`/var/lib/new-leaf`).
 
 `<cv>`, `<id>` and `<slug>` are lowercase letters, digits and hyphens, at most
 64 characters, starting with a letter or digit.
+`<lang>` is a language code, such as `en` (see [Languages](#languages)).
 
 ## The profile
 
-`_index.en.md` and `_index.nl.md`. The body is the summary, in Markdown. The
-front matter:
+`_index.<lang>.md`, one per language. The body is the summary, in Markdown.
+The front matter:
 
 | Key | Per language | Value |
 | --- | --- | --- |
+| `languages` | no | The CV's languages, the main one first (see [Languages](#languages)) |
 | `name` | no | Your name |
 | `headline` | yes | One line under the name, such as a job title |
 | `location` | yes | Where you live, as it should read on the CV |
@@ -41,12 +43,12 @@ front matter:
 | `order` | no | The default section order, for new versions |
 | `theme` | no | The default look, for new versions (see [Looks](#looks)) |
 
-Keys that aren't per language are written to both files, and read from the
+Keys that aren't per language are written to every file, and read from the
 first one that has them.
 
 ## Items
 
-`<section>/<id>.<lang>.md`, one file per language the item has text in. The
+`<section>/<id>.<lang>.md`, one file per language of the CV. The
 `<id>` is made from the organisation or the title when the item is created,
 and never changes. The body is the description, in Markdown.
 
@@ -73,6 +75,26 @@ The Markdown a CV uses is paragraphs, lists, bold, italic and links.
 Anything else (headings, code, HTML) is shown as plain text or left out, and
 only links to the web, mail and phone are kept.
 
+## Languages
+
+A CV is in one or two languages, `languages` in the profile, the main one
+first. A new CV is in English. The languages New Leaf knows are in
+`languages.go`: English (`en`), Dutch (`nl`), German (`de`), French (`fr`),
+Spanish (`es`), Italian (`it`) and Portuguese (`pt`), each with the words it
+adds to a PDF and share page.
+
+- **New versions** start in the main language, and the editor names items by
+  their title in it.
+- **A language the CV loses** keeps its files. They are hidden, still get the
+  shared keys (dates, links, name) when those change, and their text comes
+  back with the language. Versions in it move to the main language; a shared
+  version keeps it from being removed.
+- **A share link** is published in each of the CV's languages, and its files
+  follow them.
+
+A CV from before languages could be chosen has no `languages` key. It is read
+as English, plus Dutch if it has Dutch files, which is what it was.
+
 ## Versions
 
 `versions/<id>.json`. Items and the profile belong to the CV; a version only
@@ -81,7 +103,7 @@ chooses from them.
 | Key | Value |
 | --- | --- |
 | `name` | The name in the overview, such as the employer |
-| `lang` | `en` or `nl` |
+| `lang` | One of the CV's languages |
 | `entries` | The items, as `<section>/<id>` |
 | `photo` | Whether the PDF shows the photo |
 | `spacing` | Whitespace, from `0.4` to `1.4`; none means `1` |
@@ -101,7 +123,7 @@ The `theme` of a version, and of the profile for new versions:
 
 | Key | Value |
 | --- | --- |
-| `accent` | A colour, `#rrggbb`; none means `#00696a` |
+| `accent` | A colour, `#rrggbb`. None means `#15803d` (green) in the profile, and `#00696a` (teal) in a version or share link: those are from when teal was the default. New versions get the accent written out |
 | `font` | `sans` (Inter) or `serif` (Source Serif 4); none means `sans` |
 | `photo` | `rounded`, `circle` or `square`; none means `rounded` |
 
@@ -153,6 +175,8 @@ CVs written by New Leaf exist on other people's computers and servers. So:
   name is a breaking change and needs a migration that runs when the CV is
   read, like the one that makes versions for CVs from before them.
 - **Adding** an optional key is not.
+- **Removing a language** from `languages.go` is breaking too: CVs in it would
+  lose their text.
 - **Backups** of older versions must keep restoring.
 
 New Leaf was called cv-app. Its data folder (`cv-app` instead of `new-leaf`)

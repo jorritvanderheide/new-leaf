@@ -34,6 +34,7 @@ const papers = [
 
 export async function seed(base) {
   await api(base, "PUT", "/api/profile", {
+    langs: ["en", "nl"],
     name: "Alice Example",
     email: "alice@example.com",
     phone: "+31 6 12345678",

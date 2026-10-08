@@ -64,6 +64,17 @@ to have seen it before `nix flake check` will.
 Tests and screenshots use made-up people only. Anything that could lose
 someone's CV wants a test before it wants a feature.
 
+## Adding a language
+
+A language is one entry in `languages` in `languages.go`: its code, its name
+in itself and in English, and the words New Leaf adds to a CV (section titles,
+"Present", short and long month names, how a full date is written, and the
+share page's button and expiry note). `TestLanguagesComplete` checks that none
+is missing. The editor offers it on the Profile page from then on. Ask a
+native speaker to read the words over; they end up on people's CVs.
+
+The code has to be one Typst knows, for hyphenation.
+
 ## Releasing
 
 1. Set the version in `nix/package.nix`.

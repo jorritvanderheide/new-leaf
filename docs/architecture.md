@@ -42,6 +42,7 @@ flowchart LR
 | `store.go` | Reading and writing the profile, items and links |
 | `versions.go` | Versions, and the first ones for CVs from before them |
 | `theme.go` | Looks: accent colour, font, photo shape |
+| `languages.go` | The languages a CV can be in, with the words New Leaf adds to its PDF and share page |
 | `document.go` | A CV for one version and language: sorted, localised, Markdown parsed |
 | `typst.go` | Running Typst for PDFs, PNGs and marks |
 | `thumbs.go` | The overview's thumbnails, rendered in the background |

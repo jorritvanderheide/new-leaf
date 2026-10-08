@@ -95,6 +95,7 @@ func (s *Store) readVersion(path string) (Version, error) {
 	if f.Entries == nil {
 		f.Entries = []string{}
 	}
+	f.Theme = f.Theme.fromFile()
 	return Version{Name: f.Name, PrintOptions: f.PrintOptions, Pages: f.Pages, Fit: f.Fit, Created: f.Created, Updated: f.Updated}, nil
 }
 
@@ -114,6 +115,11 @@ func (s *Store) SaveVersion(user string, v Version) error {
 	v.Name = clean(v.Name)
 	if err := v.Validate(); err != nil {
 		return err
+	}
+	if langs, err := s.Langs(user); err != nil {
+		return err
+	} else if !slices.Contains(langs, v.Lang) {
+		return fmt.Errorf("the CV has no %s", language(v.Lang).English)
 	}
 	if v.Entries == nil {
 		v.Entries = []string{}
@@ -191,7 +197,7 @@ func (s *Store) EnsureVersions(user string) error {
 
 	full := Version{
 		ID: "full-cv", Name: "Full CV", Created: today, Updated: stamp,
-		PrintOptions: PrintOptions{Lang: Langs[0], Photo: profile.Photo, Spacing: 1, Order: profile.Order, Theme: profile.Theme, Entries: []string{}},
+		PrintOptions: PrintOptions{Lang: profile.Langs[0], Photo: profile.Photo, Spacing: 1, Order: profile.Order, Theme: profile.Theme.forNewVersion(), Entries: []string{}},
 	}
 	for _, it := range items {
 		full.Entries = append(full.Entries, it.Section+"/"+it.ID)

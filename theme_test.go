@@ -40,7 +40,7 @@ func TestTheme(t *testing.T) {
 func TestThemeRoundTrip(t *testing.T) {
 	s := newTestStore(t)
 	look := Theme{Accent: "#1d4ed8", Font: "serif"}
-	if err := s.SaveProfile("alice", Profile{Name: "Alice", Theme: look}); err != nil {
+	if err := s.SaveProfile("alice", Profile{Langs: []string{"en"}, Name: "Alice", Theme: look}); err != nil {
 		t.Fatal(err)
 	}
 	if p, _ := s.Profile("alice"); p.Theme != look {

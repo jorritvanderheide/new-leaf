@@ -197,23 +197,24 @@ type linkView struct {
 }
 
 type editorState struct {
-	User     string        `json:"user"`
-	Langs    []string      `json:"langs"`
-	Sections []string      `json:"sections"`
-	Point    []string      `json:"pointSections"`
-	Profile  Profile       `json:"profile"`
-	Items    []Item        `json:"items"`
-	Versions []versionView `json:"versions"` // most recently edited first
-	Today    string        `json:"today"`
-	CVs      []CVInfo      `json:"cvs"`     // all CVs, for the switcher
-	Manage   bool          `json:"manage"`  // CVs can be created, renamed and deleted
-	Sharing  bool          `json:"sharing"` // share links are available
-	Local    bool          `json:"local"`   // running on the user's own computer
+	User      string        `json:"user"`
+	Langs     []string      `json:"langs"`
+	Languages []Language    `json:"languages"` // every language a CV can have
+	Sections  []string      `json:"sections"`
+	Point     []string      `json:"pointSections"`
+	Profile   Profile       `json:"profile"`
+	Items     []Item        `json:"items"`
+	Versions  []versionView `json:"versions"` // most recently edited first
+	Today     string        `json:"today"`
+	CVs       []CVInfo      `json:"cvs"`     // all CVs, for the switcher
+	Manage    bool          `json:"manage"`  // CVs can be created, renamed and deleted
+	Sharing   bool          `json:"sharing"` // share links are available
+	Local     bool          `json:"local"`   // running on the user's own computer
 }
 
 func (s *Server) editorState(ctx context.Context, user string) (editorState, error) {
 	st := editorState{
-		User: user, CVs: s.auth.CVs.List(), Manage: s.auth.CVs.manage, Langs: Langs, Sections: Sections, Point: PointSections,
+		User: user, CVs: s.auth.CVs.List(), Manage: s.auth.CVs.manage, Languages: languages, Sections: Sections, Point: PointSections,
 		Sharing: s.sharing, Local: s.local,
 		Today: time.Now().In(linkZone).Format("2006-01-02"),
 	}
@@ -221,6 +222,7 @@ func (s *Server) editorState(ctx context.Context, user string) (editorState, err
 	if st.Profile, err = s.store.Profile(user); err != nil {
 		return st, err
 	}
+	st.Langs = st.Profile.Langs
 	if st.Items, err = s.store.Items(user); err != nil {
 		return st, err
 	}
@@ -283,10 +285,47 @@ func (s *Server) putProfile(r *http.Request, user string) error {
 	if err := readJSON(r, &p); err != nil {
 		return err
 	}
+	if p.Langs == nil { // an editor from before languages could be chosen
+		langs, err := s.store.Langs(user)
+		if err != nil {
+			return err
+		}
+		p.Langs = langs
+	}
 	if err := p.Validate(); err != nil {
 		return badRequest{err}
 	}
-	return s.edit(r.Context(), user, func() error { return s.store.SaveProfile(user, p) })
+	return s.edit(r.Context(), user, func() error {
+		versions, err := s.store.Versions(user)
+		if err != nil {
+			return err
+		}
+		// Versions in a language the CV loses move to its main one, unless
+		// they are shared: the link would change language under its readers.
+		var moved []Version
+		for _, v := range versions {
+			if slices.Contains(p.Langs, v.Lang) {
+				continue
+			}
+			if link, err := s.store.VersionLink(user, v.ID); err != nil {
+				return err
+			} else if link != nil {
+				return badRequest{fmt.Errorf("“%s” is shared in %s; stop sharing it or change its language first", v.Name, language(v.Lang).English)}
+			}
+			v.Lang = p.Langs[0]
+			moved = append(moved, v)
+		}
+		if err := s.store.SaveProfile(user, p); err != nil {
+			return err
+		}
+		for _, v := range moved {
+			if err := s.store.SaveVersion(user, v); err != nil {
+				return err
+			}
+		}
+		_, err = s.store.UpgradeLinks(user) // links in the new languages
+		return err
+	})
 }
 
 var photoTypes = map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
@@ -571,7 +610,7 @@ func (s *Server) postVersion(r *http.Request, user string) error {
 			if err != nil {
 				return err
 			}
-			v.PrintOptions = PrintOptions{Lang: cmp.Or(v.Lang, Langs[0]), Photo: profile.Photo, Spacing: 1, Order: profile.Order, Theme: profile.Theme, Entries: []string{}}
+			v.PrintOptions = PrintOptions{Lang: cmp.Or(v.Lang, profile.Langs[0]), Photo: profile.Photo, Spacing: 1, Order: profile.Order, Theme: profile.Theme.forNewVersion(), Entries: []string{}}
 			for _, it := range items {
 				v.Entries = append(v.Entries, it.Section+"/"+it.ID)
 			}

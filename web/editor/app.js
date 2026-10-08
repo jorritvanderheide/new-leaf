@@ -2,7 +2,6 @@
 // pages just render $store.cv.state and send changes back. Edits save
 // automatically; the store tracks that for the save status in the sidebar.
 
-const LANG_NAMES = { en: "English", nl: "Nederlands" };
 const SECTION_NAMES = {
   experience: "Work experience",
   education: "Education",
@@ -17,13 +16,13 @@ const SECTION_NAMES = {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 // Accent colours to pick from; the first is the default (theme.go).
 const ACCENTS = [
+  { name: "Green", hex: "#15803d" },
   { name: "Teal", hex: "#00696a" },
   { name: "Blue", hex: "#1d4ed8" },
   { name: "Indigo", hex: "#4f46e5" },
   { name: "Plum", hex: "#86198f" },
   { name: "Crimson", hex: "#b91c1c" },
   { name: "Amber", hex: "#b45309" },
-  { name: "Green", hex: "#15803d" },
   { name: "Graphite", hex: "#44403c" },
 ];
 const resolveTheme = (t) => ({ accent: (t?.accent || ACCENTS[0].hex).toLowerCase(), font: t?.font || "sans", photo: t?.photo || "rounded" });
@@ -263,7 +262,7 @@ const itemEditor = () => ({
     const item = st.state.items.find((i) => i.id === this.form.id && i.section === this.form.section);
     if (!(await st.send("DELETE", `/api/items/${this.form.section}/${this.form.id}`))) return;
     this.form = null;
-    const name = st.text(item, "en").title;
+    const name = st.text(item, st.main()).title;
     st.notify(`Deleted "${name}"`, {
       label: "Undo",
       run: () => st.send("POST", "/api/items", { ...JSON.parse(JSON.stringify(item)) }, "Item restored"),
@@ -423,7 +422,14 @@ document.addEventListener("alpine:init", () => {
       this.flushAll();
     },
 
-    langName: (lang) => LANG_NAMES[lang] || lang,
+    langName(lang) {
+      return this.state?.languages.find((l) => l.code === lang)?.name || lang;
+    },
+
+    // The CV's main language: its titles stand for an item in the editor.
+    main() {
+      return this.state?.langs[0] || "en";
+    },
 
     cvName() {
       return this.state?.cvs.find((cv) => cv.id === this.state.user)?.name || this.state?.user || "";
@@ -497,8 +503,8 @@ document.addEventListener("alpine:init", () => {
         ...PAGES.map((p) => ({ label: p.label, hint: "Page", run: () => (location.href = p.url) })),
         ...st.versions.map((v) => ({ label: v.name, hint: "Version", run: () => (location.href = `/v/${v.id}/`) })),
         ...st.items.map((item) => ({
-          label: this.$store.cv.text(item, "en").title,
-          hint: [this.$store.cv.sectionName(item.section), this.$store.cv.text(item, "en").org].filter(Boolean).join(" · "),
+          label: this.$store.cv.text(item, this.$store.cv.main()).title,
+          hint: [this.$store.cv.sectionName(item.section), this.$store.cv.text(item, this.$store.cv.main()).org].filter(Boolean).join(" · "),
           run: () => this.openItem(item),
         })),
         ...st.cvs
@@ -1087,12 +1093,33 @@ document.addEventListener("alpine:init", () => {
     photoVersion: Date.now(),
 
     init() {
+      this.reset();
+      this._saver = autosaver(this.$store.cv, () => this.$store.cv.save("PUT", "/api/profile", this.form));
+    },
+
+    // reset fills the form from the saved profile, with a tab per language.
+    reset() {
       const st = this.$store.cv.state;
       const p = JSON.parse(JSON.stringify(st.profile)); // structuredClone rejects Alpine proxies
       p.text = Object.fromEntries(st.langs.map((l) => [l, { headline: "", location: "", summary: "", ...p.text[l] }]));
       this.form = p;
       this.tab = st.langs[0];
-      this._saver = autosaver(this.$store.cv, () => this.$store.cv.save("PUT", "/api/profile", this.form));
+    },
+
+    // pickLang sets the main language (i = 0) or the second one (i = 1, ""
+    // for none) right away, outside the autosaved form, whose tabs follow the
+    // languages. Picking the second language as the main one swaps them.
+    async pickLang(i, code, select) {
+      const st = this.$store.cv;
+      const before = [...st.state.langs];
+      const langs = i === 0 && before[1] === code ? [code, before[0]] : Object.assign([...before], { [i]: code });
+      const next = langs.filter(Boolean);
+      const moved = st.state.versions.filter((v) => !next.includes(v.lang)).length;
+      await st.flushAll();
+      const profile = JSON.parse(JSON.stringify(st.state.profile)); // with the text of languages it had before, to bring back
+      const notice = moved ? `Languages saved; ${moved === 1 ? "1 version is" : moved + " versions are"} now in ${st.langName(next[0])}` : "Languages saved";
+      if (await st.send("PUT", "/api/profile", { ...profile, langs: next }, notice)) this.reset();
+      else select.value = before[i] || "";
     },
 
     // Waits with saving while a link is still being typed, since the server

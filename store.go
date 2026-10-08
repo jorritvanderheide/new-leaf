@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -25,9 +26,8 @@ import (
 //	links/<slug>.<lang>.md            one share link, rendered in <lang>
 
 var (
-	Langs = []string{"en", "nl"}
 	// Sections in their default order on a CV. Their titles are in
-	// document.go (docLabels) and web/editor/app.js (SECTION_NAMES).
+	// languages.go and web/editor/app.js (SECTION_NAMES).
 	Sections = []string{"experience", "education", "publications", "output", "presentations", "teaching", "awards", "extracurricular", "volunteering"}
 	// Sections whose items happen at one moment: a date, not a period. The
 	// date may be left out (e.g. a manuscript under review).
@@ -91,12 +91,14 @@ type Profile struct {
 	Links   []ProfileLink          `json:"links"` // e.g. LinkedIn, Google Scholar
 	Photo   bool                   `json:"photo"`
 	Order   []string               `json:"order"` // default section order for new versions
+	Langs   []string               `json:"langs"` // the CV's languages, the main one first
 	Theme   Theme                  `json:"theme"` // default look for new versions
 	Text    map[string]ProfileText `json:"text"`
 }
 
 type profileFile struct {
-	Name        string `yaml:"name,omitempty"`
+	Name        string   `yaml:"name,omitempty"`
+	Languages   []string `yaml:"languages,omitempty"`
 	ProfileText `yaml:",inline"`
 	Email       string        `yaml:"email,omitempty"`
 	Phone       string        `yaml:"phone,omitempty"`
@@ -124,7 +126,7 @@ type PrintOptions struct {
 const MinSpacing, MaxSpacing = 0.4, 1.4
 
 func (o PrintOptions) Validate() error {
-	if langIndex(o.Lang) < 0 {
+	if !knownLang(o.Lang) {
 		return fmt.Errorf("unknown language %q", o.Lang)
 	}
 	for _, e := range o.Entries {
@@ -159,7 +161,7 @@ type Link struct {
 	Expires string   `json:"expires"` // YYYY-MM-DD, the link stops working at the start of this day; empty: never
 	Created string   `json:"created"`
 
-	files int // language files found on disk; fewer than Langs means a pre-toggle link
+	langs []string // the languages it has files for
 }
 
 func (l Link) Print() PrintOptions {
@@ -208,7 +210,7 @@ func (s *Store) Init(user string) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	return s.SaveProfile(user, Profile{})
+	return s.SaveProfile(user, Profile{Langs: []string{"en"}})
 }
 
 // Users lists everyone with a content directory.
@@ -231,10 +233,13 @@ func (s *Store) ContentDir(user string) string { return s.dir(user) }
 
 // --- profile
 
+// Profile reads the profile, with the text of every language it has files
+// for, also those the CV no longer has (they come back if it gets them
+// again).
 func (s *Store) Profile(user string) (Profile, error) {
 	p := Profile{Text: map[string]ProfileText{}}
 	shared := false
-	for _, lang := range Langs {
+	for _, lang := range langCodes() {
 		var f profileFile
 		body, err := readMarkdown(filepath.Join(s.dir(user), "_index."+lang+".md"), &f)
 		if errors.Is(err, fs.ErrNotExist) {
@@ -246,10 +251,22 @@ func (s *Store) Profile(user string) (Profile, error) {
 		if !shared {
 			shared = true
 			p.Name, p.Email, p.Phone, p.Website = f.Name, f.Email, f.Phone, f.Website
-			p.Links, p.Order, p.Theme = f.Links, f.Order, f.Theme
+			p.Links, p.Order, p.Theme, p.Langs = f.Links, f.Order, f.Theme, f.Languages
 		}
 		f.ProfileText.Summary = body
 		p.Text[lang] = f.ProfileText
+	}
+	// CVs from before languages could be chosen were in English and Dutch,
+	// with files for both.
+	if len(p.Langs) == 0 {
+		for _, lang := range []string{"en", "nl"} {
+			if _, ok := p.Text[lang]; ok {
+				p.Langs = append(p.Langs, lang)
+			}
+		}
+	}
+	if len(p.Langs) == 0 {
+		p.Langs = []string{"en"}
 	}
 	p.Order = SectionOrder(p.Order)
 	if p.Links == nil {
@@ -260,6 +277,9 @@ func (s *Store) Profile(user string) (Profile, error) {
 }
 
 func (p Profile) Validate() error {
+	if err := validLangs(p.Langs); err != nil {
+		return err
+	}
 	if err := p.Theme.Validate(); err != nil {
 		return err
 	}
@@ -289,20 +309,40 @@ func (s *Store) SaveProfile(user string, p Profile) error {
 			links = append(links, ProfileLink{Label: clean(l.Label), URL: l.URL})
 		}
 	}
-	for _, lang := range Langs {
+	for _, lang := range langCodes() {
+		path := filepath.Join(s.dir(user), "_index."+lang+".md")
 		t := p.Text[lang]
+		if !slices.Contains(p.Langs, lang) {
+			// A language the CV no longer has keeps its text, and gets the
+			// shared fields, so its file never disagrees with the others.
+			var old profileFile
+			body, err := readMarkdown(path, &old)
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			} else if err != nil {
+				return err
+			}
+			t = old.ProfileText
+			t.Summary = body
+		}
 		f := profileFile{
-			Name: clean(p.Name), Email: clean(p.Email), Phone: clean(p.Phone),
+			Name: clean(p.Name), Languages: p.Langs, Email: clean(p.Email), Phone: clean(p.Phone),
 			Website: clean(p.Website), Links: links,
 			Order:       SectionOrder(p.Order),
 			Theme:       p.Theme,
 			ProfileText: ProfileText{Headline: clean(t.Headline), Location: clean(t.Location)},
 		}
-		if err := writeMarkdown(filepath.Join(s.dir(user), "_index."+lang+".md"), f, t.Summary); err != nil {
+		if err := writeMarkdown(path, f, t.Summary); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// Langs are the CV's languages, the main one first.
+func (s *Store) Langs(user string) ([]string, error) {
+	p, err := s.Profile(user)
+	return p.Langs, err
 }
 
 // --- compose settings: from before versions, the composer's last selection,
@@ -422,7 +462,7 @@ func (it Item) Validate() error {
 // NewItemID derives a readable, unused id from the item's organisation or title.
 func (s *Store) NewItemID(user string, it Item) string {
 	base := ""
-	for _, lang := range Langs {
+	for _, lang := range langCodes() {
 		if base = slugify(it.Text[lang].Org); base == "" {
 			base = slugify(it.Text[lang].Title)
 		}
@@ -445,19 +485,37 @@ func (s *Store) itemExists(user, section, id string) bool {
 	return len(m) > 0
 }
 
+// SaveItem writes an item in the CV's languages. A language the CV no
+// longer has keeps its text, but gets the new dates and link.
 func (s *Store) SaveItem(user string, it Item) error {
 	if err := it.Validate(); err != nil {
 		return err
 	}
-	for _, lang := range Langs {
+	langs, err := s.Langs(user)
+	if err != nil {
+		return err
+	}
+	for _, lang := range langCodes() {
+		path := filepath.Join(s.dir(user), it.Section, it.ID+"."+lang+".md")
 		t := it.Text[lang]
+		if !slices.Contains(langs, lang) {
+			var old itemFile
+			body, err := readMarkdown(path, &old)
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			} else if err != nil {
+				return err
+			}
+			t = old.ItemText
+			t.Body = body
+		}
 		f := itemFile{
 			ItemText: ItemText{Title: clean(t.Title), Org: clean(t.Org), Location: clean(t.Location)},
 			Start:    quoted(it.Start),
 			End:      quoted(it.End),
 			Link:     strings.TrimSpace(it.Link),
 		}
-		if err := writeMarkdown(filepath.Join(s.dir(user), it.Section, it.ID+"."+lang+".md"), f, t.Body); err != nil {
+		if err := writeMarkdown(path, f, t.Body); err != nil {
 			return err
 		}
 	}
@@ -471,7 +529,7 @@ func (s *Store) DeleteItem(user, section, id string) error {
 	if !s.itemExists(user, section, id) {
 		return errNotFound
 	}
-	for _, lang := range Langs {
+	for _, lang := range langCodes() {
 		if err := os.Remove(filepath.Join(s.dir(user), section, id+"."+lang+".md")); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
@@ -510,14 +568,14 @@ func (s *Store) Links(user string) ([]Link, error) {
 			l = &Link{Slug: slug}
 			bySlug[slug] = l
 		}
-		l.files++
+		l.langs = append(l.langs, lang)
 		// The files agree on everything but the URL; the one at /<slug>/
 		// is the link's own language. Links from before the toggle have a
 		// single file, which is then that language.
 		if l.Lang == "" || f.URL == "/"+slug+"/" {
 			*l = Link{
-				Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing, Order: f.Order, Version: f.Version, Theme: f.Theme,
-				Expires: string(f.ExpiryDate), Created: string(f.Created), files: l.files,
+				Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing, Order: f.Order, Version: f.Version, Theme: f.Theme.fromFile(),
+				Expires: string(f.ExpiryDate), Created: string(f.Created), langs: l.langs,
 			}
 		}
 	}
@@ -560,33 +618,54 @@ func (l Link) Validate() error {
 	return l.Print().Validate()
 }
 
+// SaveLink writes a link in each of the CV's languages, and removes the
+// files of languages it no longer has.
 func (s *Store) SaveLink(user string, l Link) error {
 	if err := l.Validate(); err != nil {
 		return err
 	}
-	for _, lang := range Langs {
+	langs, err := s.Langs(user)
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(langs, l.Lang) {
+		return fmt.Errorf("the CV has no %s", language(l.Lang).English)
+	}
+	for _, lang := range langCodes() {
+		path := filepath.Join(s.dir(user), "links", l.Slug+"."+lang+".md")
+		if !slices.Contains(langs, lang) {
+			if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
+			continue
+		}
 		f := linkFile{
 			Title: clean(l.Label), URL: "/" + filepath.ToSlash(l.LinkDir(lang)) + "/",
 			Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing, Order: l.Order, Version: l.Version, Theme: l.Theme,
 			ExpiryDate: quoted(l.Expires), Created: quoted(l.Created),
 		}
-		if err := writeMarkdown(filepath.Join(s.dir(user), "links", l.Slug+"."+lang+".md"), f, ""); err != nil {
+		if err := writeMarkdown(path, f, ""); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// UpgradeLinks gives links from before the language toggle their missing
-// language files. It reports whether anything changed.
+// UpgradeLinks brings links in line with the CV's languages: links from
+// before the language toggle, and links of a CV that gained or lost a
+// language. It reports whether anything changed.
 func (s *Store) UpgradeLinks(user string) (bool, error) {
 	links, err := s.Links(user)
 	if err != nil {
 		return false, err
 	}
+	langs, err := s.Langs(user)
+	if err != nil {
+		return false, err
+	}
 	changed := false
 	for _, l := range links {
-		if l.files < len(Langs) {
+		if !sameSet(l.langs, langs) {
 			if err := s.SaveLink(user, l); err != nil {
 				return changed, fmt.Errorf("link %s: %w", l.Slug, err)
 			}
@@ -600,7 +679,7 @@ func (s *Store) DeleteLink(user, slug string) error {
 	if _, err := s.Link(user, slug); err != nil {
 		return err
 	}
-	for _, lang := range Langs {
+	for _, lang := range langCodes() {
 		if err := os.Remove(filepath.Join(s.dir(user), "links", slug+"."+lang+".md")); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
@@ -645,7 +724,6 @@ func SectionOrder(order []string) []string {
 	}
 	return out
 }
-func langIndex(s string) int { return indexOf(Langs, s) }
 
 func indexOf(list []string, s string) int {
 	for i, v := range list {
@@ -667,7 +745,7 @@ func splitLangFile(name string) (id, lang string, ok bool) {
 		return "", "", false
 	}
 	id, lang = base[:dot], base[dot+1:]
-	return id, lang, idRe.MatchString(id) && langIndex(lang) >= 0
+	return id, lang, idRe.MatchString(id) && knownLang(lang)
 }
 
 func slugify(s string) string {
@@ -739,4 +817,9 @@ func writeAtomic(path string, data []byte) error {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)
+}
+
+// sameSet reports whether two lists hold the same strings, in any order.
+func sameSet(a, b []string) bool {
+	return len(a) == len(b) && !slices.ContainsFunc(a, func(s string) bool { return !slices.Contains(b, s) })
 }

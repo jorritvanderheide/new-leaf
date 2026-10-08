@@ -76,26 +76,6 @@ type Run struct {
 	Break  bool   `json:"break,omitempty"`
 }
 
-var docLabels = map[string]map[string]string{
-	"en": {
-		"present": "Present", "experience": "Work experience", "education": "Education",
-		"publications": "Publications", "output": "Other output", "presentations": "Presentations",
-		"teaching": "Teaching", "awards": "Grants & awards", "extracurricular": "Extracurricular activities",
-		"volunteering": "Volunteering",
-	},
-	"nl": {
-		"present": "heden", "experience": "Werkervaring", "education": "Opleiding",
-		"publications": "Publicaties", "output": "Overige output", "presentations": "Presentaties",
-		"teaching": "Onderwijs", "awards": "Beurzen & prijzen", "extracurricular": "Extracurriculaire activiteiten",
-		"volunteering": "Vrijwilligerswerk",
-	},
-}
-
-var docMonths = map[string][]string{
-	"en": {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"},
-	"nl": {"jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"},
-}
-
 var (
 	refYearRe = regexp.MustCompile(`\((\d{4})[a-z]?\)`)
 	schemeRe  = regexp.MustCompile(`^https?://`)
@@ -152,7 +132,7 @@ func BuildDocument(p Profile, items []Item, opt PrintOptions, photo string) Docu
 			continue
 		}
 		sortItems(in, section, lang)
-		ds := DocSection{Title: docLabels[lang][section]}
+		ds := DocSection{Title: language(lang).sections[section]}
 		for _, it := range in {
 			ds.Items = append(ds.Items, docItem(it, section, lang))
 		}
@@ -167,7 +147,7 @@ func docItem(it Item, section, lang string) DocItem {
 	if IsPointSection(section) {
 		d.Date = formatDate(it.Start, lang)
 	} else {
-		d.Date = formatDate(it.Start, lang) + " – " + cmp.Or(formatDate(it.End, lang), docLabels[lang]["present"])
+		d.Date = formatDate(it.Start, lang) + " – " + cmp.Or(formatDate(it.End, lang), language(lang).present)
 	}
 	d.Sub = strings.Join(slices.DeleteFunc([]string{t.Org, t.Location}, func(s string) bool { return s == "" }), " · ")
 	// A publication with a description is shown as that reference, as
@@ -190,7 +170,7 @@ func sortItems(items []Item, section, lang string) {
 	point := IsPointSection(section)
 	start := func(it Item) string {
 		if it.Start == "" && section == "publications" {
-			for _, l := range append([]string{lang}, Langs...) {
+			for _, l := range append([]string{lang}, langCodes()...) {
 				if m := refYearRe.FindStringSubmatch(it.Text[l].Body); m != nil {
 					return m[1]
 				}
@@ -220,7 +200,7 @@ func formatDate(d, lang string) string {
 	if i < 1 || i > 12 {
 		return d
 	}
-	return docMonths[lang][i-1] + " " + y
+	return language(lang).months[i-1] + " " + y
 }
 
 // --- Markdown
