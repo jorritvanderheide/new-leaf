@@ -1,10 +1,10 @@
 # Changelog
 
 What changed in each release of New Leaf, newest first. What counts as
-breaking is in [Compatibility](docs/compatibility.md). Releases before 1.0
+breaking is in [Compatibility](docs/compatibility.md). Releases before 0.6
 are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/releases).
 
-## Unreleased
+## 0.6.0
 
 - **A format version for CVs.** The profile's shared fields (name, contact
   details, links, languages and the defaults for new versions) are now in
