@@ -48,7 +48,7 @@ const PAGES = [
 // keepalive lets a request finish while the page is being left, which is how
 // pending autosaves are flushed without a "Leave site?" prompt.
 async function api(method, path, body, { keepalive = false } = {}) {
-  const opts = { method, keepalive, headers: { "X-CV-App": "1" } };
+  const opts = { method, keepalive, headers: { "X-New-Leaf": "1" } };
   if (body instanceof FormData) {
     opts.body = body;
   } else if (body !== undefined) {
@@ -704,9 +704,9 @@ document.addEventListener("alpine:init", () => {
           fit: this.fitPages,
         }),
       );
-      document.title = `${v.name} · CV`;
+      document.title = `${v.name} · New Leaf`;
       this.$watch("name", (name) => {
-        document.title = `${name} · CV`;
+        document.title = `${name} · New Leaf`;
         this._versionSaver.schedule();
       });
       this.$watch(() => this.$store.cv.contentRev, () => this.rerender());
@@ -800,7 +800,7 @@ document.addEventListener("alpine:init", () => {
       const post = (path) =>
         fetch(path, {
           method: "POST",
-          headers: { "X-CV-App": "1", "Content-Type": "application/json" },
+          headers: { "X-New-Leaf": "1", "Content-Type": "application/json" },
           body: JSON.stringify({ lang: this.lang, entries: this.selected, photo: this.photo, spacing: this.spacing, order: this.order, theme: this.theme }),
           signal: abort.signal,
         });

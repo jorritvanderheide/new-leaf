@@ -1,5 +1,5 @@
 // Runs the browser tests against a fresh server holding a made-up CV, then
-// against local mode. Needs cv-app (or $CV_APP), chromium and typst:
+// against local mode. Needs new-leaf (or $NEW_LEAF), chromium and typst:
 //
 //   nix run .#browser-tests [-- suite...]
 //
@@ -22,7 +22,7 @@ import widths from "./widths.mjs";
 
 const server = { editor, preview, widths, share, versions, polish, cvs };
 const only = process.argv.slice(2);
-const bin = process.env.CV_APP || "cv-app";
+const bin = process.env.NEW_LEAF || "new-leaf";
 const shots = process.env.SHOTS;
 
 const freePort = () =>
@@ -33,7 +33,7 @@ const freePort = () =>
     });
   });
 
-// start runs cv-app and resolves with its editor URL, read from its output.
+// start runs new-leaf and resolves with its editor URL, read from its output.
 function start(args, pattern) {
   const proc = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
   let out = "";
@@ -61,7 +61,7 @@ async function suite(name, fn, env) {
   }
 }
 
-const data = mkdtempSync(join(tmpdir(), "cv-app-browser-"));
+const data = mkdtempSync(join(tmpdir(), "new-leaf-browser-"));
 const procs = [];
 let ok = true;
 try {

@@ -226,5 +226,5 @@ func (s *Server) postImport(r *http.Request, user string) error {
 // getPing tells a second copy of the app that this one is running, and keeps
 // a local app alive while an editor is open.
 func (s *Server) getPing(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, map[string]any{"app": "cv-app", "local": s.local})
+	writeJSON(w, map[string]any{"app": "new-leaf", "local": s.local})
 }

@@ -51,7 +51,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Helper()
 		b, _ := json.Marshal(body)
 		r := httptest.NewRequest(method, path, bytes.NewReader(b))
-		r.Header.Set("X-CV-App", "1")
+		r.Header.Set("X-New-Leaf", "1")
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		if w.Code != http.StatusOK {
@@ -102,7 +102,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Error("tighter spacing produced more pages")
 	}
 	r0 := httptest.NewRequest("POST", "/api/pdf", strings.NewReader(`{"lang":"en","entries":[],"spacing":3}`))
-	r0.Header.Set("X-CV-App", "1")
+	r0.Header.Set("X-New-Leaf", "1")
 	w0 := httptest.NewRecorder()
 	h.ServeHTTP(w0, r0)
 	if w0.Code != http.StatusBadRequest {
@@ -120,7 +120,7 @@ func TestEndToEnd(t *testing.T) {
 	call("PUT", "/api/versions/test", Version{Name: "Test", PrintOptions: PrintOptions{Lang: "en", Entries: shared, Spacing: 0.8, Theme: Theme{Accent: "#b91c1c"}}})
 	putVersion := func(body string) int {
 		r := httptest.NewRequest("PUT", "/api/versions/test", strings.NewReader(body))
-		r.Header.Set("X-CV-App", "1")
+		r.Header.Set("X-New-Leaf", "1")
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		return w.Code
@@ -224,7 +224,7 @@ func TestEndToEnd(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, r)
 	if rec.Code != http.StatusForbidden {
-		t.Errorf("write without X-CV-App: %d", rec.Code)
+		t.Errorf("write without X-New-Leaf: %d", rec.Code)
 	}
 
 	// Expiry: reconcile unpublishes expired links and anything unknown,
@@ -318,7 +318,7 @@ func TestEndToEnd(t *testing.T) {
 func post(h http.Handler, path string, body any) int {
 	b, _ := json.Marshal(body)
 	r := httptest.NewRequest("POST", path, bytes.NewReader(b))
-	r.Header.Set("X-CV-App", "1")
+	r.Header.Set("X-New-Leaf", "1")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	return w.Code

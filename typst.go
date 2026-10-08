@@ -86,7 +86,7 @@ func (t *Typst) run(ctx context.Context, doc Document, photo string, args func(d
 		return ctx.Err()
 	}
 
-	tmp, err := os.MkdirTemp("", "cv-app-typst-")
+	tmp, err := os.MkdirTemp("", "new-leaf-typst-")
 	if err != nil {
 		return err
 	}

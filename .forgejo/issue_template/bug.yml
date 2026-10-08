@@ -1,0 +1,75 @@
+name: Bug report
+about: Something in New Leaf doesn't work the way the README says it should.
+labels: ['bug']
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thanks for taking the time to report this. Before you start, have a quick look at the [FAQ](https://codeberg.org/BW20/new-leaf/src/branch/main/FAQ.md): the most common surprises, like Typst not being found or a warning when you first open the app, are explained there.
+
+              Found a security problem? Please don't report it here. Use [private reporting](https://github.com/jorritvanderheide/new-leaf/security/advisories/new) instead.
+
+              Please don't attach your real CV. A screenshot with the personal details covered, or the steps to make the problem with a made-up item, help just as much.
+
+    - type: textarea
+      id: what
+      attributes:
+          label: What happened?
+          description: And what did you expect to happen instead?
+      validations:
+          required: true
+
+    - type: textarea
+      id: steps
+      attributes:
+          label: Steps to reproduce
+          description: The smallest set of steps that shows the problem. A screenshot helps too.
+          placeholder: |
+              1. Open a version
+              2. Click an item in the preview
+              3. ...
+      validations:
+          required: true
+
+    - type: input
+      id: version
+      attributes:
+          label: New Leaf version
+          description: Run `new-leaf -version`.
+      validations:
+          required: true
+
+    - type: dropdown
+      id: how
+      attributes:
+          label: How do you run it?
+          options:
+              - On my own computer, from a release
+              - On my own computer, with Nix
+              - On a server, with the NixOS module
+              - On a server, with Docker
+              - Something else
+      validations:
+          required: true
+
+    - type: input
+      id: os
+      attributes:
+          label: Operating system
+          placeholder: macOS 15, Windows 11, Ubuntu 24.04, NixOS 26.05, ...
+      validations:
+          required: true
+
+    - type: input
+      id: browser
+      attributes:
+          label: Browser
+          placeholder: Firefox 140, Chrome 150, Safari 19, ...
+      validations:
+          required: true
+
+    - type: textarea
+      id: extra
+      attributes:
+          label: Anything else?
+          description: What New Leaf printed in the terminal (or the server's log), an error from the browser's developer console (Ctrl+Shift+I, or Cmd+Option+I on a Mac), or anything else that seems related.

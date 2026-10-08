@@ -1,7 +1,7 @@
-// Command cv-app is a CV editor. Each CV lives as one Markdown file per item
-// and language. Typst turns a selection into a PDF; share links are
-// published as static HTML pages and PDFs into a separate webroot that a
-// public web server serves. Templates, styles and fonts are embedded.
+// Command new-leaf is New Leaf, a CV editor. Each CV lives as one Markdown
+// file per item and language. Typst turns a selection into a PDF; share
+// links are published as static HTML pages and PDFs into a separate webroot
+// that a public web server serves. Templates, styles and fonts are embedded.
 package main
 
 import (
@@ -36,16 +36,16 @@ func main() {
 
 // serve runs the multi-user server: tailnet sign-in and share links.
 func serve(args []string) {
-	fl := flag.NewFlagSet("cv-app serve", flag.ExitOnError)
+	fl := flag.NewFlagSet("new-leaf serve", flag.ExitOnError)
 	fl.Usage = func() {
-		fmt.Fprint(fl.Output(), "Usage: cv-app serve [flags]\n\nFlags (also as environment variables, e.g. CV_APP_PUBLIC_URL for -public-url):\n")
+		fmt.Fprint(fl.Output(), "Usage: new-leaf serve [flags]\n\nFlags (also as environment variables, e.g. NEW_LEAF_PUBLIC_URL for -public-url):\n")
 		fl.PrintDefaults()
 	}
 	var (
 		listen      = fl.String("listen", "127.0.0.1:8080", "editor address: host:port, unix:/path, or systemd (socket activation); put a tailnet-only reverse proxy in front")
-		dataDir     = fl.String("data", "/var/lib/cv-app", "persistent data: one content directory per user")
+		dataDir     = fl.String("data", "/var/lib/new-leaf", "persistent data: one content directory per user")
 		workDir     = fl.String("work", "", "regenerable files such as extracted fonts (default: <data>/work)")
-		publicDir   = fl.String("public", "/var/lib/cv-app/public", "webroot that the public share links are published into")
+		publicDir   = fl.String("public", "/var/lib/new-leaf/public", "webroot that the public share links are published into")
 		publicURL   = fl.String("public-url", "https://cv.example.com", "base URL the public webroot is served at")
 		users       = fl.String("users", "", "comma-separated CVs that always exist, named after their owner's tailnet login; every tailnet user can edit all CVs")
 		manage      = fl.Bool("manage", true, "let editor users create, rename and delete CVs (those in -users can't be deleted)")

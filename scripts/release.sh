@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the release archives: cv-app for each platform, with typst next to
+# Builds the release archives: new-leaf for each platform, with typst next to
 # it, the licences and a short readme; and SHA256SUMS.
 #   scripts/release.sh <version> <directory>
 # Needs go, curl, sha256sum, tar, xz, zip and unzip.
@@ -23,7 +23,7 @@ targets=(
 readme() {
   local os=$1 exe=$2
   cat <<EOF
-cv-app $version
+New Leaf $version
 
 A CV editor: keep your CV as items in English and Dutch, make versions of
 it for applications, and download them as PDFs. Everything stays on this
@@ -37,8 +37,8 @@ EOF
     darwin) cat <<'EOF'
 
 macOS: these programs are not signed by Apple. The first time, right-click
-cv-app in Finder and choose Open, or run in Terminal:
-  xattr -d com.apple.quarantine cv-app typst
+new-leaf in Finder and choose Open, or run in Terminal:
+  xattr -d com.apple.quarantine new-leaf typst
 EOF
       ;;
     windows) cat <<'EOF'
@@ -51,17 +51,17 @@ EOF
   cat <<'EOF'
 
 typst (https://typst.app), which makes the PDFs, is included; its licence is
-in LICENSE-typst. cv-app is licensed under the EUPL-1.2 (LICENSE).
-Source: https://codeberg.org/BW20/cv-app
+in LICENSE-typst. New Leaf is licensed under the EUPL-1.2 (LICENSE).
+Source: https://codeberg.org/BW20/new-leaf
 EOF
 }
 
 for t in "${targets[@]}"; do
   read -r goos goarch typst_target <<<"$t"
-  name="cv-app-$version-$goos-$goarch"
+  name="new-leaf-$version-$goos-$goarch"
   dir="$out/$name"
-  exe=cv-app
-  [[ $goos == windows ]] && exe=cv-app.exe
+  exe=new-leaf
+  [[ $goos == windows ]] && exe=new-leaf.exe
   echo "building $name"
   rm -rf "$dir"
   mkdir -p "$dir"
@@ -78,6 +78,6 @@ for t in "${targets[@]}"; do
   rm -rf "$dir"
 done
 
-(cd "$out" && sha256sum cv-app-"$version"-* >SHA256SUMS)
+(cd "$out" && sha256sum new-leaf-"$version"-* >SHA256SUMS)
 echo "done:"
 ls -l "$out"

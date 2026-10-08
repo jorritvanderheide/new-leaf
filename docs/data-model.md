@@ -1,0 +1,161 @@
+# Data model
+
+New Leaf keeps a CV as a folder of plain files: Markdown with YAML front
+matter for what you write, JSON for what the editor decides. Nothing is in a
+database, so a CV can be read, backed up and moved with ordinary tools. This
+page lists every file it reads and writes.
+
+## The data folder
+
+```
+users/<cv>/cv.json                              display name and owners
+users/<cv>/content/_index.{en,nl}.md            profile
+users/<cv>/content/photo.{jpg,png,webp}         profile photo
+users/<cv>/content/<section>/<id>.{en,nl}.md    one item, per language
+users/<cv>/content/links/<slug>.<lang>.md       share link of a version (server only)
+users/<cv>/versions/<id>.json                   one version
+users/<cv>/backups/before-import-<time>.zip     what a restore replaced
+trash/<cv>-<time>/                              a deleted CV
+```
+
+On your own computer the data folder is `~/.local/share/new-leaf` on Linux,
+`~/Library/Application Support/new-leaf` on macOS and `%AppData%\new-leaf` on
+Windows, and there is one CV, named after your login so it can move to a
+server later. On a server it is `-data` (`/var/lib/new-leaf`).
+
+`<cv>`, `<id>` and `<slug>` are lowercase letters, digits and hyphens, at most
+64 characters, starting with a letter or digit.
+
+## The profile
+
+`_index.en.md` and `_index.nl.md`. The body is the summary, in Markdown. The
+front matter:
+
+| Key | Per language | Value |
+| --- | --- | --- |
+| `name` | no | Your name |
+| `headline` | yes | One line under the name, such as a job title |
+| `location` | yes | Where you live, as it should read on the CV |
+| `email`, `phone`, `website` | no | Contact details |
+| `links` | no | A list of `label` and `url`, such as LinkedIn |
+| `order` | no | The default section order, for new versions |
+| `theme` | no | The default look, for new versions (see [Looks](#looks)) |
+
+Keys that aren't per language are written to both files, and read from the
+first one that has them.
+
+## Items
+
+`<section>/<id>.<lang>.md`, one file per language the item has text in. The
+`<id>` is made from the organisation or the title when the item is created,
+and never changes. The body is the description, in Markdown.
+
+| Key | Per language | Value |
+| --- | --- | --- |
+| `title` | yes | The role, degree, title of the publication |
+| `org` | yes | The organisation |
+| `location` | yes | Where |
+| `start` | no | `YYYY-MM` or `YYYY` |
+| `end` | no | The same; none means ongoing |
+| `link` | no | A URL, such as a DOI |
+
+The sections, in their default order: `experience`, `education`,
+`publications`, `output`, `presentations`, `teaching`, `awards`,
+`extracurricular`, `volunteering`. Publications, other output, presentations
+and awards happen at one moment: they have `start` only, and may leave it out
+(a manuscript under review). Every other section has a period.
+
+Items are always shown newest first: ongoing ones, then by end date, the
+longer first when two end together. Undated items go last, except an undated
+publication, which sorts by the year in its reference, such as `(2026)`.
+
+The Markdown a CV uses is paragraphs, lists, bold, italic and links.
+Anything else (headings, code, HTML) is shown as plain text or left out, and
+only links to the web, mail and phone are kept.
+
+## Versions
+
+`versions/<id>.json`. Items and the profile belong to the CV; a version only
+chooses from them.
+
+| Key | Value |
+| --- | --- |
+| `name` | The name in the overview, such as the employer |
+| `lang` | `en` or `nl` |
+| `entries` | The items, as `<section>/<id>` |
+| `photo` | Whether the PDF shows the photo |
+| `spacing` | Whitespace, from `0.4` to `1.4`; none means `1` |
+| `order` | The section order; none means the profile's |
+| `theme` | The look (see [Looks](#looks)) |
+| `fit` | The page count to fit on, 1 to 4; none means 2 |
+| `pages` | The page count at the last preview, for the overview |
+| `created`, `updated` | When |
+
+A new item joins every version that held every item before it, such as the
+Full CV, and no other. A CV with no `versions/` folder (from before versions)
+gets one when it's opened, made from what it had.
+
+## Looks
+
+The `theme` of a version, and of the profile for new versions:
+
+| Key | Value |
+| --- | --- |
+| `accent` | A colour, `#rrggbb`; none means `#00696a` |
+| `font` | `sans` (Inter) or `serif` (Source Serif 4); none means `sans` |
+| `photo` | `rounded`, `circle` or `square`; none means `rounded` |
+
+## Share links
+
+On a server only. `links/<slug>.<lang>.md` is a link to a version, rendered in
+`<lang>`. The slug is the version's name plus 8 random characters, so the
+address can't be guessed. Sharing again makes a new one.
+
+| Key | Value |
+| --- | --- |
+| `version` | The version it shows |
+| `title`, `entries`, `photo`, `spacing`, `order`, `theme` | A copy of the version, kept up to date |
+| `url` | Where it's published |
+| `expiryDate` | `YYYY-MM-DD`: offline from the start of that day, in Europe/Amsterdam. None: no end date |
+| `created` | `YYYY-MM-DD` |
+
+What a link publishes is described in
+[Self-hosting](self-hosting.md#what-the-server-writes).
+
+## cv.json
+
+On a server, the CV's display name (`name`) and its owners (`owners`, tailnet
+logins it opens for by default). Both are optional: without a name the CV is
+shown by its folder's name.
+
+## Backups
+
+**Download backup** makes a zip of `content/` and `versions/`. **Restore**
+takes one, refuses any file a CV doesn't consist of, and keeps the CV it replaces as
+`backups/before-import-<time>.zip`. Backups from before versions, with a
+`compose.json` instead of `versions/`, still restore.
+
+## The work folder
+
+Fonts for Typst and the overview's thumbnails, in your cache folder
+(`~/.cache/new-leaf` on Linux) or `-work` on a server. Everything in it can be
+made again, so it's safe to delete.
+
+Thumbnails are `thumbs/<cv>/<version>.<key>.<pages>.png`, where the key is a
+hash of everything the PDF shows. A changed version gets a new file instead
+of an outdated one; the old file is removed.
+
+## Compatibility
+
+CVs written by New Leaf exist on other people's computers and servers. So:
+
+- **Renaming or removing** a front matter key, a JSON key, a section or a file
+  name is a breaking change and needs a migration that runs when the CV is
+  read, like the one that makes versions for CVs from before them.
+- **Adding** an optional key is not.
+- **Backups** of older versions must keep restoring.
+
+New Leaf was called cv-app. Its data folder (`cv-app` instead of `new-leaf`)
+is moved over once, the first time New Leaf starts and finds no CVs of its own.
+On a server the NixOS module copies `/var/lib/cv-app` the same way, and New
+Leaf takes over a share links folder marked `.cv-app-public`.

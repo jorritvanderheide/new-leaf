@@ -6,28 +6,39 @@ self:
   ...
 }:
 let
-  cfg = config.services.cv-app;
-  stateDir = "/var/lib/cv-app";
+  cfg = config.services.new-leaf;
+  stateDir = "/var/lib/new-leaf";
+
+  # New Leaf was called cv-app. Its data moves here on the first start
+  # (copied: the old directory stays until you remove it).
+  moveOldData = pkgs.writeShellScript "new-leaf-move-old-data" ''
+    old=/var/lib/cv-app
+    if [ -d "$old/users" ] && [ ! -e ${stateDir}/users ]; then
+      echo "copying $old to ${stateDir}"
+      cp -a "$old/." ${stateDir}/
+      chown -R new-leaf:new-leaf ${stateDir}
+    fi
+  '';
 in
 {
-  options.services.cv-app = {
-    enable = lib.mkEnableOption "the cv-app CV editor";
+  options.services.new-leaf = {
+    enable = lib.mkEnableOption "New Leaf, the CV editor";
 
     package = lib.mkOption {
       type = lib.types.package;
       default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
-      description = "cv-app package.";
+      description = "New Leaf package.";
     };
 
     socket = lib.mkOption {
       type = lib.types.str;
-      default = "/run/cv-app/editor.sock";
+      default = "/run/new-leaf/editor.sock";
       readOnly = true;
       description = ''
-        Unix socket the editor listens on (unless {option}`services.cv-app.listen`
-        is set). Point a reverse proxy at it that only tailnet clients can
-        reach and that sets X-Real-IP, e.g. nginx's
-        `proxyPass = "http://unix:/run/cv-app/editor.sock";`.
+        Unix socket the editor listens on (unless
+        {option}`services.new-leaf.listen` is set). Point a reverse proxy at it
+        that only tailnet clients can reach and that sets X-Real-IP, e.g.
+        nginx's `proxyPass = "http://unix:/run/new-leaf/editor.sock";`.
       '';
     };
 
@@ -35,7 +46,7 @@ in
       type = lib.types.str;
       default = "nginx";
       description = ''
-        Group of the reverse proxy. Only it (and cv-app) may open the editor's
+        Group of the reverse proxy. Only it (and new-leaf) may open the editor's
         socket, so no other local program can reach the editor and pass off
         a made-up visitor address as a tailnet device.
       '';
@@ -69,16 +80,16 @@ in
       default = true;
       description = ''
         Whether editor users can create, rename and delete CVs, next to
-        {option}`services.cv-app.users`. Deleted CVs are moved to
-        {file}`/var/lib/cv-app/trash`. When off, exactly the CVs in
-        {option}`services.cv-app.users` exist.
+        {option}`services.new-leaf.users`. Deleted CVs are moved to
+        {file}`/var/lib/new-leaf/trash`. When off, exactly the CVs in
+        {option}`services.new-leaf.users` exist.
       '';
     };
 
     publicURL = lib.mkOption {
       type = lib.types.str;
       example = "https://cv.example.com";
-      description = "URL at which a web server serves {option}`services.cv-app.publicDir`.";
+      description = "URL at which a web server serves {option}`services.new-leaf.publicDir`.";
     };
 
     publicDir = lib.mkOption {
@@ -100,39 +111,39 @@ in
     assertions = [
       {
         assertion = cfg.users != [ ] || cfg.manageInEditor;
-        message = "services.cv-app: list the CVs in users, or enable manageInEditor.";
+        message = "services.new-leaf: list the CVs in users, or enable manageInEditor.";
       }
     ];
 
-    users.users.cv-app = {
+    users.users.new-leaf = {
       isSystemUser = true;
-      group = "cv-app";
+      group = "new-leaf";
       home = stateDir;
     };
-    users.groups.cv-app = { };
+    users.groups.new-leaf = { };
 
-    # systemd owns the socket: cv-app needs no membership of the proxy's
-    # group, and the proxy can connect while cv-app restarts.
-    systemd.sockets.cv-app = lib.mkIf (cfg.listen == null) {
-      description = "cv-app editor socket";
+    # systemd owns the socket: new-leaf needs no membership of the proxy's
+    # group, and the proxy can connect while new-leaf restarts.
+    systemd.sockets.new-leaf = lib.mkIf (cfg.listen == null) {
+      description = "New Leaf editor socket";
       wantedBy = [ "sockets.target" ];
       listenStreams = [ cfg.socket ];
       socketConfig = {
-        SocketUser = "cv-app";
+        SocketUser = "new-leaf";
         SocketGroup = cfg.proxyGroup;
         SocketMode = "0660";
       };
     };
 
-    systemd.services.cv-app = {
-      description = "cv-app CV editor";
+    systemd.services.new-leaf = {
+      description = "New Leaf, the CV editor";
       wantedBy = [ "multi-user.target" ];
-      requires = lib.optional (cfg.listen == null) "cv-app.socket";
+      requires = lib.optional (cfg.listen == null) "new-leaf.socket";
       after = [
         "network.target"
         "tailscaled.service"
       ]
-      ++ lib.optional (cfg.listen == null) "cv-app.socket";
+      ++ lib.optional (cfg.listen == null) "new-leaf.socket";
 
       serviceConfig = {
         ExecStart = lib.escapeShellArgs [
@@ -143,7 +154,7 @@ in
           "-data"
           stateDir
           "-work"
-          "/var/cache/cv-app"
+          "/var/cache/new-leaf"
           "-public"
           cfg.publicDir
           "-public-url"
@@ -154,18 +165,19 @@ in
           "-tailscale"
           (lib.getExe cfg.tailscalePackage)
         ];
-        User = "cv-app";
-        Group = "cv-app";
-        StateDirectory = "cv-app";
+        User = "new-leaf";
+        Group = "new-leaf";
+        StateDirectory = "new-leaf";
         # World-readable so the web server can serve publicDir; user content
-        # lives in users/, which cv-app creates 0750.
+        # lives in users/, which new-leaf creates 0750.
         StateDirectoryMode = "0755";
-        CacheDirectory = "cv-app";
+        CacheDirectory = "new-leaf";
+        ExecStartPre = "+${moveOldData}"; # as root, before the sandbox
         UMask = "0022";
         Restart = "always";
         RestartSec = "5s";
 
-        # Hardening: cv-app and typst need little more than their files.
+        # Hardening: new-leaf and typst need little more than their files.
         CapabilityBoundingSet = "";
         LockPersonality = true;
         MemoryDenyWriteExecute = true;

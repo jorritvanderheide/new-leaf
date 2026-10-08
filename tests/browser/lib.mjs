@@ -17,7 +17,7 @@ export const check = (cond, msg) => {
 export async function api(base, method, path, body) {
   const res = await fetch(base + path, {
     method,
-    headers: { "X-CV-App": "1", "Content-Type": "application/json" },
+    headers: { "X-New-Leaf": "1", "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${await res.text()}`);
@@ -26,7 +26,7 @@ export async function api(base, method, path, body) {
 
 // openPage starts a fresh browser (empty profile, so no cookies) with one page.
 export async function openPage({ width = 1440, height = 900, shots } = {}) {
-  const profile = mkdtempSync(join(tmpdir(), "cv-app-chromium-"));
+  const profile = mkdtempSync(join(tmpdir(), "new-leaf-chromium-"));
   const proc = spawn(
     process.env.CHROMIUM || "chromium",
     ["--headless", "--no-sandbox", "--disable-gpu", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"],

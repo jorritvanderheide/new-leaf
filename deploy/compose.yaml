@@ -1,20 +1,20 @@
-# Self-hosting cv-app with Docker, no domain or web server of your own:
+# Self-hosting New Leaf with Docker, no domain or web server of your own:
 # the editor on your tailnet and the share links public, both at
 # https://cv.<your tailnet>.ts.net, served by a tailscale container that
-# cv-app shares its network with.
+# New Leaf shares its network with.
 #
 #   1. In the Tailscale admin console, make an auth key, and allow Funnel
 #      for this machine (the "funnel" node attribute in the tailnet policy).
 #   2. In a .env file next to this one, set
 #        TS_AUTHKEY=tskey-auth-...
-#        CV_APP_PUBLIC_URL=https://cv.<your tailnet>.ts.net
-#      and optionally CV_APP_USERS (CVs that always exist, by tailnet login)
-#      or any other CV_APP_* setting (see cv-app serve -h).
+#        NEW_LEAF_PUBLIC_URL=https://cv.<your tailnet>.ts.net
+#      and optionally NEW_LEAF_USERS (CVs that always exist, by tailnet login)
+#      or any other NEW_LEAF_* setting (see new-leaf serve -h).
 #   3. docker compose up -d
 #
 # The editor is then at https://cv.<your tailnet>.ts.net:8443 (tailnet only),
 # share links at https://cv.<your tailnet>.ts.net/<link>/ (public).
-# Everything cv-app keeps is in the cv-app volume.
+# Everything New Leaf keeps is in the new-leaf volume.
 
 services:
   tailscale:
@@ -31,21 +31,21 @@ services:
       - ./serve.json:/config/serve.json:ro
     restart: unless-stopped
 
-  cv-app:
-    image: ghcr.io/bw20/cv-app:latest
-    # Shares tailscale's network: tailscale serve reaches cv-app on
-    # 127.0.0.1, and cv-app asks tailscale who each visitor is.
+  new-leaf:
+    image: ghcr.io/jorritvanderheide/new-leaf:latest
+    # Shares tailscale's network: tailscale serve reaches New Leaf on
+    # 127.0.0.1, and New Leaf asks tailscale who each visitor is.
     network_mode: service:tailscale
     depends_on: [tailscale]
     environment:
-      CV_APP_PUBLIC_URL: ${CV_APP_PUBLIC_URL:?set CV_APP_PUBLIC_URL in .env}
-      CV_APP_USERS: ${CV_APP_USERS:-}
+      NEW_LEAF_PUBLIC_URL: ${NEW_LEAF_PUBLIC_URL:?set NEW_LEAF_PUBLIC_URL in .env}
+      NEW_LEAF_USERS: ${NEW_LEAF_USERS:-}
     volumes:
-      - cv-app:/data
+      - new-leaf:/data
       - tailscale-socket:/var/run/tailscale
     restart: unless-stopped
 
 volumes:
   tailscale:
   tailscale-socket:
-  cv-app:
+  new-leaf:

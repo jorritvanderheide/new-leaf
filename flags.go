@@ -13,7 +13,7 @@ import (
 var version = "dev"
 
 // parseFlags parses a command's flags, which can also come from the
-// environment as CV_APP_<FLAG>, e.g. CV_APP_PUBLIC_URL for -public-url (for
+// environment as NEW_LEAF_<FLAG>, e.g. NEW_LEAF_PUBLIC_URL for -public-url (for
 // containers); the command line wins. -version prints the version and exits.
 func parseFlags(fl *flag.FlagSet, args []string) {
 	showVersion := fl.Bool("version", false, "print the version and exit")
@@ -28,16 +28,16 @@ func parseFlags(fl *flag.FlagSet, args []string) {
 	})
 	fl.Parse(args)
 	if *showVersion {
-		fmt.Println("cv-app", version)
+		fmt.Println("new-leaf", version)
 		os.Exit(0)
 	}
 }
 
 func envName(flagName string) string {
-	return "CV_APP_" + strings.ToUpper(strings.ReplaceAll(flagName, "-", "_"))
+	return "NEW_LEAF_" + strings.ToUpper(strings.ReplaceAll(flagName, "-", "_"))
 }
 
-// findTypst prefers a typst binary next to cv-app itself, as in the release
+// findTypst prefers a typst binary next to new-leaf itself, as in the release
 // archives, over one on the PATH; an explicit -typst is used as given.
 func findTypst(bin string) string {
 	if bin != "typst" {

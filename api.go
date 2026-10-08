@@ -125,8 +125,8 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 			http.Error(w, "This editor is only available to approved users on the tailnet.", http.StatusForbidden)
 			return
 		}
-		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Header.Get("X-CV-App") != "1" {
-			http.Error(w, "missing X-CV-App header", http.StatusForbidden)
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Header.Get("X-New-Leaf") != "1" {
+			http.Error(w, "missing X-New-Leaf header", http.StatusForbidden)
 			return
 		}
 		if err := s.change(user, func() error {

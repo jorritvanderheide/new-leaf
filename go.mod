@@ -1,4 +1,4 @@
-module codeberg.org/BW20/cv-app
+module codeberg.org/BW20/new-leaf
 
 go 1.26.0
 

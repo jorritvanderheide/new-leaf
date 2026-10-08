@@ -1,5 +1,5 @@
 {
-  description = "CV editor: one Go binary, PDFs with Typst, expiring share links";
+  description = "New Leaf, a CV editor: one Go binary, PDFs with Typst, share links";
 
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
@@ -24,7 +24,7 @@
         default = pkgs.callPackage ./nix/package.nix { };
         # The self-hosting container image (nix/docker.nix).
         docker = pkgs.callPackage ./nix/docker.nix {
-          cv-app = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+          new-leaf = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
         };
       });
 
@@ -39,9 +39,9 @@
         };
       });
 
-      # pkgs.cv-app for other flakes and NixOS/home-manager configurations.
+      # pkgs.new-leaf for other flakes and NixOS/home-manager configurations.
       overlays.default = final: _prev: {
-        cv-app = final.callPackage ./nix/package.nix { };
+        new-leaf = final.callPackage ./nix/package.nix { };
       };
 
       apps = forAllSystems (pkgs: {
@@ -59,7 +59,7 @@
           type = "app";
           program = pkgs.lib.getExe (
             pkgs.writeShellApplication {
-              name = "cv-app-dev";
+              name = "new-leaf-dev";
               runtimeInputs = with pkgs; [
                 git
                 go
@@ -92,7 +92,7 @@
           type = "app";
           program = pkgs.lib.getExe (
             pkgs.writeShellApplication {
-              name = "cv-app-browser-tests";
+              name = "new-leaf-browser-tests";
               runtimeInputs = [
                 self.packages.${pkgs.stdenv.hostPlatform.system}.default
                 pkgs.chromium

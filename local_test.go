@@ -57,7 +57,7 @@ func TestLocalHasNoSharing(t *testing.T) {
 	_, h := newLocalServer(t)
 	r := httptest.NewRequest("PUT", "/api/versions/full-cv/share", strings.NewReader(`{}`))
 	r.Host = "localhost:8484"
-	r.Header.Set("X-CV-App", "1")
+	r.Header.Set("X-New-Leaf", "1")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	if w.Code != http.StatusNotFound {
@@ -172,7 +172,7 @@ func do(h http.Handler, method, path string, u *upload) *httptest.ResponseRecord
 		r.Header.Set("Content-Type", u.contentType)
 	}
 	r.Host = "localhost:8484"
-	r.Header.Set("X-CV-App", "1")
+	r.Header.Set("X-New-Leaf", "1")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	return w
@@ -186,7 +186,7 @@ func TestEmptyCVMakesPDF(t *testing.T) {
 	s.store.Init("me")
 	r := httptest.NewRequest("POST", "/api/pdf", strings.NewReader(`{"lang":"en","entries":[]}`))
 	r.Host = "localhost:8484"
-	r.Header.Set("X-CV-App", "1")
+	r.Header.Set("X-New-Leaf", "1")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	if w.Code != http.StatusOK || w.Header().Get("X-Page-Count") != "1" {

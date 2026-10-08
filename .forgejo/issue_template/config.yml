@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+    - name: Read the FAQ
+      url: https://codeberg.org/BW20/new-leaf/src/branch/main/FAQ.md
+      about: Answers to the most common questions, such as Typst not being found or a warning when you first open the app.
+    - name: Report a security problem
+      url: https://github.com/jorritvanderheide/new-leaf/security/advisories/new
+      about: Please report security problems privately, not in a public issue.

@@ -1,33 +1,44 @@
 # On a version tag (v1.2.3, matching the version in nix/package.nix):
-# archives for Linux, macOS and Windows with typst included, a GitHub
+# archives for Linux, macOS and Windows with typst included, a draft GitHub
 # release with them and their checksums, and the container image on
-# ghcr.io for amd64 and arm64, built with Nix.
+# ghcr.io for amd64 and arm64, built with Nix. The archives and the image
+# get a build provenance attestation.
 name: Release
 
 on:
   push:
     tags: ["v*"]
 
+# Read-only unless a job asks for more.
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   binaries:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: Build
         run: scripts/release.sh "$GITHUB_REF_NAME" dist
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.zip dist/SHA256SUMS \
-            --verify-tag --title "cv-app $GITHUB_REF_NAME" --generate-notes
+            --verify-tag --draft --title "New Leaf $GITHUB_REF_NAME" --generate-notes
 
   image:
     strategy:
@@ -38,9 +49,12 @@ jobs:
           - runner: ubuntu-24.04-arm
             arch: arm64
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v31
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
       - name: Tag matches the package version
         run: |
           want="v$(nix eval --raw .#default.version)"
@@ -56,12 +70,18 @@ jobs:
           nix run nixpkgs#skopeo -- copy --dest-creds "$CREDS" \
             docker-archive:result "docker://$image:$GITHUB_REF_NAME-$ARCH"
 
-  # One tag for both architectures, and latest.
+  # One tag for both architectures, and latest, attested.
   manifest:
     needs: image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     steps:
       - name: Manifest
+        id: manifest
         env:
           TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
@@ -70,3 +90,12 @@ jobs:
           echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
           docker buildx imagetools create -t "$image:$GITHUB_REF_NAME" -t "$image:latest" \
             "$image:$GITHUB_REF_NAME-amd64" "$image:$GITHUB_REF_NAME-arm64"
+          digest=$(docker buildx imagetools inspect "$image:$GITHUB_REF_NAME" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.manifest.outputs.image }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          push-to-registry: true

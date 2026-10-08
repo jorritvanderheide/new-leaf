@@ -25,7 +25,7 @@ import (
 // Nothing else is allowed in the webroot: reconcile removes whatever is not
 // an active link, which is also how links expire.
 
-const publicMarker = ".cv-app-public"
+const publicMarker = ".new-leaf-public"
 
 var publicAssets = []string{"css", "fonts"}
 
@@ -48,6 +48,10 @@ func claimPublicDir(dir string) error {
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(dir, publicMarker)); err == nil {
+		return nil
+	}
+	// A webroot from when New Leaf was called cv-app.
+	if err := os.Rename(filepath.Join(dir, ".cv-app-public"), filepath.Join(dir, publicMarker)); err == nil {
 		return nil
 	}
 	entries, err := os.ReadDir(dir)

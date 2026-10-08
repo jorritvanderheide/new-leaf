@@ -1,4 +1,4 @@
-// Local mode (cv-app without "serve"): versions without sharing, backups,
+// Local mode (new-leaf without "serve"): versions without sharing, backups,
 // Quit (in the CV menu).
 
 import { check, openPage, sleep } from "./lib.mjs";
@@ -21,7 +21,7 @@ export default async function local({ base, shots }) {
 
     await page.js("document.querySelector('body > aside [aria-haspopup=menu]').click()");
     await sleep(300);
-    await page.click("[role=menu] button", "Quit cv-app");
+    await page.click("[role=menu] button", "Quit New Leaf");
     await page.until("Alpine.store('cv').stopped", "stopped screen", 5000);
     let stopped = false;
     for (let i = 0; i < 20 && !stopped; i++) {
