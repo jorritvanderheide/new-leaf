@@ -26,7 +26,7 @@ import (
 	_ "time/tzdata"
 )
 
-// link expiry is evaluated in Europe/Amsterdam, also on hosts without zoneinfo
+// -timezone and TZ work on hosts without zoneinfo, such as the container
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -63,6 +63,7 @@ func serveOptions(args []string) server.ServeOptions {
 		servePublic = fl.String("serve-public", "", "also serve the public webroot on this address, with the headers it needs, e.g. behind tailscale funnel")
 		tsBin       = fl.String("tailscale", "tailscale", "tailscale binary, used for identity lookups")
 		typstBin    = fl.String("typst", "typst", "typst binary, which makes the PDFs")
+		timeZone    = fl.String("timezone", "", "time zone of share links' end dates, e.g. Europe/Amsterdam (default: the system's, or TZ)")
 	)
 	parseFlags(fl, args)
 
@@ -70,6 +71,13 @@ func serveOptions(args []string) server.ServeOptions {
 		Listen: *listen, Data: *dataDir, Work: *workDir, Public: *publicDir, PublicURL: *publicURL,
 		ServePublic: *servePublic, Manage: *manage, DevUser: *devUser, DevAssets: *devAssets,
 		Tailscale: *tsBin, Typst: findTypst(*typstBin),
+	}
+	if *timeZone != "" {
+		loc, err := time.LoadLocation(*timeZone)
+		if err != nil {
+			log.Fatalf("-timezone: %v", err)
+		}
+		o.TimeZone = loc
 	}
 	if o.Work == "" {
 		o.Work = filepath.Join(o.Data, "work")

@@ -141,6 +141,7 @@ host only listens on the tailnet: use a DNS check
 | `publicURL` | from `nginx.share.domain` | Where the share links are |
 | `users` | `[ ]` | CVs that always exist, by tailnet login |
 | `manageInEditor` | `true` | Make, rename and delete CVs in the editor |
+| `timeZone` | `time.timeZone` | The time zone share links end in; `null` for the system's |
 | `tailscaleServe.enable` | `false` | Serve with Tailscale: the editor on the tailnet, links through Funnel |
 | `tailscaleServe.editorPort` | `8443` | The editor's port on the tailnet |
 | `nginx.editor.domain` | `null` | Serve the editor with nginx on this domain |
@@ -178,6 +179,7 @@ server of your own.
    TS_AUTHKEY=tskey-auth-...
    NEW_LEAF_PUBLIC_URL=https://cv.<your tailnet>.ts.net
    NEW_LEAF_USERS=alice   # optional
+   NEW_LEAF_TIMEZONE=Europe/Amsterdam   # optional; the container's is UTC
    ```
 3. `docker compose up -d`
 
@@ -217,6 +219,7 @@ as `NEW_LEAF_` and its name in capitals: `NEW_LEAF_PUBLIC_URL` for
 | `-serve-public` | | Also serve that folder on this address, with the headers it needs |
 | `-users` | | CVs that always exist, comma-separated tailnet logins |
 | `-manage` | `true` | Make, rename and delete CVs in the editor |
+| `-timezone` | the system's, or `TZ` | The time zone share links end in, such as `Europe/Amsterdam` |
 | `-tailscale` | `tailscale` | The Tailscale command, for `whois` |
 | `-typst` | next to `new-leaf`, or on the `PATH` | The Typst command |
 | `-version` | | Print the version |

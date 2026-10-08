@@ -49,6 +49,7 @@ pkgs.testers.runNixOSTest {
   # nginx on its own domains.
   nodes.web = {
     imports = [ self.nixosModules.default ];
+    time.timeZone = "America/New_York";
     networking.hosts."127.0.0.1" = [
       "cv-editor.test"
       "cv.test"
@@ -190,6 +191,7 @@ pkgs.testers.runNixOSTest {
         web.fail("curl -sf http://cv-editor.test/api/state")  # 127.0.0.1 is no tailnet device
         web.succeed("stat -c '%G' /run/new-leaf/editor.sock | grep -x nginx")
         web.succeed("systemctl cat new-leaf.service | grep -q -- '-public-url https://cv.test'")
+        web.succeed("systemctl cat new-leaf.service | grep -q -- '-timezone America/New_York'")
 
     with subtest("nginx: backups up to 50 MB get through to New Leaf"):
         web.succeed("head -c 20M /dev/urandom > /tmp/big")

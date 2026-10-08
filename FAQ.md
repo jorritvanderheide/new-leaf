@@ -134,7 +134,7 @@ back.
 
 ### When does a link expire?
 
-At the start of the day you chose, in the Netherlands' time zone, within five
+At the start of the day you chose, in the server's time zone, within five
 minutes. Or never, with **No end date**.
 
 ## Running it on a server

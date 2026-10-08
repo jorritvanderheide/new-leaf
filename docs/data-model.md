@@ -147,7 +147,7 @@ address can't be guessed. Sharing again makes a new one.
 | `version` | The version it shows |
 | `title`, `entries`, `photo`, `spacing`, `order`, `theme` | A copy of the version, kept up to date |
 | `url` | Where it's published |
-| `expiryDate` | `YYYY-MM-DD`: offline from the start of that day, in Europe/Amsterdam. None: no end date |
+| `expiryDate` | `YYYY-MM-DD`: offline from the start of that day, in the server's time zone (`-timezone`). None: no end date |
 | `created` | `YYYY-MM-DD` |
 
 What a link publishes is described in

@@ -19,22 +19,26 @@ import (
 
 // ServeOptions configure the multi-user server: new-leaf serve.
 type ServeOptions struct {
-	Listen      string   // the editor's address: host:port, unix:/path, or systemd
-	Data        string   // the CVs
-	Work        string   // files that can be made again
-	Public      string   // the folder share links are published into
-	PublicURL   string   // where that folder is served
-	ServePublic string   // also serve it here, if set
-	Users       []string // CVs that always exist
-	Manage      bool     // make, rename and delete CVs in the editor
-	DevUser     string   // act as this user, without Tailscale (development)
-	DevAssets   string   // read web/ from this folder (development)
-	Tailscale   string   // the tailscale command, for whois
-	Typst       string   // the typst command
+	Listen      string         // the editor's address: host:port, unix:/path, or systemd
+	Data        string         // the CVs
+	Work        string         // files that can be made again
+	Public      string         // the folder share links are published into
+	PublicURL   string         // where that folder is served
+	ServePublic string         // also serve it here, if set
+	Users       []string       // CVs that always exist
+	Manage      bool           // make, rename and delete CVs in the editor
+	DevUser     string         // act as this user, without Tailscale (development)
+	DevAssets   string         // read web/ from this folder (development)
+	Tailscale   string         // the tailscale command, for whois
+	Typst       string         // the typst command
+	TimeZone    *time.Location // of dates, such as when links expire; nil for the system's
 }
 
 // Serve runs the multi-user server until ctx ends.
 func Serve(ctx context.Context, o ServeOptions) error {
+	if o.TimeZone != nil {
+		cv.LinkZone = o.TimeZone
+	}
 	store := &cv.Store{Root: filepath.Join(o.Data, "users")}
 	assets := NewAssets(o.DevAssets)
 	typst, err := render.NewTypst(o.Typst, o.Work, assets.fs)

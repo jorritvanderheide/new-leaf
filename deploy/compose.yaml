@@ -8,6 +8,7 @@
 #   2. In a .env file next to this one, set
 #        TS_AUTHKEY=tskey-auth-...
 #        NEW_LEAF_PUBLIC_URL=https://cv.<your tailnet>.ts.net
+#        NEW_LEAF_TIMEZONE=Europe/Amsterdam
 #      and optionally NEW_LEAF_USERS (CVs that always exist, by tailnet login)
 #      or any other NEW_LEAF_* setting (see new-leaf serve -h).
 #   3. docker compose up -d
@@ -40,6 +41,7 @@ services:
     environment:
       NEW_LEAF_PUBLIC_URL: ${NEW_LEAF_PUBLIC_URL:?set NEW_LEAF_PUBLIC_URL in .env}
       NEW_LEAF_USERS: ${NEW_LEAF_USERS:-}
+      NEW_LEAF_TIMEZONE: ${NEW_LEAF_TIMEZONE:-}
     volumes:
       - new-leaf:/data
       - tailscale-socket:/var/run/tailscale

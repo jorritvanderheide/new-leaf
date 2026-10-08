@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	_ "time/tzdata" // the Nix build has no zoneinfo
 )
 
 // newTestStore has one CV, alice's, in English and Dutch.
@@ -160,11 +161,14 @@ func TestLinks(t *testing.T) {
 }
 
 func TestLinkExpiry(t *testing.T) {
+	zone, _ := time.LoadLocation("America/New_York")
+	defer func(old *time.Location) { LinkZone = old }(LinkZone)
+	LinkZone = zone
 	l := Link{Expires: "2026-12-01"}
 	before := time.Date(2026, 11, 30, 23, 59, 0, 0, LinkZone)
 	at := time.Date(2026, 12, 1, 0, 0, 0, 0, LinkZone)
 	if l.Expired(before) || !l.Expired(at) {
-		t.Errorf("link should expire at the start of its expiry day in Amsterdam")
+		t.Errorf("link should expire at the start of its expiry day, in the server's time zone")
 	}
 	if !(Link{Expires: "garbage"}).Expired(before) {
 		t.Errorf("unparsable expiry must count as expired")

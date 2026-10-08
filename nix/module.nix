@@ -89,6 +89,17 @@ in
       '';
     };
 
+    timeZone = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = config.time.timeZone;
+      defaultText = lib.literalExpression "config.time.timeZone";
+      example = "Europe/Amsterdam";
+      description = ''
+        Time zone of share links' end dates: a link goes offline at the start
+        of its day in this zone. `null` for the system's.
+      '';
+    };
+
     publicURL = lib.mkOption {
       type = lib.types.str;
       example = "https://cv.example.com";
@@ -250,6 +261,10 @@ in
               ++ lib.optionals (cfg.servePublic != null) [
                 "-serve-public"
                 cfg.servePublic
+              ]
+              ++ lib.optionals (cfg.timeZone != null) [
+                "-timezone"
+                cfg.timeZone
               ]
             );
             User = "new-leaf";

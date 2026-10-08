@@ -45,14 +45,10 @@ var (
 	photoExts   = []string{".jpg", ".png", ".webp"}
 )
 
-// Links expire at midnight in this zone.
-var LinkZone = func() *time.Location {
-	loc, err := time.LoadLocation("Europe/Amsterdam")
-	if err != nil {
-		panic(err)
-	}
-	return loc
-}()
+// LinkZone is the time zone of dates: links expire at midnight in it, and
+// it says which day it is. The system's, unless the server is given one
+// (-timezone).
+var LinkZone = time.Local
 
 type Store struct{ Root string }
 
