@@ -230,16 +230,9 @@ func (s *Store) DeleteLink(user, slug string) error {
 	return s.removeLegacyLink(user, slug)
 }
 
-// NewSlug is a readable label plus a random suffix, so share links can't be
-// guessed: 8 base32 characters, 2^40 ≈ 1.1e12 possibilities per label.
-func NewSlug(label string) string {
-	suffix := strings.ToLower(rand.Text()[:8])
-	base := slugify(label)
-	if len(base) > 24 {
-		base = strings.Trim(base[:24], "-")
-	}
-	if base == "" {
-		return suffix
-	}
-	return base + "-" + suffix
+// NewSlug is random, so share links can't be guessed: 12 base32 characters,
+// 2^60 ≈ 1.2e18 possibilities. It has no name in it, which would tell whoever
+// gets one link what the version was made for.
+func NewSlug() string {
+	return strings.ToLower(rand.Text()[:12])
 }

@@ -177,7 +177,7 @@ func (s *Server) putShare(r *http.Request, user string) error {
 	if link == nil {
 		link = &cv.Link{Created: time.Now().In(cv.LinkZone).Format("2006-01-02")}
 		for link.Slug == "" || s.slugTaken(user, link.Slug) {
-			link.Slug = cv.NewSlug(v.Name)
+			link.Slug = cv.NewSlug()
 		}
 	}
 	follow(link, v)

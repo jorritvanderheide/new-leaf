@@ -137,7 +137,7 @@ func TestReadsHandWrittenFiles(t *testing.T) {
 
 func TestLinks(t *testing.T) {
 	s := newTestStore(t)
-	l := Link{Slug: NewSlug("UvA application"), Label: "UvA", Lang: "nl", Entries: []string{"experience/acme"}, Expires: "2030-01-01", Created: "2026-10-07"}
+	l := Link{Slug: NewSlug(), Label: "UvA", Lang: "nl", Entries: []string{"experience/acme"}, Expires: "2030-01-01", Created: "2026-10-07"}
 	if err := s.SaveLink("alice", l); err != nil {
 		t.Fatal(err)
 	}
@@ -192,17 +192,14 @@ func TestLinkExpiry(t *testing.T) {
 func TestNewSlug(t *testing.T) {
 	seen := map[string]bool{}
 	for range 1000 {
-		slug := NewSlug("UvA – PhD Application 2026!")
-		if !strings.HasPrefix(slug, "uva-phd-application-2026-") || !IDRe.MatchString(slug) {
+		slug := NewSlug()
+		if len(slug) != 12 || !IDRe.MatchString(slug) {
 			t.Fatalf("slug %q", slug)
 		}
 		if seen[slug] {
 			t.Fatalf("duplicate slug %q", slug)
 		}
 		seen[slug] = true
-	}
-	if slug := NewSlug(""); len(slug) != 8 || !IDRe.MatchString(slug) {
-		t.Errorf("slug without label = %q", slug)
 	}
 }
 

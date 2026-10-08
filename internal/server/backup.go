@@ -159,9 +159,9 @@ func (s *Server) claimLinks(user, stage string) error {
 		if err := staged.DeleteLink(name, l.Slug); err != nil {
 			return err
 		}
-		l.Slug = cv.NewSlug(l.Label)
+		l.Slug = cv.NewSlug()
 		for s.linkElsewhere(user, l.Slug) || s.slugTaken(user, l.Slug) {
-			l.Slug = cv.NewSlug(l.Label)
+			l.Slug = cv.NewSlug()
 		}
 		if err := staged.SaveLink(name, l); err != nil {
 			return badRequest{fmt.Errorf("share link %s: %w", l.Slug, err)}

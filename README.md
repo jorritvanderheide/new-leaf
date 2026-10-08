@@ -250,8 +250,8 @@ Share links are for running New Leaf on a server, see
 [Self-hosting](docs/self-hosting.md).
 
 - **Share** publishes a version as a web page at an address like
-  `https://cv.example.com/uva-k7f3q9ab/`. The random part means nobody finds it
-  by guessing.
+  `https://cv.example.com/k7f3q9abm2xw/`. It's random, so nobody finds it by
+  guessing, and it doesn't give away what the version is for.
 - The page has the version in each of your languages, with a switch, and each
   language has its PDF. It opens in the language of the version.
 - The link **follows the version**: change an item, its order or its look, and

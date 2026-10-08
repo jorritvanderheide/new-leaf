@@ -136,7 +136,7 @@ func TestEndToEnd(t *testing.T) {
 	expires := time.Now().AddDate(0, 1, 0).Format("2006-01-02")
 	json.Unmarshal(call("PUT", "/api/versions/test/share", map[string]string{"expires": expires}).Body.Bytes(), &st)
 	link := st.Versions[slices.IndexFunc(st.Versions, func(v versionView) bool { return v.ID == "test" })].Link
-	if link == nil || !strings.HasPrefix(link.Slug, "test-") || link.URL != "https://cv.test/"+link.Slug+"/" || link.Spacing != 0.8 {
+	if link == nil || strings.Contains(link.Slug, "test") || link.URL != "https://cv.test/"+link.Slug+"/" || link.Spacing != 0.8 {
 		t.Fatalf("link = %+v", link)
 	}
 	slug := link.Slug

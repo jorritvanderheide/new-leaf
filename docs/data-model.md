@@ -141,9 +141,9 @@ The `theme` of a version, and of the profile for new versions:
 ## Share links
 
 On a server only. `links/<slug>.md` is a link to a version, published as one
-page with every language of the CV on it. The slug is the version's name plus
-8 random characters, so the address can't be guessed. Sharing again makes a
-new one.
+page with every language of the CV on it. The slug is 12 random characters, so
+the address can't be guessed (links from before 0.7.1 have the version's name
+and 8). Sharing again makes a new one.
 
 | Key | Value |
 | --- | --- |
