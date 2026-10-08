@@ -48,6 +48,7 @@ func TestLocalOnlyAnswersLocalhost(t *testing.T) {
 		"evil.example.com":      http.StatusForbidden,
 	} {
 		r := httptest.NewRequest("GET", "/api/ping", nil)
+		r.RemoteAddr = "127.0.0.1:50000"
 		r.Host = host
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
@@ -55,12 +56,23 @@ func TestLocalOnlyAnswersLocalhost(t *testing.T) {
 			t.Errorf("Host %s: %d, want %d", host, w.Code, want)
 		}
 	}
+
+	// Someone else on the network, with -listen on an address they reach.
+	r := httptest.NewRequest("GET", "/api/ping", nil)
+	r.RemoteAddr = "192.168.1.20:50000"
+	r.Host = "localhost:8484"
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("from the network: %d", w.Code)
+	}
 }
 
 func TestLocalHasNoSharing(t *testing.T) {
 	_, h := newLocalServer(t)
 	r := httptest.NewRequest("PUT", "/api/versions/full-cv/share", strings.NewReader(`{}`))
 	r.Host = "localhost:8484"
+	r.RemoteAddr = "127.0.0.1:50000"
 	r.Header.Set("X-New-Leaf", "1")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
@@ -69,6 +81,7 @@ func TestLocalHasNoSharing(t *testing.T) {
 	}
 	r = httptest.NewRequest("GET", "/links/", nil)
 	r.Host = "localhost:8484"
+	r.RemoteAddr = "127.0.0.1:50000"
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	if w.Code != http.StatusNotFound {
@@ -76,6 +89,7 @@ func TestLocalHasNoSharing(t *testing.T) {
 	}
 	r = httptest.NewRequest("GET", "/api/state", nil)
 	r.Host = "localhost:8484"
+	r.RemoteAddr = "127.0.0.1:50000"
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	var st editorState
@@ -187,6 +201,7 @@ func do(h http.Handler, method, path string, u *upload) *httptest.ResponseRecord
 		r.Header.Set("Content-Type", u.contentType)
 	}
 	r.Host = "localhost:8484"
+	r.RemoteAddr = "127.0.0.1:50000"
 	r.Header.Set("X-New-Leaf", "1")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
@@ -201,6 +216,7 @@ func TestEmptyCVMakesPDF(t *testing.T) {
 	s.store.Init("me")
 	r := httptest.NewRequest("POST", "/api/pdf", strings.NewReader(`{"lang":"en","entries":[]}`))
 	r.Host = "localhost:8484"
+	r.RemoteAddr = "127.0.0.1:50000"
 	r.Header.Set("X-New-Leaf", "1")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)

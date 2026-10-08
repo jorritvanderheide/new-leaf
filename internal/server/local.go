@@ -105,16 +105,19 @@ func Local(ctx context.Context, stop func(), o LocalOptions) error {
 	return nil
 }
 
-// localOnly answers only requests addressed to this computer by name. That
-// stops other websites from reaching the editor by pointing a domain at
-// 127.0.0.1 (DNS rebinding). It also notes when an editor was last seen.
+// localOnly answers only requests from this computer, addressed to it by
+// name. The address keeps the network out, also with -listen set to one it
+// can reach; the name stops other websites from reaching the editor by
+// pointing a domain at 127.0.0.1 (DNS rebinding). It also notes when an
+// editor was last seen.
 func localOnly(lastSeen *atomic.Int64, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host, _, err := net.SplitHostPort(r.Host)
 		if err != nil {
 			host = r.Host
 		}
-		if host != "localhost" && host != "127.0.0.1" && host != "::1" && host != "[::1]" {
+		peer, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if ip := net.ParseIP(peer); ip == nil || !ip.IsLoopback() || host != "localhost" && host != "127.0.0.1" && host != "::1" && host != "[::1]" {
 			http.Error(w, "New Leaf only answers on localhost", http.StatusForbidden)
 			return
 		}

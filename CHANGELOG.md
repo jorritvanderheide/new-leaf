@@ -12,6 +12,11 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   safe. Update if you use either.
 - **Security: a restored backup could take over another CV's share page.** A
   restored share link now keeps its address only if no other CV uses it.
+- **Security: on your own computer, New Leaf only answers this computer**,
+  also when `-listen` is set to an address the network can reach. Before, a
+  request from elsewhere that claimed to be for `localhost` got in.
+- With `ownersOnly`, a `cv.json` that can't be read closes its CV instead of
+  opening it to everyone.
 - Configured CVs (`users`) can be given as a full tailnet login, for exactly
   that login, which matters with `ownersOnly` on a tailnet with people from
   other domains.
