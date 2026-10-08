@@ -1,5 +1,5 @@
 // The details: contrast (light and dark), keyboard and touch, page breaks
-// and fit hints, thumbnails, the accent warning and vacancy matching.
+// and fit hints, thumbnails and the accent warning.
 
 import { api, check, openPage, sleep } from "./lib.mjs";
 
@@ -72,21 +72,6 @@ export default async function polish({ base, shots }) {
     check(!(await page.js("document.querySelector('[role=dialog][aria-label=Look] [role=status]').offsetParent")), "and the warning is gone");
     await page.js(`${W}.theme.accent = ''`);
     await page.js(`${W}.lookOpen = false`);
-
-    // Vacancy matching: which items share its words, and which words no item has.
-    await page.js(`${W}.vacancyOpen = true`);
-    await page.type("[aria-label='Vacancy text']", "Data analyst for harbour logistics and timetables. Python and SQL; teaching is a plus.");
-    await sleep(600);
-    const count = await page.js(`${W}.matchCount()`);
-    check(count >= 3, `${count} items match the vacancy`);
-    const missing = await page.js(`${W}.missingTerms()`);
-    check(missing.includes("python") && missing.includes("sql") && !missing.includes("teaching") && !missing.includes("plus"), "words the CV lacks: " + missing.join(", "));
-    await page.shot("vacancy");
-    await page.click("button", "Select only these");
-    await sleep(300);
-    check((await page.js(`${W}.selected.length`)) === count, "Select only these keeps just the matches");
-    await page.js(`${W}.undo()`);
-    await sleep(1500);
 
     // Thumbnails on the overview.
     await page.go(base + "/");

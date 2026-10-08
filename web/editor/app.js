@@ -28,33 +28,6 @@ const ACCENTS = [
 ];
 const resolveTheme = (t) => ({ accent: (t?.accent || ACCENTS[0].hex).toLowerCase(), font: t?.font || "sans", photo: t?.photo || "rounded" });
 
-// Vacancy matching: words of four letters or more, without common English
-// and Dutch words, compared on their first five letters so that "manage",
-// "manager" and "management" meet.
-const STOPWORDS = new Set(
-  (
-    "about above after again also among and any are been before being below between both but can could did does doing down during each " +
-    "else even ever every few for from further had has have having here how into its itself just least less like made make many may " +
-    "more most much must near need next not now off once only other our ours out over own per same shall should since some such than " +
-    "that the their them then there these they this those through too under until upon very was were what when where which while who " +
-    "whom why will with within without would you your yours able across work working works team teams role roles candidate candidates " +
-    "position job jobs apply application offer offers looking good great strong well years year including include based using " +
-    "aan aangezien alle alleen als altijd ander andere anders bij binnen daar daarom dan dat deze die dit doen door echter een eigen " +
-    "elke enige enkele enz geen hebben heeft hem hen het hier hij hoe hun iemand iets jaar jaren jij jou jouw jullie kan kunnen kun " +
-    "maar meer men met mij mijn moet moeten naar niet niets nog onder ons onze ook over omdat sinds tegen tot tussen uit veel voor " +
-    "waar want was wat welke werd werk werken wie wij wil willen word worden wordt zal zelf zich zijn zoals zonder zou zullen functie " +
-    "functies vacature kandidaat bieden biedt ervaring goede goed graag jouw sterke vereist vereisten pluspunt kennis " +
-    "experience experienced required requirements require look plus must nice skills knowledge ideal ideally preferably " +
-    "please send apply join opportunity responsibilities responsible"
-  ).split(" "),
-);
-const stem = (word) => (word.length > 5 ? word.slice(0, 5) : word);
-// Words of four letters or more, and acronyms like SQL or PhD.
-const terms = (text) =>
-  ((text || "").match(/[\p{L}\p{N}][\p{L}\p{N}+#.-]*[\p{L}\p{N}+#]|\p{L}/gu) || [])
-    .filter((w) => (w.length >= 4 && !STOPWORDS.has(w.toLowerCase())) || (w.length <= 3 && (w.match(/\p{Lu}/gu) || []).length >= 2))
-    .map((w) => w.toLowerCase());
-
 // WCAG contrast of a colour against white.
 const luminance = (hex) => {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
@@ -301,9 +274,6 @@ const itemEditor = () => ({
 // The workspace's drawn pages, by key: canvases stay out of Alpine's
 // reactive data, which would wrap them.
 const canvases = new Map();
-
-// The items' word stems for vacancy matching, by content revision.
-let stems = { rev: -1, index: {} };
 
 document.addEventListener("alpine:init", () => {
   Alpine.store("cv", {
@@ -687,8 +657,6 @@ document.addEventListener("alpine:init", () => {
     theme: { accent: "", font: "", photo: "" }, // empty: the default
     lookOpen: false,
     pagesOpen: false,
-    vacancyOpen: false,
-    vacancy: "", // pasted job ad, never saved
     accents: ACCENTS,
     pages: null,
     fitPages: 2,
@@ -1057,54 +1025,6 @@ document.addEventListener("alpine:init", () => {
       [order[a], order[b]] = [order[b], order[a]];
       this.order = order;
       this.$nextTick(() => document.querySelector(`[data-handle="${section}"]`)?.focus());
-    },
-
-    // --- vacancy matching
-
-    vacancyTerms() {
-      return [...new Set(terms(this.vacancy))];
-    },
-
-    // The vacancy's words that an item has, in either language.
-    matches(key) {
-      if (!this.vacancy.trim()) return [];
-      const index = this.itemStems();
-      const own = index[key];
-      return own ? this.vacancyTerms().filter((t) => own.has(stem(t))) : [];
-    },
-
-    matchCount() {
-      return Object.keys(this.itemStems()).filter((key) => this.matches(key).length).length;
-    },
-
-    // Frequent vacancy words that no item has.
-    missingTerms() {
-      const all = new Set(Object.values(this.itemStems()).flatMap((s) => [...s]));
-      const count = {};
-      for (const t of terms(this.vacancy)) if (!all.has(stem(t))) count[t] = (count[t] || 0) + 1;
-      return Object.entries(count)
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .slice(0, 8)
-        .map(([t]) => t);
-    },
-
-    selectMatches() {
-      this.selected = Object.keys(this.itemStems()).filter((key) => this.matches(key).length);
-    },
-
-    // Each item's word stems, from all its text; kept until the content
-    // changes, outside Alpine's data, as it is filled while rendering.
-    itemStems() {
-      const rev = this.$store.cv.contentRev;
-      if (stems.rev !== rev) {
-        const index = {};
-        for (const item of this.$store.cv.state.items) {
-          const text = [SECTION_NAMES[item.section], ...Object.values(item.text).flatMap((t) => [t.title, t.org, t.location, t.body])].join(" ");
-          index[itemKey(item)] = new Set(terms(text).map(stem));
-        }
-        stems = { rev, index };
-      }
-      return stems.index;
     },
 
     // Selected items without text in the current language.

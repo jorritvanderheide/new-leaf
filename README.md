@@ -103,9 +103,6 @@ steps. All data is in the `cv-app` volume.
   Source Serif 4), photo shape and spacing, for the PDF and the share page
   alike. The overview shows page 1 of each version, rendered in the
   background into the work directory.
-- **Vacancy matching**: paste a job ad into a version to see which items
-  share its words and which of its words the CV lacks. It runs in the
-  browser and is not saved.
 - **Share links**: sharing a version publishes it as static files into a
   webroot that a public web server serves, in every language with a toggle
   (the chosen language at `/<slug>/`, others at `/<slug>/<lang>/`), each

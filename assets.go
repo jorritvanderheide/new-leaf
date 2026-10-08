@@ -175,7 +175,6 @@ var icons = map[string]string{
 	"close":   `<path d="m5.5 5.5 9 9M14.5 5.5l-9 9"/>`,
 	"warn":    `<path d="M10 3.5 17 16H3z"/><path d="M10 8.5v3M10 13.75h.01" stroke-width="2"/>`,
 	"updown":  `<path d="m6.5 7.5 3.5-3.5 3.5 3.5M6.5 12.5l3.5 3.5 3.5-3.5"/>`,
-	"match":   `<circle cx="10" cy="10" r="6.25"/><circle cx="10" cy="10" r="2.75"/><path d="M10 1.75v2.5M10 15.75v2.5M1.75 10h2.5M15.75 10h2.5"/>`,
 	"plus":    `<path d="M10 4.5v11M4.5 10h11"/>`,
 	"back":    `<path d="M11.5 5 6.5 10l5 5"/>`,
 	"grip":    `<path d="M7.5 5h.01M12.5 5h.01M7.5 10h.01M12.5 10h.01M7.5 15h.01M12.5 15h.01" stroke-width="2.4"/>`,
