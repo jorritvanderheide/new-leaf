@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -254,4 +255,50 @@ func formOf(t *testing.T, field string, data []byte) *upload {
 	f.Write(data)
 	mw.Close()
 	return &upload{&b, mw.FormDataContentType()}
+}
+
+// A restored share link keeps its address only if it's free: one another CV
+// shares, or the webroot's own css, gets a new one.
+func TestRestoredLinksDontTakeOver(t *testing.T) {
+	store := &cv.Store{Root: filepath.Join(t.TempDir(), "users")}
+	s := &Server{store: store, sharing: true, publicDir: t.TempDir()}
+	store.Init("bob")
+	store.SaveItem("bob", cv.Item{Section: "experience", ID: "job", Start: "2020", Text: map[string]cv.ItemText{"en": {Title: "Job"}}})
+	if err := store.SaveLink("bob", cv.Link{Slug: "job-abcdefgh", Label: "Job", Lang: "en", Entries: []string{"experience/job"}, Created: "2026-01-01"}); err != nil {
+		t.Fatal(err)
+	}
+	link := func(slug string) string {
+		return "---\ntitle: Job\nurl: /" + slug + "/\nentries: [experience/job]\ncreated: \"2026-01-01\"\n---\n"
+	}
+	backup := zipOf(t, map[string]string{
+		"content/_index.en.md":               "---\nname: Alice\n---\n",
+		"content/experience/job.en.md":       "---\ntitle: Job\nstart: \"2020\"\n---\n",
+		"content/links/job-abcdefgh.en.md":   link("job-abcdefgh"), // bob's
+		"content/links/css.en.md":            link("css"),
+		"content/links/alice-mine1234.en.md": link("alice-mine1234"),
+	})
+	stage, err := store.StageBackup(backup, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(stage)
+	if err := s.claimLinks("alice", stage); err != nil {
+		t.Fatal(err)
+	}
+	staged := &cv.Store{Root: filepath.Dir(stage)}
+	links, _ := staged.Links(filepath.Base(stage))
+	var slugs []string
+	for _, l := range links {
+		slugs = append(slugs, l.Slug)
+	}
+	if len(slugs) != 3 || slices.Contains(slugs, "job-abcdefgh") || slices.Contains(slugs, "css") || !slices.Contains(slugs, "alice-mine1234") {
+		t.Errorf("restored links: %v", slugs)
+	}
+
+	bad := zipOf(t, map[string]string{"content/_index.en.md": "---\nname: Alice\n---\n", "content/links/x-abcdefgh.en.md": "---\ntitle: X\nurl: /x-abcdefgh/\n---\n"})
+	stage, _ = store.StageBackup(bad, true)
+	defer os.RemoveAll(stage)
+	if err := s.claimLinks("alice", stage); err == nil {
+		t.Error("a link without items was restored")
+	}
 }

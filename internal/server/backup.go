@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 	"time"
 
@@ -50,6 +51,9 @@ func (s *Server) postImport(r *http.Request, user string) error {
 		return err
 	}
 	defer os.RemoveAll(stage)
+	if err := s.claimLinks(user, stage); err != nil {
+		return err
+	}
 	return s.edit(r.Context(), user, func() error { return s.store.RestoreBackup(user, stage) })
 }
 
@@ -133,3 +137,46 @@ func (s *Server) postResume(w http.ResponseWriter, r *http.Request) {
 }
 
 const maxResume = 5 << 20
+
+// claimLinks checks the share links in a staged backup. A link keeps its
+// address if it is free: not another CV's, and not a folder of the webroot's
+// own. Otherwise it gets a new one, so a backup restored into a second CV,
+// or one made up, can't take over a page someone else shares.
+func (s *Server) claimLinks(user, stage string) error {
+	staged := &cv.Store{Root: filepath.Dir(stage)}
+	name := filepath.Base(stage)
+	links, err := staged.Links(name)
+	if err != nil {
+		return badRequest{err}
+	}
+	for _, l := range links {
+		if err := l.Validate(); err != nil {
+			return badRequest{fmt.Errorf("share link %s: %w", l.Slug, err)}
+		}
+		if !slices.Contains(publicAssets, l.Slug) && !s.linkElsewhere(user, l.Slug) {
+			continue
+		}
+		if err := staged.DeleteLink(name, l.Slug); err != nil {
+			return err
+		}
+		l.Slug = cv.NewSlug(l.Label)
+		for s.linkElsewhere(user, l.Slug) || s.slugTaken(user, l.Slug) {
+			l.Slug = cv.NewSlug(l.Label)
+		}
+		if err := staged.SaveLink(name, l); err != nil {
+			return badRequest{fmt.Errorf("share link %s: %w", l.Slug, err)}
+		}
+	}
+	return nil
+}
+
+// linkElsewhere reports whether a CV other than user has a link with slug.
+func (s *Server) linkElsewhere(user, slug string) bool {
+	users, _ := s.store.Users()
+	for _, other := range users {
+		if _, err := s.store.Link(other, slug); other != user && err == nil {
+			return true
+		}
+	}
+	return false
+}
