@@ -31,4 +31,9 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   to everyone until someone adds themselves.
 - **`/healthz`** on the editor, for monitoring: `ok`, or `503` and what's
   wrong. It needs no tailnet identity.
+- **A stricter content security policy for the editor**, without
+  `unsafe-eval`: Alpine is now its CSP build. A CV's text can't be run as
+  script anyway, and now no expression can be evaluated from a string either.
+- The title of an item being edited now also shows for a CV without English
+  or Dutch.
 - A new logo.

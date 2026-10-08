@@ -24,7 +24,7 @@ export default async function editor({ base, shots }) {
     check(true, "item title autosaved without a Save button");
     await page.until("document.body.textContent.includes('Saved ✓')", "saved status", 5000);
     check(true, "Saved ✓ shows in the corner");
-    await page.until("!document.body.textContent.includes('Saved ✓') || !document.querySelector('[x-show*=savedFlash]').checkVisibility()", "Saved ✓ fades", 6000);
+    await page.until("!document.body.textContent.includes('Saved ✓') || !document.querySelector('[x-show*=showSaveStatus]').checkVisibility()", "Saved ✓ fades", 6000);
     check(true, "and fades after a few seconds");
 
     // An invalid year is explained and not saved.

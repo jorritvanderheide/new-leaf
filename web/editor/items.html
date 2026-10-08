@@ -1,5 +1,5 @@
 {{ define "main" }}
-  <div x-data="items" @open-item.window="openKey($event.detail)" @keydown.escape.window="!$store.cv.paletteOpen && close()">
+  <div x-data="items" @open-item.window="openKey($event.detail)" @keydown.escape.window="escape()">
     {{/* Empty CV */}}
     <template x-if="!$store.cv.state.items.length">
       <div class="card mb-6 p-8 text-center">

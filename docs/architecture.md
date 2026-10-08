@@ -99,3 +99,13 @@ or carries its `.new-leaf-public` marker.
 **No build step for the browser.** `app.js` and the vendored Alpine.js and
 pdf.js are served as they are. Only the CSS is generated, by Tailwind, and
 committed, so `go build` alone makes a working program.
+
+**No eval in the editor.** Its content security policy has no
+`'unsafe-eval'`, so Alpine is its CSP build, which reads the expressions in
+the templates itself. It knows less than JavaScript: no arrow functions,
+`?.`, `??`, template literals, spread or more than one statement, and it
+evaluates both sides of `&&` and `||`, so `open && focus()` focuses
+whether or not it's open. Calls on a global function's properties, such as
+`Object.keys`, fail too. Anything more than reading values, comparing and
+calling a method belongs in a method in `app.js`. The browser tests fail on
+an expression Alpine can't run, and on anything the policy refuses.

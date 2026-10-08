@@ -48,7 +48,7 @@
           <div class="flex gap-2">
             <input class="input w-48" x-model="link.label" placeholder="Label" aria-label="Link label">
             <input type="url" class="input" x-model="link.url" placeholder="https://" aria-label="Link URL">
-            <button type="button" class="btn btn-danger" @click="form.links.splice(i, 1); changed()" aria-label="Remove link">
+            <button type="button" class="btn btn-danger" @click="removeLink(i)" aria-label="Remove link">
               {{ icon "close" "size-4" }}
             </button>
           </div>
@@ -80,7 +80,7 @@
         <label class="label" for="lang-second">Second language</label>
         <select id="lang-second" class="input" :disabled="$store.cv.busy" @change="pickLang(1, $event.target.value, $el)">
           <option value="" :selected="!$store.cv.state.langs[1]">None</option>
-          <template x-for="l in $store.cv.state.languages.filter((l) => l.code !== $store.cv.state.langs[0])" :key="l.code">
+          <template x-for="l in secondLangOptions()" :key="l.code">
             <option :value="l.code" :selected="l.code === $store.cv.state.langs[1]" x-text="l.name === l.english ? l.name : l.name + ' (' + l.english + ')'"></option>
           </template>
         </select>
@@ -94,7 +94,7 @@
           <p class="text-xs text-stone-500" x-show="$store.cv.state.langs.length > 1">Per language.</p>
         </div>
         <div class="seg" role="tablist" aria-label="Language" x-show="$store.cv.state.langs.length > 1">
-          <template x-for="l in Object.keys(form.text)" :key="l">
+          <template x-for="l in textLangs()" :key="l">
             <button type="button" role="tab" :aria-selected="tab === l" :aria-pressed="tab === l" class="flex items-center gap-1.5" @click="tab = l">
               <span x-text="$store.cv.langName(l)"></span>
               <span x-show="incomplete(l)" class="text-amber-600" title="Missing text that another language has">{{ icon "warn" "size-3.5" }}</span>
@@ -102,7 +102,7 @@
           </template>
         </div>
       </div>
-      <template x-for="l in Object.keys(form.text)" :key="l">
+      <template x-for="l in textLangs()" :key="l">
         <div class="mt-4 space-y-3" x-show="tab === l">
           <div class="grid gap-3 sm:grid-cols-2">
             <div>

@@ -5,9 +5,9 @@
        scroll. */}}
   <div
     x-data="workspace"
-    x-effect="lang, photo, spacing, selected.join(), order.join(), theme.accent, theme.font, theme.photo, settingsChanged()"
+    x-effect="watchSettings()"
     @resize.window="resized()"
-    @keydown.escape.window="!$store.cv.paletteOpen && !share.open && close()"
+    @keydown.escape.window="escape()"
     @mouseup.window="grab = null"
     @keydown.window="undoKey($event)"
     class="flex flex-col gap-4 transition-[padding] lg:h-[calc(100dvh-3rem)]"
@@ -27,7 +27,7 @@
       <span
         x-show="missing().length"
         class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-sm text-amber-800 sm:px-3"
-        :title="missing().map((i) => $store.cv.text(i, $store.cv.main()).title).join('\n')"
+        :title="missingTitles()"
         :aria-label="missing().length + ' without ' + $store.cv.langName(lang) + ' text'">
         {{ icon "warn" "size-4" }}
         <span class="sm:hidden" x-text="missing().length"></span>
@@ -42,10 +42,10 @@
         {{/* Phones: the same, in a menu */}}
         <div class="relative sm:hidden" x-data="{ open: false }" @click.outside="open = false" @keydown.escape.stop="open = false">
           <button type="button" class="grid size-10 place-items-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-900" aria-label="More" aria-haspopup="menu" :aria-expanded="open" @click="open = !open">{{ icon "more" "size-5" }}</button>
-          <div x-cloak x-show="open" x-transition.opacity role="menu" class="card float absolute top-full right-0 z-30 mt-2 w-48 p-1.5">
-            <a role="menuitem" class="flex min-h-11 items-center rounded-md px-2.5 text-sm hover:bg-stone-50" :href="(selected.length && pdfUrl) || null" :download="filename()" :class="!(selected.length && pdfUrl) && 'pointer-events-none opacity-50'" @click="open = false">Download PDF</a>
-            <button type="button" role="menuitem" class="flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-sm hover:bg-stone-50 disabled:opacity-40" :disabled="!undoStack.length" @click="undo(); open = false">Undo</button>
-            <button type="button" role="menuitem" class="flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-sm hover:bg-stone-50 disabled:opacity-40" :disabled="!redoStack.length" @click="redo(); open = false">Redo</button>
+          <div x-cloak x-show="open" x-transition.opacity role="menu" class="card float absolute top-full right-0 z-30 mt-2 w-48 p-1.5" @click="open = false">
+            <a role="menuitem" class="flex min-h-11 items-center rounded-md px-2.5 text-sm hover:bg-stone-50" :href="(selected.length && pdfUrl) || null" :download="filename()" :class="!(selected.length && pdfUrl) && 'pointer-events-none opacity-50'">Download PDF</a>
+            <button type="button" role="menuitem" class="flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-sm hover:bg-stone-50 disabled:opacity-40" :disabled="!undoStack.length" @click="undo()">Undo</button>
+            <button type="button" role="menuitem" class="flex min-h-11 w-full items-center rounded-md px-2.5 text-left text-sm hover:bg-stone-50 disabled:opacity-40" :disabled="!redoStack.length" @click="redo()">Redo</button>
           </div>
         </div>
         <button type="button" class="btn btn-primary" x-show="$store.cv.state.sharing" @click="openShare()" :disabled="!selected.length">
@@ -65,9 +65,9 @@
         <div class="mt-5 flex flex-wrap justify-center gap-2">
           <button type="button" class="btn btn-primary" @click="add('experience')">Add a job</button>
           <button type="button" class="btn" @click="add('education')">Add education</button>
-          <select class="btn pr-8" aria-label="Add something else" @change="add($event.target.value); $event.target.value = ''">
+          <select class="btn pr-8" aria-label="Add something else" @change="addFrom($event)">
             <option value="">Something else…</option>
-            <template x-for="section in order.filter((s) => s !== 'experience' && s !== 'education')" :key="section">
+            <template x-for="section in extraSections()" :key="section">
               <option :value="section" x-text="$store.cv.sectionName(section)"></option>
             </template>
           </select>
@@ -82,10 +82,10 @@
          reach of a thumb. */}}
     <div class="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden" x-show="$store.cv.state.items.length">
       <div class="seg w-full" role="tablist" aria-label="View">
-        <button type="button" role="tab" class="min-h-10 flex-1" :aria-pressed="view === 'items'" :aria-selected="view === 'items'" @click="view = 'items'; scrollTo(0, 0)">
+        <button type="button" role="tab" class="min-h-10 flex-1" :aria-pressed="view === 'items'" :aria-selected="view === 'items'" @click="show('items')">
           Items <span class="font-mono text-xs opacity-70" x-text="selected.length"></span>
         </button>
-        <button type="button" role="tab" class="min-h-10 flex-1" :aria-pressed="view === 'preview'" :aria-selected="view === 'preview'" @click="view = 'preview'; resized(); scrollTo(0, 0)">
+        <button type="button" role="tab" class="min-h-10 flex-1" :aria-pressed="view === 'preview'" :aria-selected="view === 'preview'" @click="show('preview')">
           Preview <span class="font-mono text-xs opacity-70" x-show="pages && selected.length" x-text="pages === 1 ? '1 page' : pages + ' pages'"></span>
         </button>
       </div>
@@ -187,7 +187,7 @@
               class="w-full rounded-md border border-dashed border-stone-300 bg-transparent py-2 text-sm text-stone-500 hover:border-stone-400 hover:text-stone-900 max-lg:min-h-11"
               x-show="emptySections().length"
               aria-label="Add an item to another section"
-              @change="add($event.target.value); $event.target.value = ''">
+              @change="addFrom($event)">
               <option value="">+ Add an item to another section…</option>
               <template x-for="section in emptySections()" :key="section">
                 <option :value="section" x-text="$store.cv.sectionName(section)"></option>
@@ -227,7 +227,7 @@
                       :title="c.name"
                       @click="theme.accent = c.hex"></button>
                   </template>
-                  <label class="relative size-7 cursor-pointer rounded-md bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] ring-offset-2 ring-offset-white" :class="!accents.some((c) => c.hex === resolvedTheme().accent) && 'ring-2 ring-stone-900'" title="Another colour">
+                  <label class="relative size-7 cursor-pointer rounded-md bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] ring-offset-2 ring-offset-white" :class="customAccent() && 'ring-2 ring-stone-900'" title="Another colour">
                     <input type="color" class="absolute inset-0 size-full cursor-pointer opacity-0" :value="resolvedTheme().accent" @input="theme.accent = $event.target.value" aria-label="Another colour">
                   </label>
                 </div>
@@ -368,7 +368,7 @@
             No end date
           </label>
           <div x-show="!share.forever">
-            <label class="label" for="share-expires" x-text="link()?.expired ? 'Expired; share again until' : 'Works until'"></label>
+            <label class="label" for="share-expires" x-text="linkExpired() ? 'Expired; share again until' : 'Works until'"></label>
             <input id="share-expires" type="date" class="input" x-model="share.expires" :min="$store.cv.state.today" :required="!share.forever">
           </div>
           <p class="text-xs text-stone-500" x-text="share.forever ? 'The link works until you stop sharing.' : 'The link stops working at the start of this day.'"></p>
@@ -380,7 +380,7 @@
           <button type="button" class="btn" @click="share.open = false" x-text="shared() ? 'Done' : 'Cancel'"></button>
           <button
             class="btn btn-primary"
-            :disabled="$store.cv.busy || (shared() && shareExpires() === link().expires)"
+            :disabled="$store.cv.busy || shareUnchanged()"
             x-text="$store.cv.busy ? 'Publishing…' : !link() ? 'Create link' : link().expired ? 'Share again' : 'Save'"></button>
         </div>
       </form>

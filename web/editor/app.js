@@ -200,6 +200,32 @@ const itemEditor = () => ({
     this.form.present = !this.$store.cv.isPoint(section);
   },
 
+  // addFrom adds an item in the section picked in a select, and resets it.
+  addFrom(event) {
+    this.add(event.target.value);
+    event.target.value = "";
+  },
+
+  // Escape closes the item, unless the palette is open over it.
+  escape() {
+    if (!this.$store.cv.paletteOpen) this.close();
+  },
+
+  // The title over the form: the first language that has one.
+  formTitle() {
+    if (!this.form.id) return "New item";
+    return this.$store.cv.state.langs.map((l) => this.form.text[l]?.title).find(Boolean) || "Untitled";
+  },
+
+  otherLangs(lang) {
+    return this.$store.cv.state.langs.filter((l) => l !== lang);
+  },
+
+  // offerCopy: a language without text can start from one with.
+  offerCopy(lang, other) {
+    return !this.form.text[lang]?.title && !!this.form.text[other]?.title;
+  },
+
   isOpen(item) {
     return this.form && this.form.id === item.id && this.form.section === item.section;
   },
@@ -311,6 +337,36 @@ document.addEventListener("alpine:init", () => {
     toast: null, // { message, action?: { label, run } }
     paletteOpen: false,
     manageOpen: false,
+
+    // For templates, before the state has loaded too: Alpine's CSP build
+    // has no ?. and evaluates both sides of && and ||.
+    get cvs() {
+      return this.state?.cvs || [];
+    },
+    get user() {
+      return this.state?.user;
+    },
+    get local() {
+      return !!this.state?.local;
+    },
+    get manage() {
+      return !!this.state?.manage;
+    },
+    get ownersOnly() {
+      return !!this.state?.ownersOnly;
+    },
+    get login() {
+      return this.state?.login || "";
+    },
+    get toastMessage() {
+      return this.toast?.message || "";
+    },
+    get toastLabel() {
+      return this.toast?.action?.label || "";
+    },
+    showSaveStatus() {
+      return !!this.state && (this.saveStatus() === "saving" || this.saveStatus() === "error" || this.savedFlash);
+    },
 
     // contentRev counts changes to what a PDF shows (items, profile), so a
     // preview knows to redraw; other state changes leave it alone.
@@ -511,6 +567,10 @@ document.addEventListener("alpine:init", () => {
     q: "",
     index: 0,
 
+    focusWhenOpen() {
+      if (this.$store.cv.paletteOpen) focusSoon(this.$refs.q);
+    },
+
     results() {
       const st = this.$store.cv.state;
       if (!st) return [];
@@ -557,6 +617,21 @@ document.addEventListener("alpine:init", () => {
 
   // Manage CVs: create, rename and delete. CVs from the server
   // configuration can be renamed but not deleted.
+  // The CV menu: switch CVs, manage them.
+  Alpine.data("cvMenu", () => ({
+    open: false,
+
+    pick(id) {
+      this.open = false;
+      if (id !== this.$store.cv.user) this.$store.cv.switchUser(id);
+    },
+
+    manage() {
+      this.open = false;
+      this.$store.cv.manageOpen = true;
+    },
+  }));
+
   Alpine.data("cvs", () => ({
     newName: "",
     newOwners: "",
@@ -615,6 +690,10 @@ document.addEventListener("alpine:init", () => {
     creating: false,
     name: "",
     from: "",
+
+    focusWhenCreating() {
+      if (this.creating) focusSoon(this.$refs.name);
+    },
 
     // Thumbnails are made in the background after a change: look again
     // until they are all there, for at most half a minute.
@@ -744,6 +823,48 @@ document.addEventListener("alpine:init", () => {
       return this.version()?.link;
     },
 
+    linkExpired() {
+      return !!this.link()?.expired;
+    },
+
+    // The share form would save what the link already has.
+    shareUnchanged() {
+      return this.shared() && this.shareExpires() === this.link().expires;
+    },
+
+    // Escape closes the item, unless the palette or the share form is open.
+    escape() {
+      if (!this.$store.cv.paletteOpen && !this.share.open) this.close();
+    },
+
+    // Read by x-effect: a change to any of these settings is saved.
+    watchSettings() {
+      void [this.lang, this.photo, this.spacing, this.selected.join(), this.order.join(), this.theme.accent, this.theme.font, this.theme.photo];
+      this.settingsChanged();
+    },
+
+    missingTitles() {
+      return this.missing()
+        .map((i) => this.$store.cv.text(i, this.$store.cv.main()).title)
+        .join("\n");
+    },
+
+    // The sections offered next to a job and education, for a first item.
+    extraSections() {
+      return this.order.filter((s) => s !== "experience" && s !== "education");
+    },
+
+    // show switches what a phone shows: the outline or the preview.
+    show(view) {
+      this.view = view;
+      if (view === "preview") this.resized();
+      scrollTo(0, 0);
+    },
+
+    customAccent() {
+      return !this.accents.some((c) => c.hex === this.resolvedTheme().accent);
+    },
+
     // Called from x-effect when a setting changes, and once on load, when
     // there is nothing to save yet. Only the snapshot is taken inside the
     // effect: what follows reads and writes state, which would run it again.
@@ -850,7 +971,8 @@ document.addEventListener("alpine:init", () => {
       this._blob = blob;
       this._marks = marks;
       const pdfjs = await loadPdfjs();
-      const task = pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) });
+      // No eval for fonts: the editor's CSP forbids it.
+      const task = pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), isEvalSupported: false });
       try {
         const doc = await task.promise;
         // Hidden behind the phone tab the preview has no width yet: draw at
@@ -1136,6 +1258,22 @@ document.addEventListener("alpine:init", () => {
       const notice = moved ? `Languages saved; ${moved === 1 ? "1 version is" : moved + " versions are"} now in ${st.langName(next[0])}` : "Languages saved";
       if (await st.send("PUT", "/api/profile", { ...profile, langs: next }, notice)) this.reset();
       else select.value = before[i] || "";
+    },
+
+    // The form's languages: one tab each.
+    textLangs() {
+      return Object.keys(this.form.text);
+    },
+
+    removeLink(i) {
+      this.form.links.splice(i, 1);
+      this.changed();
+    },
+
+    // The languages a CV can have next to its main one.
+    secondLangOptions() {
+      const main = this.$store.cv.state.langs[0];
+      return this.$store.cv.state.languages.filter((l) => l.code !== main);
     },
 
     // Waits with saving while a link is still being typed, since the server

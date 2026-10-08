@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{ asset "editor.css" }}">
     {{/* app.js registers the Alpine components, so it loads before Alpine. */}}
     <script defer src="{{ asset "app.js" }}"></script>
-    <script defer src="{{ asset "vendor/alpine.min.js" }}"></script>
+    <script defer src="{{ asset "vendor/alpine-csp.min.js" }}"></script>
   </head>
   <body
     class="h-full text-stone-800"
@@ -85,7 +85,7 @@
       x-show="$store.cv.paletteOpen"
       class="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-[12vh]"
       @keydown.escape.window="$store.cv.paletteOpen = false"
-      x-effect="$store.cv.paletteOpen && focusSoon($refs.q)">
+      x-effect="focusWhenOpen()">
       <div class="card float w-full max-w-lg overflow-hidden" @click.outside="$store.cv.paletteOpen = false">
         <div class="flex items-center gap-3 border-b border-stone-200 px-4">
           {{ icon "search" "size-5 text-stone-500" }}
@@ -126,11 +126,11 @@
       <div class="card float max-h-[90vh] w-full max-w-lg space-y-5 overflow-y-auto p-6" @click.outside="$store.cv.manageOpen = false">
         <div>
           <h2 class="text-base font-semibold">CVs</h2>
-          <p class="mt-1 text-sm text-stone-500" x-show="!$store.cv.state?.local && !$store.cv.state?.ownersOnly">Everyone on the tailnet can open and edit every CV. Owners get their CV when they open the editor.</p>
-          <p class="mt-1 text-sm text-stone-500" x-show="$store.cv.state?.ownersOnly">Only a CV's owners can open and edit it, and you own the CVs you make. You are <span class="font-medium" x-text="$store.cv.state?.login"></span>.</p>
+          <p class="mt-1 text-sm text-stone-500" x-show="!$store.cv.local && !$store.cv.ownersOnly">Everyone on the tailnet can open and edit every CV. Owners get their CV when they open the editor.</p>
+          <p class="mt-1 text-sm text-stone-500" x-show="$store.cv.ownersOnly">Only a CV's owners can open and edit it, and you own the CVs you make. You are <span class="font-medium" x-text="$store.cv.login"></span>.</p>
         </div>
         <ul class="divide-y divide-stone-200">
-          <template x-for="cv in $store.cv.state?.cvs || []" :key="cv.id">
+          <template x-for="cv in $store.cv.cvs" :key="cv.id">
             <li class="space-y-2 py-3" x-data="{ name: cv.label, owners: cv.owners.join(', ') }">
               <div class="flex items-center gap-2">
                 <input class="input" x-model="name" :placeholder="cv.name" aria-label="Name" maxlength="80" @change="save(cv, name, owners)">
@@ -168,7 +168,7 @@
             <input id="new-cv" class="input" x-model="newName" placeholder="Name, e.g. Alice Example" maxlength="80" required>
             <button class="btn btn-primary shrink-0" :disabled="$store.cv.busy">Create</button>
           </div>
-          <template x-if="!$store.cv.state?.local">
+          <template x-if="!$store.cv.local">
             <input class="input text-xs" x-model="newOwners" placeholder="Owners: tailnet logins, e.g. alice@" aria-label="Owners of the new CV">
           </template>
         </form>
@@ -190,7 +190,7 @@
          fixed. Above the item editor's buttons when that is open. */}}
     <div
       x-cloak
-      x-show="$store.cv.state && ($store.cv.saveStatus() === 'saving' || $store.cv.saveStatus() === 'error' || $store.cv.savedFlash)"
+      x-show="$store.cv.showSaveStatus()"
       x-transition.opacity.duration.300ms
       class="float pointer-events-none fixed right-4 z-50 max-w-[calc(100vw-2rem)] rounded-md border border-stone-200 bg-white px-3 py-1.5"
       :class="$store.cv.panelOpen ? 'bottom-24' : '{{ if .Workspace }}bottom-20 lg:bottom-4{{ else }}bottom-4{{ end }}'">
@@ -204,13 +204,13 @@
         <button type="button" aria-label="Dismiss" @click="$store.cv.error = ''">{{ icon "close" "size-4" }}</button>
       </div>
       <div x-cloak x-show="$store.cv.toast" x-transition class="float pointer-events-auto flex items-center gap-4 rounded-lg bg-stone-900 px-4 py-2.5 text-sm text-white" role="status">
-        <span x-text="$store.cv.toast?.message"></span>
+        <span x-text="$store.cv.toastMessage"></span>
         <button
           type="button"
-          x-show="$store.cv.toast?.action"
+          x-show="$store.cv.toastLabel"
           class="font-semibold text-accent-inverse hover:underline"
           @click="$store.cv.runToastAction()"
-          x-text="$store.cv.toast?.action?.label"></button>
+          x-text="$store.cv.toastLabel"></button>
       </div>
     </div>
   </body>

@@ -63,7 +63,7 @@ export async function openPage({ width = 1440, height = 900, shots } = {}) {
 
   let id = 0;
   const pending = {};
-  const errors = []; // uncaught exceptions in the page
+  const errors = []; // uncaught exceptions in the page, and what its CSP refused
   const dialogs = []; // alert/confirm/prompt, all accepted
   const send = (method, params = {}) =>
     new Promise((r) => {
@@ -80,12 +80,20 @@ export async function openPage({ width = 1440, height = 900, shots } = {}) {
       const d = msg.params.exceptionDetails;
       errors.push(d.exception?.description || `${d.text} ${JSON.stringify(d.exception?.preview ?? d.exception?.value ?? "")}`);
     }
+    if (msg.method === "Log.entryAdded" && msg.params.entry.source === "security") {
+      errors.push(msg.params.entry.text);
+    }
+    // Alpine warns with the expression that failed, then throws without it.
+    if (msg.method === "Runtime.consoleAPICalled" && String(msg.params.args[0]?.value).startsWith("Alpine Expression Error")) {
+      errors.push(msg.params.args[0].value);
+    }
     if (msg.method === "Page.javascriptDialogOpening") {
       dialogs.push(msg.params.message);
       send("Page.handleJavaScriptDialog", { accept: true });
     }
   };
   await send("Runtime.enable");
+  await send("Log.enable");
   await send("Page.enable");
 
   const page = {
