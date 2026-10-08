@@ -1,7 +1,7 @@
-// Command cv-app is a multi-user CV editor. Each user's CV lives as one
-// Markdown file per item and language; Hugo renders it, headless Chromium
-// turns it into PDFs, and share links are published as static files into a
-// separate webroot that a public web server serves.
+// Command cv-app is a CV editor. Each CV lives as one Markdown file per item
+// and language. Typst turns a selection into a PDF; share links are
+// published as static HTML pages and PDFs into a separate webroot that a
+// public web server serves. Templates, styles and fonts are embedded.
 package main
 
 import (
@@ -9,12 +9,14 @@ import (
 	"errors"
 	"flag"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -24,70 +26,69 @@ import (
 var userNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 
 func main() {
-	var (
-		listen      = flag.String("listen", "127.0.0.1:8080", "editor listen address (put a tailnet-only reverse proxy in front)")
-		dataDir     = flag.String("data", "/var/lib/cv-app", "persistent data: one content directory per user")
-		workDir     = flag.String("work", "", "regenerable build output and caches (default: <data>/work)")
-		publicDir   = flag.String("public", "/var/lib/cv-app/public", "webroot that the public share links are published into")
-		publicURL   = flag.String("public-url", "https://cv.example.com", "base URL the public webroot is served at")
-		siteDir     = flag.String("site", "", "Hugo site that renders a CV")
-		uiDir       = flag.String("ui", "", "built editor UI")
-		users       = flag.String("users", "", "comma-separated CVs, named after their owner's tailnet login; every tailnet user can edit all of them")
-		devUser     = flag.String("dev-user", "", "skip tailnet identity and act as this user (local development only)")
-		servePublic = flag.String("serve-public", "", "also serve the public webroot on this address (local development only)")
-		hugoBin     = flag.String("hugo", "hugo", "hugo binary")
-		chromeBin   = flag.String("chromium", "chromium", "chromium binary")
-		tsBin       = flag.String("tailscale", "tailscale", "tailscale binary, used for identity lookups")
-	)
-	flag.Parse()
-
-	if *siteDir == "" || *uiDir == "" {
-		log.Fatal("-site and -ui are required")
+	if len(os.Args) > 1 && os.Args[1] == "serve" {
+		serve(os.Args[2:])
+		return
 	}
+	local(os.Args[1:])
+}
+
+// serve runs the multi-user server: tailnet sign-in and share links.
+func serve(args []string) {
+	fl := flag.NewFlagSet("cv-app serve", flag.ExitOnError)
+	var (
+		listen      = fl.String("listen", "127.0.0.1:8080", "editor address: host:port, unix:/path, or systemd (socket activation); put a tailnet-only reverse proxy in front")
+		dataDir     = fl.String("data", "/var/lib/cv-app", "persistent data: one content directory per user")
+		workDir     = fl.String("work", "", "regenerable files such as extracted fonts (default: <data>/work)")
+		publicDir   = fl.String("public", "/var/lib/cv-app/public", "webroot that the public share links are published into")
+		publicURL   = fl.String("public-url", "https://cv.example.com", "base URL the public webroot is served at")
+		users       = fl.String("users", "", "comma-separated CVs that always exist, named after their owner's tailnet login; every tailnet user can edit all CVs")
+		manage      = fl.Bool("manage", true, "let editor users create, rename and delete CVs (those in -users can't be deleted)")
+		devUser     = fl.String("dev-user", "", "skip tailnet identity and act as this user (local development only)")
+		devAssets   = fl.String("dev-assets", "", "read templates and static files from this directory instead of the binary, so edits show at once (development only)")
+		servePublic = fl.String("serve-public", "", "also serve the public webroot on this address (local development only)")
+		tsBin       = fl.String("tailscale", "tailscale", "tailscale binary, used for identity lookups")
+		typstBin    = fl.String("typst", "typst", "typst binary, which makes the PDFs")
+	)
+	fl.Parse(args)
+
 	if *workDir == "" {
 		*workDir = filepath.Join(*dataDir, "work")
 	}
-	// Hugo resolves relative paths against the site, not the working directory.
-	for _, p := range []*string{dataDir, workDir, publicDir, siteDir, uiDir} {
-		abs, err := filepath.Abs(*p)
-		if err != nil {
-			log.Fatal(err)
-		}
-		*p = abs
-	}
 
-	cvs := map[string]bool{}
+	var declared []string
 	for _, u := range strings.Split(*users, ",") {
 		if u = strings.TrimSpace(strings.ToLower(u)); u != "" {
-			cvs[u] = true
+			declared = append(declared, u)
 		}
 	}
 	if *devUser != "" {
-		// Dev mode: every user with local data can be switched to.
-		cvs[*devUser] = true
-		users, _ := (&Store{Root: filepath.Join(*dataDir, "users")}).Users()
-		for _, u := range users {
-			cvs[u] = true
-		}
+		declared = append(declared, *devUser)
 	}
-	for u := range cvs {
+	for _, u := range declared {
 		if !userNameRe.MatchString(u) {
 			log.Fatalf("invalid user name %q: use lowercase letters, digits and dashes", u)
 		}
 	}
-	if len(cvs) == 0 {
-		log.Fatal("no users configured: pass -users")
+	if len(declared) == 0 && !*manage {
+		log.Fatal("no CVs: pass -users, or leave -manage on to create them in the editor")
 	}
 
+	store := &Store{Root: filepath.Join(*dataDir, "users")}
+	assets := NewAssets(*devAssets)
+	typst, err := NewTypst(*typstBin, *workDir, assets)
+	if err != nil {
+		log.Fatal(err)
+	}
 	s := &Server{
-		store:     &Store{Root: filepath.Join(*dataDir, "users")},
-		renderer:  &Renderer{Hugo: *hugoBin, Chromium: *chromeBin, Site: *siteDir, Work: *workDir},
+		store:     store,
+		typst:     typst,
+		assets:    assets,
 		publicDir: *publicDir,
 		publicURL: strings.TrimRight(*publicURL, "/"),
-		auth:      &Auth{DevUser: *devUser, CVs: cvs, Whois: tailscaleWhois(*tsBin)},
-		uiDir:     *uiDir,
+		auth:      &Auth{DevUser: *devUser, CVs: NewRegistry(store, declared, *manage), Whois: tailscaleWhois(*tsBin)},
+		sharing:   true,
 	}
-	s.renderer.init()
 	if err := claimPublicDir(*publicDir); err != nil {
 		log.Fatal(err)
 	}
@@ -95,8 +96,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Bring every user's build and published links up to date (new app
-	// version, links that expired while we were down), then keep expiring.
+	// Bring every user's published links up to date (new app version, links
+	// that expired while we were down), then keep expiring.
 	go func() {
 		s.publishAll(ctx)
 		t := time.NewTicker(5 * time.Minute)
@@ -120,16 +121,44 @@ func main() {
 		}()
 	}
 
-	srv := &http.Server{Addr: *listen, Handler: s.routes(), ReadHeaderTimeout: 10 * time.Second}
+	ln, err := listener(*listen)
+	if err != nil {
+		log.Fatal(err)
+	}
+	srv := &http.Server{Handler: s.routes(), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		srv.Shutdown(shutdown)
 	}()
-	log.Printf("editor listening on http://%s", *listen)
-	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+	log.Printf("editor listening on %s", ln.Addr())
+	if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
+	}
+}
+
+// listener opens the editor's address: host:port, unix:/path, or "systemd"
+// for a socket passed by systemd. On a Unix socket only processes that may
+// open it (the reverse proxy) can reach the editor, which is what makes it
+// safe to trust the visitor address the proxy passes on.
+func listener(addr string) (net.Listener, error) {
+	switch {
+	case addr == "systemd":
+		if os.Getenv("LISTEN_PID") != strconv.Itoa(os.Getpid()) || os.Getenv("LISTEN_FDS") != "1" {
+			return nil, errors.New("-listen systemd: no socket was passed by systemd")
+		}
+		return net.FileListener(os.NewFile(3, "systemd socket"))
+	case strings.HasPrefix(addr, "unix:"):
+		path := strings.TrimPrefix(addr, "unix:")
+		os.Remove(path)
+		ln, err := net.Listen("unix", path)
+		if err != nil {
+			return nil, err
+		}
+		return ln, os.Chmod(path, 0o660)
+	default:
+		return net.Listen("tcp", addr)
 	}
 }
 

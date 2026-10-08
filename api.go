@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,11 +19,14 @@ import (
 
 type Server struct {
 	store     *Store
-	renderer  *Renderer
+	typst     *Typst
+	assets    *Assets
 	auth      *Auth
-	uiDir     string
 	publicDir string
 	publicURL string
+	sharing   bool   // share links (server); off when running locally
+	local     bool   // running on someone's own computer
+	quit      func() // local mode: stop the app
 
 	mu    sync.Mutex
 	users map[string]*userState
@@ -30,7 +34,8 @@ type Server struct {
 }
 
 type userState struct {
-	content sync.Mutex // serialises content writes and builds
+	content sync.Mutex // serialises content writes
+	publish sync.Mutex // one publish at a time, so the newest lands last
 
 	mu                  sync.Mutex
 	publishing, pending bool
@@ -69,11 +74,28 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("PUT /api/items/{section}/{id}", s.handle(s.putItem))
 	mux.HandleFunc("DELETE /api/items/{section}/{id}", s.handle(s.deleteItem))
 	mux.HandleFunc("POST /api/pdf", s.postPDF)
+	mux.HandleFunc("POST /api/fit", s.postFit)
 	mux.HandleFunc("PUT /api/compose", s.putCompose)
-	mux.HandleFunc("POST /api/links", s.handle(s.postLink))
-	mux.HandleFunc("PUT /api/links/{slug}", s.handle(s.putLink))
-	mux.HandleFunc("DELETE /api/links/{slug}", s.handle(s.deleteLink))
-	mux.Handle("/", http.FileServer(http.Dir(s.uiDir)))
+	mux.HandleFunc("GET /api/export", s.getExport)
+	mux.HandleFunc("POST /api/import", s.handle(s.postImport))
+	mux.HandleFunc("GET /api/ping", s.getPing)
+	if s.auth.CVs.manage {
+		mux.HandleFunc("POST /api/cvs", s.postCV)
+		mux.HandleFunc("PUT /api/cvs/{id}", s.handle(s.putCV))
+		mux.HandleFunc("DELETE /api/cvs/{id}", s.deleteCV)
+	}
+	if s.sharing {
+		mux.HandleFunc("POST /api/links", s.handle(s.postLink))
+		mux.HandleFunc("PUT /api/links/{slug}", s.handle(s.putLink))
+		mux.HandleFunc("DELETE /api/links/{slug}", s.handle(s.deleteLink))
+	}
+	if s.quit != nil {
+		mux.HandleFunc("POST /api/quit", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+			go s.quit()
+		})
+	}
+	mux.Handle("/", s.uiHandler())
 	return s.authenticate(mux)
 }
 
@@ -170,13 +192,17 @@ type editorState struct {
 	Items    []Item        `json:"items"`
 	Links    []linkView    `json:"links"`
 	Today    string        `json:"today"`
-	Users    []string      `json:"users"`   // all CVs, for the switcher
+	CVs      []CVInfo      `json:"cvs"`     // all CVs, for the switcher
+	Manage   bool          `json:"manage"`  // CVs can be created, renamed and deleted
 	Compose  *PrintOptions `json:"compose"` // the composer's last settings for this CV, if any
+	Sharing  bool          `json:"sharing"` // share links are available
+	Local    bool          `json:"local"`   // running on the user's own computer
 }
 
 func (s *Server) editorState(ctx context.Context, user string) (editorState, error) {
 	st := editorState{
-		User: user, Users: s.auth.Names(), Langs: Langs, Sections: Sections, Point: PointSections,
+		User: user, CVs: s.auth.CVs.List(), Manage: s.auth.CVs.manage, Langs: Langs, Sections: Sections, Point: PointSections,
+		Sharing: s.sharing, Local: s.local,
 		Today: time.Now().In(linkZone).Format("2006-01-02"),
 	}
 	var err error
@@ -204,27 +230,19 @@ func (s *Server) editorState(ctx context.Context, user string) (editorState, err
 	return st, nil
 }
 
-func (s *Server) getState(r *http.Request, user string) error {
-	if s.renderer.HasBuild(user) {
-		return nil
-	}
-	return s.rebuild(r.Context(), user, func() error { return nil })
-}
+func (s *Server) getState(r *http.Request, user string) error { return nil }
 
-// rebuild applies a content change and re-renders the user's CV.
-func (s *Server) rebuild(ctx context.Context, user string, change func() error) error {
+// change applies a change to a user's content, one at a time.
+func (s *Server) change(user string, fn func() error) error {
 	unlock := s.lock(user)
 	defer unlock()
-	if err := change(); err != nil {
-		return err
-	}
-	return s.renderer.Build(ctx, user, s.store.ContentDir(user))
+	return fn()
 }
 
-// edit is rebuild for CV content, which share links show too: their pages
+// edit is change for CV content, which share links show too: their pages
 // and PDFs are refreshed in the background.
-func (s *Server) edit(ctx context.Context, user string, change func() error) error {
-	if err := s.rebuild(ctx, user, change); err != nil {
+func (s *Server) edit(ctx context.Context, user string, fn func() error) error {
+	if err := s.change(user, fn); err != nil {
 		return err
 	}
 	s.schedulePublish(user)
@@ -292,7 +310,13 @@ func (s *Server) postItem(r *http.Request, user string) error {
 		return badRequest{fmt.Errorf("unknown section %q", it.Section)}
 	}
 	return s.edit(r.Context(), user, func() error {
-		it.ID = s.store.NewItemID(user, it)
+		// An ID is only given when undoing a delete: restore under the old
+		// ID, so share links that select the item keep it.
+		if it.ID == "" {
+			it.ID = s.store.NewItemID(user, it)
+		} else if !idRe.MatchString(it.ID) || s.store.itemExists(user, it.Section, it.ID) {
+			return badRequest{fmt.Errorf("item id %q is invalid or taken", it.ID)}
+		}
 		if err := it.Validate(); err != nil {
 			return badRequest{err}
 		}
@@ -361,13 +385,7 @@ func (s *Server) postPDF(w http.ResponseWriter, r *http.Request) {
 		httpError(w, badRequest{err})
 		return
 	}
-	if !s.renderer.HasBuild(user) {
-		if err := s.rebuild(r.Context(), user, func() error { return nil }); err != nil {
-			httpError(w, err)
-			return
-		}
-	}
-	pdf, err := s.renderer.PDF(r.Context(), user, req)
+	pdf, err := s.renderPDF(r.Context(), user, req)
 	if err != nil {
 		httpError(w, err)
 		return
@@ -378,6 +396,82 @@ func (s *Server) postPDF(w http.ResponseWriter, r *http.Request) {
 	w.Write(pdf)
 }
 
+type fitRequest struct {
+	PrintOptions
+	Pages int `json:"pages"` // the page count to fit on
+}
+
+type fitResult struct {
+	Spacing float64 `json:"spacing"`
+	Pages   int     `json:"pages"` // pages at that spacing
+	Fits    bool    `json:"fits"`  // false: even the tightest spacing needs more pages
+}
+
+// postFit finds the most generous spacing at which a selection still fits
+// on the requested number of pages. More spacing never means fewer pages,
+// so a binary search over the slider's steps needs about five renders.
+func (s *Server) postFit(w http.ResponseWriter, r *http.Request) {
+	user := userOf(r)
+	var req fitRequest
+	if err := readJSON(r, &req); err != nil {
+		httpError(w, err)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		httpError(w, badRequest{err})
+		return
+	}
+	if req.Pages < 1 || req.Pages > 10 {
+		httpError(w, badRequest{errors.New("pages must be between 1 and 10")})
+		return
+	}
+
+	const step = 0.05
+	steps := int(math.Round((MaxSpacing - MinSpacing) / step))
+	spacing := func(i int) float64 { return math.Round((MinSpacing+float64(i)*step)*100) / 100 }
+	pagesAt := map[int]int{}
+	count := func(i int) (int, error) {
+		if n, ok := pagesAt[i]; ok {
+			return n, nil
+		}
+		opt := req.PrintOptions
+		opt.Spacing = spacing(i)
+		pdf, err := s.renderPDF(r.Context(), user, opt)
+		if err != nil {
+			return 0, err
+		}
+		pagesAt[i] = PageCount(pdf)
+		return pagesAt[i], nil
+	}
+
+	best := -1 // largest step that fits
+	for lo, hi := 0, steps; lo <= hi; {
+		mid := (lo + hi) / 2
+		n, err := count(mid)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		if n <= req.Pages {
+			best, lo = mid, mid+1
+		} else {
+			hi = mid - 1
+		}
+	}
+	res := fitResult{Fits: best >= 0}
+	if !res.Fits {
+		best = 0 // as tight as it gets
+	}
+	res.Spacing = spacing(best)
+	n, err := count(best)
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+	res.Pages = n
+	writeJSON(w, res)
+}
+
 // --- links
 
 func (s *Server) postLink(r *http.Request, user string) error {
@@ -385,16 +479,34 @@ func (s *Server) postLink(r *http.Request, user string) error {
 	if err := readJSON(r, &l); err != nil {
 		return err
 	}
+	// A slug (and creation date) is only given when undoing a delete: the
+	// link comes back at the URL that was already sent out.
+	if l.Slug != "" {
+		if !idRe.MatchString(l.Slug) || s.slugTaken(user, l.Slug) {
+			return badRequest{fmt.Errorf("link %q is invalid or taken", l.Slug)}
+		}
+		if !dayRe.MatchString(l.Created) {
+			l.Created = time.Now().In(linkZone).Format("2006-01-02")
+		}
+		return s.saveLink(r.Context(), user, l)
+	}
 	l.Created = time.Now().In(linkZone).Format("2006-01-02")
 	for {
 		l.Slug = NewSlug(l.Label)
-		if _, err := os.Stat(filepath.Join(s.publicDir, l.Slug)); errors.Is(err, fs.ErrNotExist) {
-			if _, err := s.store.Link(user, l.Slug); errors.Is(err, errNotFound) {
-				break
-			}
+		if !s.slugTaken(user, l.Slug) {
+			break
 		}
 	}
 	return s.saveLink(r.Context(), user, l)
+}
+
+// slugTaken reports whether a slug is in use, by this user or in the webroot.
+func (s *Server) slugTaken(user, slug string) bool {
+	if _, err := os.Stat(filepath.Join(s.publicDir, slug)); !errors.Is(err, fs.ErrNotExist) {
+		return true
+	}
+	_, err := s.store.Link(user, slug)
+	return !errors.Is(err, errNotFound)
 }
 
 func (s *Server) putLink(r *http.Request, user string) error {
@@ -419,14 +531,14 @@ func (s *Server) saveLink(ctx context.Context, user string, l Link) error {
 	if l.Expired(time.Now()) {
 		return badRequest{errors.New("expiry date must be in the future")}
 	}
-	if err := s.rebuild(ctx, user, func() error { return s.store.SaveLink(user, l) }); err != nil {
+	if err := s.change(user, func() error { return s.store.SaveLink(user, l) }); err != nil {
 		return err
 	}
 	return s.publishLink(ctx, user, l)
 }
 
 func (s *Server) deleteLink(r *http.Request, user string) error {
-	err := s.rebuild(r.Context(), user, func() error { return s.store.DeleteLink(user, r.PathValue("slug")) })
+	err := s.change(user, func() error { return s.store.DeleteLink(user, r.PathValue("slug")) })
 	if err != nil {
 		return err
 	}

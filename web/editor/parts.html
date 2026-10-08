@@ -1,0 +1,35 @@
+{{/* Small pieces shared by the editor pages. */}}
+
+{{ define "cv-switcher" }}
+<div class="flex min-w-0 items-center gap-2 text-xs text-stone-500">
+  <template x-if="$store.cv.state?.cvs.length > 1">
+    <label class="flex min-w-0 flex-1 items-center gap-2">
+      CV
+      <select
+        class="min-w-0 flex-1 rounded-md border-0 bg-stone-100 py-1 pr-7 pl-2 text-xs font-medium text-stone-700 ring-1 ring-stone-200"
+        @change="$store.cv.switchUser($event.target.value)">
+        <template x-for="cv in $store.cv.state.cvs" :key="cv.id">
+          <option :value="cv.id" :selected="cv.id === $store.cv.state.user" x-text="cv.name"></option>
+        </template>
+      </select>
+    </label>
+  </template>
+  <template x-if="$store.cv.state?.manage">
+    <button type="button" class="shrink-0 font-medium text-stone-500 hover:text-stone-900" @click="$store.cv.manageOpen = true" x-text="$store.cv.state.cvs.length > 1 ? 'Manage' : 'Manage CVs'"></button>
+  </template>
+</div>
+{{ end }}
+
+{{ define "save-status" }}
+<p class="flex items-center gap-1.5 text-xs" aria-live="polite">
+  <template x-if="$store.cv.saveStatus() === 'saving'">
+    <span class="flex items-center gap-1.5 text-stone-400"><span class="size-1.5 animate-pulse rounded-full bg-stone-400"></span>Saving…</span>
+  </template>
+  <template x-if="$store.cv.saveStatus() === 'saved'">
+    <span class="text-stone-400">Saved ✓</span>
+  </template>
+  <template x-if="$store.cv.saveStatus() === 'error'">
+    <span class="text-red-700" :title="$store.cv.invalid || $store.cv.saveError">Not saved: <span x-text="$store.cv.invalid || $store.cv.saveError"></span></span>
+  </template>
+</p>
+{{ end }}

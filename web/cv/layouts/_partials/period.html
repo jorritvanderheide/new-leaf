@@ -1,7 +1,0 @@
-{{/* "Sep 2023 – Present", or a single date for point sections.
-     Context: dict with start, end (YYYY-MM, YYYY or empty) and point. */}}
-{{- if .point -}}
-  {{- partial "date.html" .start -}}
-{{- else -}}
-  {{- partial "date.html" .start }} – {{ with .end }}{{ partial "date.html" . }}{{ else }}{{ T "present" }}{{ end -}}
-{{- end -}}

@@ -1,0 +1,85 @@
+<!doctype html>
+{{/* A public share page. Data: sharePage (see share.go). Everything comes
+     from the Document, so items that were not selected never get here. */}}
+<html lang="{{ .Doc.Lang }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="no-referrer">
+    <title>CV {{ .Doc.Name }}</title>
+    <link rel="stylesheet" href="{{ .CSS }}">
+  </head>
+  <body class="bg-stone-100 text-stone-800">
+    <div class="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-14">
+      <div class="mb-10 flex items-center justify-between gap-4">
+        <nav aria-label="Language" class="inline-flex rounded-full bg-white p-1 text-sm shadow-sm ring-1 ring-stone-200">
+          {{ range .Langs }}
+            {{ if .Current }}
+              <span aria-current="page" class="rounded-full bg-stone-100 px-3 py-1 font-medium text-stone-900">{{ .Code }}</span>
+            {{ else }}
+              <a href="{{ .URL }}" hreflang="{{ .Lang }}" title="{{ .Label }}" class="rounded-full px-3 py-1 font-medium text-stone-500 transition hover:text-stone-900">{{ .Code }}</a>
+            {{ end }}
+          {{ end }}
+        </nav>
+        <a
+          href="cv.pdf"
+          download="CV {{ .Doc.Name }}.pdf"
+          class="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-dark">
+          <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.69L6.28 8.47a.75.75 0 0 0-1.06 1.06l4.25 4.25a.75.75 0 0 0 1.06 0l4.25-4.25a.75.75 0 1 0-1.06-1.06l-2.97 2.97V2.75Z"/><path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z"/></svg>
+          {{ .Download }}
+        </a>
+      </div>
+
+      {{/* data-spacing only affects the PDF, but keeping it in the page means a
+           spacing change alters the page, which is what triggers a new PDF. */}}
+      <article data-spacing="{{ .Doc.Spacing }}" class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-stone-200 sm:p-12">
+        <header class="flex items-start justify-between gap-8">
+          <div class="min-w-0">
+            <h1 class="text-3xl leading-[1.05] font-semibold tracking-tight text-stone-900 sm:text-[2.5rem]">{{ .Doc.Name }}</h1>
+            {{ with .Doc.Headline }}<p class="mt-2 text-lg text-accent">{{ . }}</p>{{ end }}
+            <ul class="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-stone-600">
+              {{ range .Doc.Contacts }}
+                <li>
+                  {{- if .URL }}<a href="{{ url .URL }}"{{ if .Underline }} class="underline decoration-stone-300 underline-offset-2"{{ end }}>{{ .Text }}</a>{{ else }}{{ .Text }}{{ end -}}
+                </li>
+              {{ end }}
+            </ul>
+          </div>
+          {{/* Inlined, so a share page is a single self-contained file. */}}
+          {{ with .Photo }}<img src="{{ . }}" alt="" class="size-20 shrink-0 rounded-2xl object-cover sm:size-28">{{ end }}
+        </header>
+
+        {{ with .Doc.Summary }}<div class="cv-prose cv-summary text-stone-700">{{ rich . }}</div>{{ end }}
+
+        {{ range .Doc.Sections }}
+          <section class="cv-section">
+            <h2 class="flex items-center gap-3 text-xs font-semibold tracking-[0.08em] text-accent uppercase">
+              {{ .Title }}<span class="h-px flex-1 bg-stone-200"></span>
+            </h2>
+            <ol class="cv-items">
+              {{ range .Items }}
+                <li class="sm:grid sm:grid-cols-[9.5rem_1fr] sm:gap-x-6">
+                  <p class="pt-px text-sm whitespace-nowrap text-stone-500 tabular-nums">{{ .Date }}</p>
+                  {{ if .Reference }}
+                    <div class="cv-prose cv-reference min-w-0 text-stone-800">{{ rich .Body }}</div>
+                  {{ else }}
+                    <div class="min-w-0">
+                      <h3 class="font-semibold text-stone-900">
+                        {{- if .Link }}<a href="{{ url .Link }}" class="decoration-stone-300 underline-offset-2 hover:underline">{{ .Title }}</a>{{ else }}{{ .Title }}{{ end -}}
+                      </h3>
+                      {{ with .Sub }}<p class="text-sm text-stone-600">{{ . }}</p>{{ end }}
+                      {{ with .Body }}<div class="cv-prose mt-1.5 text-stone-700">{{ rich . }}</div>{{ end }}
+                    </div>
+                  {{ end }}
+                </li>
+              {{ end }}
+            </ol>
+          </section>
+        {{ end }}
+      </article>
+
+      {{ with .Expires }}<p class="mt-6 text-center text-xs text-stone-400">{{ . }}</p>{{ end }}
+    </div>
+  </body>
+</html>

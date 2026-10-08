@@ -9,23 +9,19 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 )
 
-// TestEndToEnd drives the API with real Hugo and Chromium. It checks the
+// TestEndToEnd drives the API with real Typst. It checks the
 // guarantees that matter: unselected items never reach the webroot, PDFs
 // report their page count, edits propagate to share links, and expired or
 // deleted links disappear.
 func TestEndToEnd(t *testing.T) {
-	for _, bin := range []string{"hugo", "chromium"} {
-		if _, err := exec.LookPath(bin); err != nil {
-			t.Skipf("%s not in PATH", bin)
-		}
-	}
-	if _, err := os.Stat("web/cv/assets/css/cv.css"); err != nil {
-		t.Skip("web/cv/assets/css/cv.css missing: run tailwindcss first")
+	if _, err := exec.LookPath("typst"); err != nil {
+		t.Skip("typst not in PATH")
 	}
 
 	data := t.TempDir()
@@ -33,15 +29,21 @@ func TestEndToEnd(t *testing.T) {
 	if err := claimPublicDir(public); err != nil {
 		t.Fatal(err)
 	}
+	assets := NewAssets("")
+	typst, err := NewTypst("typst", filepath.Join(data, "work"), assets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &Store{Root: filepath.Join(data, "users")}
 	s := &Server{
-		store:     &Store{Root: filepath.Join(data, "users")},
-		renderer:  &Renderer{Hugo: "hugo", Chromium: "chromium", Site: "web/cv", Work: filepath.Join(data, "work")},
-		auth:      &Auth{DevUser: "alice", CVs: map[string]bool{"alice": true}},
-		uiDir:     t.TempDir(),
+		store:     store,
+		typst:     typst,
+		assets:    assets,
+		auth:      &Auth{DevUser: "alice", CVs: NewRegistry(store, []string{"alice"}, true)},
+		sharing:   true,
 		publicDir: public,
 		publicURL: "https://cv.test",
 	}
-	s.renderer.init()
 	h := s.routes()
 
 	call := func(method, path string, body any) *httptest.ResponseRecorder {
@@ -131,6 +133,24 @@ func TestEndToEnd(t *testing.T) {
 		t.Errorf("link spacing = %v", st.Links[0].Spacing)
 	}
 	page := readFile(t, filepath.Join(public, slug, "index.html"))
+
+	// Every language is published; the toggle links them both ways.
+	nlPage := readFile(t, filepath.Join(public, slug, "nl", "index.html"))
+	if !strings.Contains(nlPage, "Publieke rol") || !strings.Contains(nlPage, `lang="nl"`) {
+		t.Error("Dutch share page lacks its Dutch content")
+	}
+	if !strings.Contains(page, `href="nl/"`) || !strings.Contains(nlPage, `href="../"`) {
+		re := regexp.MustCompile(`href="[^"]*" hreflang="[^"]*"`)
+		t.Errorf("language toggle does not link the pages to each other: %q / %q", re.FindAllString(page, -1), re.FindAllString(nlPage, -1))
+	}
+	for _, leak := range []string{"Hidden Org", "Confidential"} {
+		if strings.Contains(nlPage, leak) {
+			t.Errorf("Dutch share page leaks unselected %q", leak)
+		}
+	}
+	if pdf := readFile(t, filepath.Join(public, slug, "nl", "cv.pdf")); PageCount([]byte(pdf)) < 1 {
+		t.Error("Dutch PDF missing")
+	}
 	for _, want := range []string{"Visible Org", "Shared detail.", "Alice Example", `href="https://doi.org/10.1000/xyz"`, ">Mar 2021<"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("share page lacks %q", want)
@@ -209,6 +229,40 @@ func TestEndToEnd(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(public, slug)); err == nil {
 		t.Error("deleted link still published")
 	}
+
+	// Undo: a deleted link comes back at its old URL, an item under its old ID.
+	restored := Link{Slug: slug, Label: "Test", Lang: "en", Entries: []string{"experience/visible-org"}, Expires: expires, Created: "2026-01-02"}
+	json.Unmarshal(call("POST", "/api/links", restored).Body.Bytes(), &st)
+	if i := slices.IndexFunc(st.Links, func(l linkView) bool { return l.Slug == slug }); i < 0 || st.Links[i].Created != "2026-01-02" {
+		t.Errorf("restored links = %+v", st.Links)
+	}
+	if _, err := os.Stat(filepath.Join(public, slug, "index.html")); err != nil {
+		t.Errorf("restored link not published: %v", err)
+	}
+	if code := post(h, "/api/links", restored); code != http.StatusBadRequest {
+		t.Errorf("restoring onto a taken slug: %d", code)
+	}
+	call("DELETE", "/api/items/experience/visible-org", nil)
+	call("POST", "/api/items", Item{Section: "experience", ID: "visible-org", Start: "2020-01", Text: map[string]ItemText{"en": {Title: "Back"}}})
+	if code := post(h, "/api/items", Item{Section: "experience", ID: "visible-org", Start: "2020-01"}); code != http.StatusBadRequest {
+		t.Errorf("restoring onto a taken item id: %d", code)
+	}
+
+	// Fit to pages: a short CV fits on one page at the most generous spacing.
+	var fit fitResult
+	json.Unmarshal(call("POST", "/api/fit", fitRequest{PrintOptions: PrintOptions{Lang: "en", Entries: []string{"experience/visible-org"}}, Pages: 1}).Body.Bytes(), &fit)
+	if !fit.Fits || fit.Pages != 1 || fit.Spacing != MaxSpacing {
+		t.Errorf("fit = %+v", fit)
+	}
+}
+
+func post(h http.Handler, path string, body any) int {
+	b, _ := json.Marshal(body)
+	r := httptest.NewRequest("POST", path, bytes.NewReader(b))
+	r.Header.Set("X-CV-App", "1")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	return w.Code
 }
 
 func TestClaimPublicDir(t *testing.T) {

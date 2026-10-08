@@ -1,0 +1,130 @@
+{{ define "main" }}
+  <form x-data="profile" class="max-w-3xl space-y-6" @submit.prevent @input="changed()" @change="changed()">
+    <section class="card flex flex-wrap items-center gap-6 p-6">
+      <div class="grid size-24 place-items-center overflow-hidden rounded-2xl bg-stone-100 text-xs text-stone-400">
+        <template x-if="$store.cv.state.profile.photo">
+          <img :src="'/api/photo?v=' + photoVersion" alt="" class="size-full object-cover">
+        </template>
+        <span x-show="!$store.cv.state.profile.photo">No photo</span>
+      </div>
+      <div class="space-y-2">
+        <h2 class="text-sm font-semibold">Photo</h2>
+        <p class="text-xs text-stone-500">JPEG, PNG or WebP, cropped to a square. You choose per PDF or link whether to show it.</p>
+        <div class="flex gap-2">
+          {{/* Not part of the autosaved form: uploads right away. */}}
+          <label class="btn cursor-pointer" @input.stop @change.stop>
+            Upload
+            <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" @change="upload($event)">
+          </label>
+          <button type="button" class="btn btn-danger" x-show="$store.cv.state.profile.photo" @click="removePhoto()">Remove</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card grid gap-4 p-6 sm:grid-cols-2">
+      <div class="sm:col-span-2">
+        <h2 class="text-sm font-semibold">Details</h2>
+        <p class="text-xs text-stone-500">The same in every language.</p>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="label" for="name">Name</label>
+        <input id="name" class="input" x-model="form.name" autocomplete="name">
+      </div>
+      <div>
+        <label class="label" for="email">Email</label>
+        <input id="email" type="email" class="input" x-model="form.email" autocomplete="email">
+      </div>
+      <div>
+        <label class="label" for="phone">Phone</label>
+        <input id="phone" class="input" x-model="form.phone" autocomplete="tel">
+      </div>
+      <div class="sm:col-span-2">
+        <label class="label" for="website">Website</label>
+        <input id="website" type="url" class="input" x-model="form.website" placeholder="https://">
+      </div>
+      <div class="space-y-2 sm:col-span-2">
+        <span class="label">Other links <span class="font-normal text-stone-400">(shown by their label, e.g. LinkedIn, Google Scholar, ORCID)</span></span>
+        <template x-for="(link, i) in form.links" :key="i">
+          <div class="flex gap-2">
+            <input class="input w-48" x-model="link.label" placeholder="Label" aria-label="Link label">
+            <input type="url" class="input" x-model="link.url" placeholder="https://" aria-label="Link URL">
+            <button type="button" class="btn btn-danger" @click="form.links.splice(i, 1); changed()" aria-label="Remove link">
+              {{ icon "close" "size-4" }}
+            </button>
+          </div>
+        </template>
+        <button type="button" class="btn" @click="form.links.push({ label: '', url: '' })">
+          {{ icon "plus" "size-4" }}
+          Add link
+        </button>
+      </div>
+    </section>
+
+    <section class="card p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold">Introduction</h2>
+          <p class="text-xs text-stone-500">Per language.</p>
+        </div>
+        <div class="seg" role="tablist" aria-label="Language">
+          <template x-for="l in $store.cv.state.langs" :key="l">
+            <button type="button" role="tab" :aria-selected="tab === l" :aria-pressed="tab === l" class="flex items-center gap-1.5" @click="tab = l">
+              <span x-text="$store.cv.langName(l)"></span>
+              <span x-show="incomplete(l)" class="text-amber-600" title="Missing text that another language has">{{ icon "warn" "size-3.5" }}</span>
+            </button>
+          </template>
+        </div>
+      </div>
+      <template x-for="l in $store.cv.state.langs" :key="l">
+        <div class="mt-4 space-y-3" x-show="tab === l">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="label" :for="'headline-' + l">Headline</label>
+              <input :id="'headline-' + l" class="input" x-model="form.text[l].headline" :placeholder="l === 'nl' ? 'bijv. Onderzoeker' : 'e.g. Researcher'">
+            </div>
+            <div>
+              <label class="label" :for="'location-' + l">Location</label>
+              <input :id="'location-' + l" class="input" x-model="form.text[l].location" :placeholder="l === 'nl' ? 'bijv. Eindhoven, Nederland' : 'e.g. Eindhoven, the Netherlands'">
+            </div>
+          </div>
+          <div>
+            <label class="label" :for="'summary-' + l">Summary <span class="font-normal text-stone-400">(Markdown, optional)</span></label>
+            <textarea :id="'summary-' + l" class="input min-h-32 leading-relaxed" x-model="form.text[l].summary"></textarea>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    {{/* Not part of the autosaved form. */}}
+    <section class="card p-6" @input.stop @change.stop>
+      <h2 class="text-sm font-semibold">Backup</h2>
+      <p class="mt-1 text-xs text-stone-500">
+        Your whole CV (both languages, photo and settings) as one zip file, to keep or to move to another computer.
+        Restoring replaces your current CV; a copy of the current one is kept.
+      </p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <a class="btn" href="/api/export" download>Download backup</a>
+        <label class="btn cursor-pointer">
+          Restore from backup
+          <input type="file" accept=".zip,application/zip" class="sr-only" @change="restore($event)">
+        </label>
+      </div>
+    </section>
+
+    <section class="card p-6">
+      <h2 class="text-sm font-semibold">Section order</h2>
+      <p class="mt-1 mb-3 text-xs text-stone-500">The order of sections on your CV. Empty sections are left out.</p>
+      <ol class="divide-y divide-stone-100 rounded-lg ring-1 ring-stone-200">
+        <template x-for="(section, i) in form.order" :key="section">
+          <li class="flex items-center gap-3 px-3 py-1.5 text-sm">
+            <span class="w-5 text-xs text-stone-400 tabular-nums" x-text="i + 1"></span>
+            <span class="flex-1" :class="!$store.cv.items(section).length && 'text-stone-400'" x-text="$store.cv.sectionName(section)"></span>
+            <span class="text-xs text-stone-400" x-text="$store.cv.items(section).length || ''"></span>
+            <button type="button" class="px-1.5 text-stone-500 hover:text-stone-900 disabled:opacity-25" :disabled="i === 0" @click="move(i, -1)" aria-label="Move up">↑</button>
+            <button type="button" class="px-1.5 text-stone-500 hover:text-stone-900 disabled:opacity-25" :disabled="i === form.order.length - 1" @click="move(i, 1)" aria-label="Move down">↓</button>
+          </li>
+        </template>
+      </ol>
+    </section>
+  </form>
+{{ end }}

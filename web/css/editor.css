@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@source "../editor/layouts";
-@source "../editor/assets/js";
+@import "tailwindcss" source(none);
+@source "../editor/*.html";
+@source "../editor/app.js";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;

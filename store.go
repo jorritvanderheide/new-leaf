@@ -17,7 +17,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Content layout per user (a Hugo content directory):
+// Content layout per user:
 //
 //	_index.<lang>.md                  profile; body is the summary
 //	photo.{jpg,png,webp}              optional profile photo
@@ -26,8 +26,8 @@ import (
 
 var (
 	Langs = []string{"en", "nl"}
-	// Sections in their default order on a CV. Keep in sync with web/cv:
-	// hugo.toml (cascade), i18n/*.yaml and _partials/cv.html.
+	// Sections in their default order on a CV. Their titles are in
+	// document.go (docLabels) and web/editor/app.js (SECTION_NAMES).
 	Sections = []string{"experience", "education", "publications", "output", "presentations", "teaching", "awards", "extracurricular", "volunteering"}
 	// Sections whose items happen at one moment: a date, not a period. The
 	// date may be left out (e.g. a manuscript under review).
@@ -43,7 +43,7 @@ var (
 	photoExts   = []string{".jpg", ".png", ".webp"}
 )
 
-// Links expire at midnight in this zone; the Hugo site uses the same one.
+// Links expire at midnight in this zone.
 var linkZone = func() *time.Location {
 	loc, err := time.LoadLocation("Europe/Amsterdam")
 	if err != nil {
@@ -79,7 +79,7 @@ type itemFile struct {
 
 type ProfileText struct {
 	Headline string `json:"headline" yaml:"headline,omitempty"`
-	Location string `json:"location" yaml:"location,omitempty"` // e.g. "Nijmegen, the Netherlands"
+	Location string `json:"location" yaml:"location,omitempty"` // e.g. "Eindhoven, the Netherlands"
 	Summary  string `json:"summary"  yaml:"-"`
 }
 
@@ -111,7 +111,7 @@ type ProfileLink struct {
 
 // PrintOptions select what a PDF shows and how it is laid out.
 type PrintOptions struct {
-	Lang    string   `json:"lang"`
+	Lang    string   `json:"lang"` // opens at /<slug>/; the other languages at /<slug>/<lang>/
 	Entries []string `json:"entries"`
 	Photo   bool     `json:"photo"`
 	Spacing float64  `json:"spacing"` // whitespace scale, MinSpacing..MaxSpacing; 0 means 1
@@ -137,12 +137,14 @@ func (o PrintOptions) Validate() error {
 type Link struct {
 	Slug    string   `json:"slug"`
 	Label   string   `json:"label"`
-	Lang    string   `json:"lang"`
+	Lang    string   `json:"lang"` // opens at /<slug>/; the other languages at /<slug>/<lang>/
 	Entries []string `json:"entries"`
 	Photo   bool     `json:"photo"`
 	Spacing float64  `json:"spacing"` // as in PrintOptions
 	Expires string   `json:"expires"` // YYYY-MM-DD; the link stops working at the start of this day
 	Created string   `json:"created"`
+
+	files int // language files found on disk; fewer than Langs means a pre-toggle link
 }
 
 func (l Link) Print() PrintOptions {
@@ -206,7 +208,7 @@ func (s *Store) Users() ([]string, error) {
 	return users, err
 }
 
-// ContentDir is what Hugo renders for this user.
+// ContentDir is where a user's content files live.
 func (s *Store) ContentDir(user string) string { return s.dir(user) }
 
 // --- profile
@@ -282,7 +284,7 @@ func (s *Store) SaveProfile(user string, p Profile) error {
 }
 
 // --- compose settings: the composer's last selection, kept per CV so it is
-// the same on every device. Stored next to (not in) the Hugo content.
+// the same on every device. Stored next to (not in) the content.
 
 func (s *Store) composePath(user string) string { return filepath.Join(s.Root, user, "compose.json") }
 
@@ -467,10 +469,22 @@ func (s *Store) DeleteItem(user, section, id string) error {
 }
 
 // --- links
+//
+// A link is published in every language: one file per language, all with
+// the same fields. The link's own language (chosen when it was made) opens
+// at /<slug>/, the others at /<slug>/<lang>/.
+
+// LinkDir is where a link's page in lang lives, relative to the webroot.
+func (l Link) LinkDir(lang string) string {
+	if lang == l.Lang {
+		return l.Slug
+	}
+	return filepath.Join(l.Slug, lang)
+}
 
 func (s *Store) Links(user string) ([]Link, error) {
 	files, _ := filepath.Glob(filepath.Join(s.dir(user), "links", "*.md"))
-	links := []Link{}
+	bySlug := map[string]*Link{}
 	for _, path := range files {
 		slug, lang, ok := splitLangFile(filepath.Base(path))
 		if !ok {
@@ -480,12 +494,32 @@ func (s *Store) Links(user string) ([]Link, error) {
 		if _, err := readMarkdown(path, &f); err != nil {
 			return nil, err
 		}
-		links = append(links, Link{
-			Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing,
-			Expires: string(f.ExpiryDate), Created: string(f.Created),
-		})
+		l := bySlug[slug]
+		if l == nil {
+			l = &Link{Slug: slug}
+			bySlug[slug] = l
+		}
+		l.files++
+		// The files agree on everything but the URL; the one at /<slug>/
+		// is the link's own language. Links from before the toggle have a
+		// single file, which is then that language.
+		if l.Lang == "" || f.URL == "/"+slug+"/" {
+			*l = Link{
+				Slug: slug, Label: f.Title, Lang: lang, Entries: f.Entries, Photo: f.Photo, Spacing: f.Spacing,
+				Expires: string(f.ExpiryDate), Created: string(f.Created), files: l.files,
+			}
+		}
 	}
-	sort.Slice(links, func(i, j int) bool { return links[i].Created > links[j].Created })
+	links := []Link{}
+	for _, l := range bySlug {
+		links = append(links, *l)
+	}
+	sort.Slice(links, func(i, j int) bool {
+		if links[i].Created != links[j].Created {
+			return links[i].Created > links[j].Created
+		}
+		return links[i].Slug < links[j].Slug
+	})
 	return links, nil
 }
 
@@ -519,25 +553,48 @@ func (s *Store) SaveLink(user string, l Link) error {
 	if err := l.Validate(); err != nil {
 		return err
 	}
-	// A link has exactly one language file; drop any other when it changes.
 	for _, lang := range Langs {
-		if lang != l.Lang {
-			os.Remove(filepath.Join(s.dir(user), "links", l.Slug+"."+lang+".md"))
+		f := linkFile{
+			Title: clean(l.Label), URL: "/" + filepath.ToSlash(l.LinkDir(lang)) + "/",
+			Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing,
+			ExpiryDate: quoted(l.Expires), Created: quoted(l.Created),
+		}
+		if err := writeMarkdown(filepath.Join(s.dir(user), "links", l.Slug+"."+lang+".md"), f, ""); err != nil {
+			return err
 		}
 	}
-	f := linkFile{
-		Title: clean(l.Label), URL: "/" + l.Slug + "/", Entries: l.Entries, Photo: l.Photo, Spacing: l.Spacing,
-		ExpiryDate: quoted(l.Expires), Created: quoted(l.Created),
+	return nil
+}
+
+// UpgradeLinks gives links from before the language toggle their missing
+// language files. It reports whether anything changed.
+func (s *Store) UpgradeLinks(user string) (bool, error) {
+	links, err := s.Links(user)
+	if err != nil {
+		return false, err
 	}
-	return writeMarkdown(filepath.Join(s.dir(user), "links", l.Slug+"."+l.Lang+".md"), f, "")
+	changed := false
+	for _, l := range links {
+		if l.files < len(Langs) {
+			if err := s.SaveLink(user, l); err != nil {
+				return changed, fmt.Errorf("link %s: %w", l.Slug, err)
+			}
+			changed = true
+		}
+	}
+	return changed, nil
 }
 
 func (s *Store) DeleteLink(user, slug string) error {
-	l, err := s.Link(user, slug)
-	if err != nil {
+	if _, err := s.Link(user, slug); err != nil {
 		return err
 	}
-	return os.Remove(filepath.Join(s.dir(user), "links", l.Slug+"."+l.Lang+".md"))
+	for _, lang := range Langs {
+		if err := os.Remove(filepath.Join(s.dir(user), "links", slug+"."+lang+".md")); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
 }
 
 // NewSlug is a readable label plus a random suffix, so share links can't be

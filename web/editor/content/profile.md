@@ -1,4 +1,0 @@
----
-title: Profile
-layout: profile
----

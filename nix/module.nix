@@ -19,23 +19,59 @@ in
       description = "cv-app package.";
     };
 
-    listen = lib.mkOption {
+    socket = lib.mkOption {
       type = lib.types.str;
-      default = "127.0.0.1:8090";
+      default = "/run/cv-app/editor.sock";
+      readOnly = true;
       description = ''
-        Editor listen address. Keep it on loopback behind a reverse proxy that
-        only tailnet clients can reach and that sets X-Real-IP: the editor
-        identifies users by looking up that address with `tailscale whois`.
+        Unix socket the editor listens on (unless {option}`services.cv-app.listen`
+        is set). Point a reverse proxy at it that only tailnet clients can
+        reach and that sets X-Real-IP, e.g. nginx's
+        `proxyPass = "http://unix:/run/cv-app/editor.sock";`.
+      '';
+    };
+
+    proxyGroup = lib.mkOption {
+      type = lib.types.str;
+      default = "nginx";
+      description = ''
+        Group of the reverse proxy. Only it (and cv-app) may open the editor's
+        socket, so no other local program can reach the editor and pass off
+        a made-up visitor address as a tailnet device.
+      '';
+    };
+
+    listen = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "127.0.0.1:8090";
+      description = ''
+        A TCP address for the editor instead of the socket. Any local program
+        can then reach it and claim to be any tailnet device, so prefer the
+        socket.
       '';
     };
 
     users = lib.mkOption {
       type = lib.types.listOf lib.types.str;
+      default = [ ];
       example = [ "jorrit" ];
       description = ''
-        The CVs, one per person, named after their owner's tailnet login (in
+        CVs that always exist, named after their owner's tailnet login (in
         full or the part before "@"). Every human tailnet user can open and
-        edit all of them; their own CV opens by default.
+        edit all CVs; their own opens by default. These can be renamed in the
+        editor but not deleted.
+      '';
+    };
+
+    manageInEditor = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether editor users can create, rename and delete CVs, next to
+        {option}`services.cv-app.users`. Deleted CVs are moved to
+        {file}`/var/lib/cv-app/trash`. When off, exactly the CVs in
+        {option}`services.cv-app.users` exist.
       '';
     };
 
@@ -61,6 +97,13 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = cfg.users != [ ] || cfg.manageInEditor;
+        message = "services.cv-app: list the CVs in users, or enable manageInEditor.";
+      }
+    ];
+
     users.users.cv-app = {
       isSystemUser = true;
       group = "cv-app";
@@ -68,22 +111,35 @@ in
     };
     users.groups.cv-app = { };
 
+    # systemd owns the socket: cv-app needs no membership of the proxy's
+    # group, and the proxy can connect while cv-app restarts.
+    systemd.sockets.cv-app = lib.mkIf (cfg.listen == null) {
+      description = "cv-app editor socket";
+      wantedBy = [ "sockets.target" ];
+      listenStreams = [ cfg.socket ];
+      socketConfig = {
+        SocketUser = "cv-app";
+        SocketGroup = cfg.proxyGroup;
+        SocketMode = "0660";
+      };
+    };
+
     systemd.services.cv-app = {
       description = "cv-app CV editor";
       wantedBy = [ "multi-user.target" ];
+      requires = lib.optional (cfg.listen == null) "cv-app.socket";
       after = [
         "network.target"
         "tailscaled.service"
-      ];
-
-      # Fallback fonts for Chromium; CVs themselves use bundled web fonts.
-      environment.FONTCONFIG_FILE = pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; };
+      ]
+      ++ lib.optional (cfg.listen == null) "cv-app.socket";
 
       serviceConfig = {
         ExecStart = lib.escapeShellArgs [
           (lib.getExe cfg.package)
+          "serve"
           "-listen"
-          cfg.listen
+          (if cfg.listen == null then "systemd" else cfg.listen)
           "-data"
           stateDir
           "-work"
@@ -94,6 +150,7 @@ in
           cfg.publicURL
           "-users"
           (lib.concatStringsSep "," cfg.users)
+          "-manage=${lib.boolToString cfg.manageInEditor}"
           "-tailscale"
           (lib.getExe cfg.tailscalePackage)
         ];
@@ -108,10 +165,10 @@ in
         Restart = "always";
         RestartSec = "5s";
 
-        # Hardening. Chromium runs without its own sandbox (no user
-        # namespaces here) and needs W^X off for V8, so this is the sandbox.
+        # Hardening: cv-app and typst need little more than their files.
         CapabilityBoundingSet = "";
         LockPersonality = true;
+        MemoryDenyWriteExecute = true;
         NoNewPrivileges = true;
         PrivateDevices = true;
         PrivateTmp = true;
@@ -128,12 +185,15 @@ in
           "AF_UNIX"
           "AF_INET"
           "AF_INET6"
-          "AF_NETLINK"
         ];
         RestrictNamespaces = true;
         RestrictRealtime = true;
         RestrictSUIDSGID = true;
         SystemCallArchitectures = "native";
+        SystemCallFilter = [
+          "@system-service"
+          "~@privileged"
+        ];
       };
     };
   };

@@ -17,6 +17,9 @@ func TestClientIP(t *testing.T) {
 		{"100.64.0.9:5000", "100.64.0.7", "100.64.0.9"}, // direct peers can't claim another IP
 		{"[::1]:5000", "fd7a:115c:a1e0::1", "fd7a:115c:a1e0::1"},
 		{"127.0.0.1:5000", "not-an-ip", ""},
+		{"@", "100.64.0.7", "100.64.0.7"}, // Unix socket: only the proxy can connect
+		{"", "100.64.0.7", "100.64.0.7"},  // Unix socket, unnamed peer
+		{"@", "", ""},                     // proxy that didn't say
 	}
 	for _, c := range cases {
 		r := httptest.NewRequest("GET", "/", nil)
@@ -39,7 +42,7 @@ func TestAuthUser(t *testing.T) {
 	}
 	calls := 0
 	a := &Auth{
-		CVs: map[string]bool{"jorrit": true, "alice": true},
+		CVs: NewRegistry(&Store{Root: t.TempDir()}, []string{"jorrit", "alice"}, false),
 		Whois: func(_ context.Context, ip string) (Identity, error) {
 			calls++
 			if id, ok := ids[ip]; ok {
@@ -67,7 +70,7 @@ func TestAuthUser(t *testing.T) {
 
 func TestCVCookie(t *testing.T) {
 	a := &Auth{
-		CVs: map[string]bool{"jorrit": true, "jeltje": true},
+		CVs: NewRegistry(&Store{Root: t.TempDir()}, []string{"jorrit", "bob"}, false),
 		Whois: func(_ context.Context, ip string) (Identity, error) {
 			if ip == "100.64.0.1" {
 				return Identity{LoginName: "jorrit@"}, nil
@@ -75,17 +78,17 @@ func TestCVCookie(t *testing.T) {
 			return Identity{}, errForbidden
 		},
 	}
-	for cookie, want := range map[string]string{"jeltje": "jeltje", "jorrit": "jorrit", "mallory": "jorrit", "": "jorrit"} {
+	for cookie, want := range map[string]string{"bob": "bob", "jorrit": "jorrit", "mallory": "jorrit", "": "jorrit"} {
 		if got, _ := a.User(tailnetRequest("100.64.0.1", cookie)); got != want {
 			t.Errorf("cookie %q: CV %q, want %q", cookie, got, want)
 		}
 	}
-	if _, err := a.User(tailnetRequest("100.64.0.9", "jeltje")); !errors.Is(err, errForbidden) {
+	if _, err := a.User(tailnetRequest("100.64.0.9", "bob")); !errors.Is(err, errForbidden) {
 		t.Errorf("a cookie must not let a non-peer in: %v", err)
 	}
 
-	dev := &Auth{DevUser: "jorrit", CVs: map[string]bool{"jorrit": true, "jeltje": true}}
-	for cookie, want := range map[string]string{"jeltje": "jeltje", "mallory": "jorrit", "": "jorrit"} {
+	dev := &Auth{DevUser: "jorrit", CVs: NewRegistry(&Store{Root: t.TempDir()}, []string{"jorrit", "bob"}, false)}
+	for cookie, want := range map[string]string{"bob": "bob", "mallory": "jorrit", "": "jorrit"} {
 		if got, _ := dev.User(tailnetRequest("", cookie)); got != want {
 			t.Errorf("dev mode, cookie %q: CV %q, want %q", cookie, got, want)
 		}

@@ -1,0 +1,209 @@
+<!doctype html>
+{{/* The editor's frame. Data: page (see ui.go): Title, Description, IsHome
+     and Nav. Each page template defines "main". */}}
+<html lang="en" class="h-full bg-stone-50">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ .Title }} · CV</title>
+    <link rel="stylesheet" href="{{ asset "editor.css" }}">
+    {{/* app.js registers the Alpine components, so it loads before Alpine. */}}
+    <script defer src="{{ asset "app.js" }}"></script>
+    <script defer src="{{ asset "vendor/alpine.min.js" }}"></script>
+  </head>
+  <body
+    class="h-full text-stone-800"
+    x-data
+    x-init="$store.cv.load()"
+    @keydown.window="$store.cv.keys($event)"
+    @beforeunload.window="$store.cv.beforeUnload()">
+    {{/* Sidebar (large screens) */}}
+    <aside class="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-stone-200 bg-white lg:flex">
+      <a href="/" class="flex h-16 items-center gap-2.5 px-5 font-semibold text-stone-900">
+        <span class="grid size-8 place-items-center rounded-lg bg-accent text-xs font-bold text-white">CV</span>
+        Editor
+      </a>
+      <button type="button" class="mx-3 mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-500 ring-1 ring-stone-200 hover:text-stone-900" @click="$store.cv.paletteOpen = true">
+        {{ icon "search" "size-4" }}
+        Search
+        <kbd class="ml-auto font-sans text-xs text-stone-400">⌘K</kbd>
+      </button>
+      <nav class="flex-1 space-y-0.5 px-3" aria-label="Main">
+        {{ range .Nav }}
+          <a
+            href="{{ .URL }}"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-600 hover:bg-stone-50 hover:text-stone-900{{ end }}"
+            {{ if .Active }}aria-current="page"{{ end }}>
+            {{ icon .Icon (cond .Active "size-5 text-accent" "size-5 text-stone-400") }}
+            {{ .Name }}
+          </a>
+        {{ end }}
+      </nav>
+      <div class="space-y-3 border-t border-stone-100 p-4" x-cloak x-show="$store.cv.state">
+        {{ template "cv-switcher" . }}
+        {{ template "save-status" . }}
+        <template x-if="$store.cv.state?.local">
+          <button type="button" class="btn w-full py-1.5" @click="$store.cv.quit()" title="Saves your changes and stops cv-app">Quit</button>
+        </template>
+      </div>
+    </aside>
+
+    {{/* Top bar (small screens) */}}
+    <header class="border-b border-stone-200 bg-white lg:hidden">
+      <div class="flex h-14 items-center gap-3 px-4">
+        <a href="/" class="grid size-8 place-items-center rounded-lg bg-accent text-xs font-bold text-white" aria-label="Compose">CV</a>
+        <nav class="flex gap-1 overflow-x-auto text-sm" aria-label="Main">
+          {{ range .Nav }}
+            <a href="{{ .URL }}" class="rounded-lg px-2.5 py-1.5 font-medium {{ if .Active }}bg-stone-100 text-stone-900{{ else }}text-stone-500{{ end }}">{{ .Name }}</a>
+          {{ end }}
+        </nav>
+        <button type="button" class="ml-auto text-stone-500" aria-label="Search" @click="$store.cv.paletteOpen = true">{{ icon "search" "" }}</button>
+      </div>
+      <div class="flex items-center gap-3 border-t border-stone-100 px-4 py-2" x-cloak x-show="$store.cv.state">
+        {{ template "cv-switcher" . }}
+        <div class="ml-auto">{{ template "save-status" . }}</div>
+        <template x-if="$store.cv.state?.local">
+          <button type="button" class="btn py-1 text-xs" @click="$store.cv.quit()">Quit</button>
+        </template>
+      </div>
+    </header>
+
+    <main class="lg:pl-60">
+      <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {{/* Compose (home) has no title: it uses the full window height. */}}
+        {{ if not .IsHome }}
+          <div class="mb-6">
+            <h1 class="text-xl font-semibold text-stone-900">{{ .Title }}</h1>
+            {{ with .Description }}<p class="mt-1 text-sm text-stone-500">{{ . }}</p>{{ end }}
+          </div>
+        {{ end }}
+        <div x-show="!$store.cv.state && !$store.cv.error" class="py-24 text-center text-sm text-stone-400">Loading…</div>
+        <template x-if="$store.cv.state">
+          <div>{{ block "main" . }}{{ end }}</div>
+        </template>
+      </div>
+    </main>
+
+    {{/* ⌘K search */}}
+    <div
+      x-data="palette"
+      x-cloak
+      x-show="$store.cv.paletteOpen"
+      class="fixed inset-0 z-50 flex items-start justify-center bg-stone-900/30 p-4 pt-[12vh]"
+      @keydown.escape.window="$store.cv.paletteOpen = false"
+      x-effect="$store.cv.paletteOpen && $nextTick(() => $refs.q.focus())">
+      <div class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200" @click.outside="$store.cv.paletteOpen = false">
+        <div class="flex items-center gap-3 border-b border-stone-100 px-4">
+          {{ icon "search" "size-5 text-stone-400" }}
+          <input
+            x-ref="q"
+            x-model="q"
+            @input="index = 0"
+            @keydown="key($event)"
+            class="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-stone-400"
+            placeholder="Jump to an item, page or CV…"
+            aria-label="Search">
+        </div>
+        <ul class="max-h-80 overflow-y-auto p-2" role="listbox">
+          <template x-for="(r, i) in results()" :key="i">
+            <li
+              role="option"
+              :aria-selected="i === index"
+              class="flex cursor-pointer items-baseline gap-3 rounded-lg px-3 py-2 text-sm"
+              :class="i === index && 'bg-stone-100'"
+              @mouseenter="index = i"
+              @click="run(r)">
+              <span class="truncate font-medium text-stone-900" x-text="r.label"></span>
+              <span class="ml-auto shrink-0 text-xs text-stone-400" x-text="r.hint"></span>
+            </li>
+          </template>
+          <li x-show="!results().length" class="px-3 py-6 text-center text-sm text-stone-400">Nothing found.</li>
+        </ul>
+      </div>
+    </div>
+
+    {{/* Manage CVs */}}
+    <div
+      x-data="cvs"
+      x-cloak
+      x-show="$store.cv.manageOpen"
+      class="fixed inset-0 z-40 grid place-items-center bg-stone-900/40 p-4"
+      @keydown.escape.window="$store.cv.manageOpen = false">
+      <div class="card max-h-[90vh] w-full max-w-lg space-y-5 overflow-y-auto p-6" @click.outside="$store.cv.manageOpen = false">
+        <div>
+          <h2 class="text-base font-semibold">CVs</h2>
+          <p class="mt-1 text-sm text-stone-500" x-show="!$store.cv.state?.local">Everyone on the tailnet can open and edit every CV. Owners get their CV when they open the editor.</p>
+        </div>
+        <ul class="divide-y divide-stone-100">
+          <template x-for="cv in $store.cv.state?.cvs || []" :key="cv.id">
+            <li class="space-y-2 py-3" x-data="{ name: cv.label, owners: cv.owners.join(', ') }">
+              <div class="flex items-center gap-2">
+                <input class="input" x-model="name" :placeholder="cv.name" aria-label="Name" maxlength="80" @change="save(cv, name, owners)">
+                <template x-if="cv.id === $store.cv.state.user">
+                  <span class="w-16 shrink-0 rounded-full bg-stone-100 py-0.5 text-center text-xs font-semibold text-stone-600">Current</span>
+                </template>
+                <template x-if="cv.id !== $store.cv.state.user">
+                  <button type="button" class="btn w-16 shrink-0 py-1.5" @click="$store.cv.switchUser(cv.id)">Open</button>
+                </template>
+                <button
+                  type="button"
+                  class="btn btn-danger shrink-0 px-2 py-1.5"
+                  aria-label="Delete"
+                  :disabled="cv.declared || $store.cv.state.cvs.length === 1"
+                  :title="cv.declared ? 'Set in the server configuration; remove it there' : 'Delete'"
+                  @click="remove(cv)">
+                  {{ icon "trash" "size-4" }}
+                </button>
+              </div>
+              <template x-if="!$store.cv.state.local">
+                <input class="input text-xs" x-model="owners" placeholder="Owners: tailnet logins, e.g. alice@" aria-label="Owners" @change="save(cv, name, owners)">
+              </template>
+              <template x-if="cv.declared">
+                <p class="text-xs text-stone-500">Set in the server configuration, so it can only be removed there.</p>
+              </template>
+            </li>
+          </template>
+        </ul>
+        <form class="space-y-2 border-t border-stone-100 pt-4" @submit.prevent="create()">
+          <label class="label" for="new-cv">New CV</label>
+          <div class="flex gap-2">
+            <input id="new-cv" class="input" x-model="newName" placeholder="Name, e.g. Alice Example" maxlength="80" required>
+            <button class="btn btn-primary shrink-0" :disabled="$store.cv.busy">Create</button>
+          </div>
+          <template x-if="!$store.cv.state?.local">
+            <input class="input text-xs" x-model="newOwners" placeholder="Owners: tailnet logins, e.g. alice@" aria-label="Owners of the new CV">
+          </template>
+        </form>
+        <div class="flex justify-end">
+          <button type="button" class="btn" @click="$store.cv.manageOpen = false">Done</button>
+        </div>
+      </div>
+    </div>
+
+    {{/* After Quit (local only) */}}
+    <div x-cloak x-show="$store.cv.stopped" class="fixed inset-0 z-50 grid place-items-center bg-stone-50 p-6 text-center">
+      <div>
+        <h2 class="text-lg font-semibold text-stone-900">cv-app has stopped</h2>
+        <p class="mt-1 text-sm text-stone-500">Your changes are saved. You can close this tab and start cv-app again any time.</p>
+      </div>
+    </div>
+
+    {{/* Notifications */}}
+    <div class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4">
+      <div x-cloak x-show="$store.cv.error" x-transition class="pointer-events-auto flex max-w-[90vw] items-start gap-3 rounded-xl bg-red-700 px-4 py-3 text-sm text-white shadow-lg" role="alert">
+        <pre class="font-sans whitespace-pre-wrap" x-text="$store.cv.error"></pre>
+        <button type="button" aria-label="Dismiss" @click="$store.cv.error = ''">{{ icon "close" "size-4" }}</button>
+      </div>
+      <div x-cloak x-show="$store.cv.toast" x-transition class="pointer-events-auto flex items-center gap-4 rounded-xl bg-stone-900 px-4 py-2.5 text-sm text-white shadow-lg" role="status">
+        <span x-text="$store.cv.toast?.message"></span>
+        <button
+          type="button"
+          x-show="$store.cv.toast?.action"
+          class="font-semibold text-teal-300 hover:text-teal-200"
+          @click="$store.cv.runToastAction()"
+          x-text="$store.cv.toast?.action?.label"></button>
+      </div>
+    </div>
+  </body>
+</html>

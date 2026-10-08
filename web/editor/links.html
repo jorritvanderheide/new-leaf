@@ -1,0 +1,46 @@
+{{ define "main" }}
+  <div x-data="links" class="max-w-5xl space-y-4">
+    <template x-for="link in $store.cv.state.links" :key="link.slug">
+      <article class="card space-y-3 p-5" :class="link.expired && 'opacity-60'">
+        <div class="flex flex-wrap items-center gap-3">
+          <h2 class="font-semibold" x-text="link.label || link.slug"></h2>
+          <span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600" :title="'Opens in ' + $store.cv.langName(link.lang) + '; visitors can switch language'" x-text="'Opens in ' + link.lang.toUpperCase()"></span>
+          <span
+            class="rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="link.expired ? 'bg-stone-200 text-stone-600' : 'bg-emerald-100 text-emerald-800'"
+            x-text="link.expired ? 'Expired' : 'Active'"></span>
+          <span class="ml-auto text-xs text-stone-500">
+            <span x-text="link.entries.length"></span> items · created <span x-text="link.created"></span>
+          </span>
+        </div>
+        <div class="flex gap-2" x-show="!link.expired">
+          <input class="input font-mono text-xs" readonly :value="link.url" @focus="$el.select()">
+          <button type="button" class="btn" @click="$store.cv.copy(link.url)">Copy</button>
+          <a class="btn" :href="link.url" target="_blank" rel="noopener">Open</a>
+        </div>
+        <div class="flex flex-wrap items-end gap-2">
+          <div>
+            <label class="label" :for="'exp-' + link.slug" x-text="link.expired ? 'Expired on' : 'Expires on'"></label>
+            <input
+              :id="'exp-' + link.slug"
+              type="date"
+              class="input w-44"
+              :min="$store.cv.state.today"
+              x-init="expiry[link.slug] = link.expires"
+              x-model="expiry[link.slug]">
+          </div>
+          <button type="button" class="btn" :disabled="expiry[link.slug] === link.expires || $store.cv.busy" @click="extend(link)" x-text="link.expired ? 'Reactivate' : 'Change'"></button>
+          <a class="btn" :href="'/?link=' + link.slug">Edit items</a>
+          <button type="button" class="btn btn-danger ml-auto" @click="remove(link)">Delete</button>
+        </div>
+      </article>
+    </template>
+    <div x-show="!$store.cv.state.links.length" class="card p-10 text-center">
+      <h2 class="text-base font-semibold text-stone-900">No share links yet</h2>
+      <p class="mx-auto mt-1 max-w-md text-sm text-stone-500">
+        In Compose, pick the items for an application and choose <span class="font-medium">Share link</span>. You get an address to send, with a PDF in every language, until the date you choose.
+      </p>
+      <a href="/" class="btn btn-primary mt-4">Go to Compose</a>
+    </div>
+  </div>
+{{ end }}
