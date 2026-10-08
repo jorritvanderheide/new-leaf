@@ -151,13 +151,13 @@
                 </button>
               </div>
               <template x-if="!$store.cv.state.local">
-                <input class="input text-xs" x-model="owners" placeholder="Owners: tailnet logins, e.g. alice@" aria-label="Owners" :disabled="$store.cv.state.ownersOnly && cv.declared" @change="save(cv, name, owners)">
+                <input class="input text-xs" x-model="owners" placeholder="Owners: tailnet logins, e.g. alice@example.com" aria-label="Owners" :disabled="$store.cv.state.ownersOnly && cv.declared" @change="save(cv, name, owners)">
               </template>
               <template x-if="$store.cv.state.ownersOnly && cv.open">
                 <p class="text-xs text-amber-700">No owners yet, so everyone on the tailnet can open this CV.</p>
               </template>
               <template x-if="cv.declared">
-                <p class="text-xs text-stone-500">Set in the server configuration, so it can only be removed there<span x-show="$store.cv.state.ownersOnly">, and its owner is the person it's named after</span>.</p>
+                <p class="text-xs text-stone-500">Set in the server configuration, so it can only be removed there<span x-show="$store.cv.state.ownersOnly">, and so is its owner</span>.</p>
               </template>
             </li>
           </template>
@@ -169,7 +169,7 @@
             <button class="btn btn-primary shrink-0" :disabled="$store.cv.busy">Create</button>
           </div>
           <template x-if="!$store.cv.local">
-            <input class="input text-xs" x-model="newOwners" placeholder="Owners: tailnet logins, e.g. alice@" aria-label="Owners of the new CV">
+            <input class="input text-xs" x-model="newOwners" placeholder="Owners: tailnet logins, e.g. alice@example.com" aria-label="Owners of the new CV">
           </template>
         </form>
         <div class="flex justify-end">

@@ -36,8 +36,10 @@ the editor itself, so other websites can't change a CV on a visitor's behalf.
 
 ## CVs on a server
 
-- **Configured CVs** (`-users`, or the module's `users`) always exist, named
-  after a tailnet login. They can be renamed in the editor but not deleted.
+- **Configured CVs** (`-users`, or the module's `users`) always exist, each
+  for a tailnet login: given in full (`alice@example.com`), or as the part
+  before "@" (`alice`), which is also the CV's name. They can be renamed in
+  the editor but not deleted.
 - **More CVs** can be made, renamed and deleted in the editor, under **Manage
   CVs**, unless that's turned off (`-manage=false`, or `manageInEditor =
   false`). Deleted CVs are moved to `trash/` in the data folder.
@@ -48,9 +50,15 @@ the editor itself, so other websites can't change a CV on a visitor's behalf.
   shared with people who shouldn't edit each other's CVs: a CV is then only
   listed for, and opened and changed by, its owners. You own the CVs you make,
   and only owners change who the owners are. A configured CV is owned by the
-  person it's named after. A CV without owners stays open to everyone, with a
+  person it's for. A CV without owners stays open to everyone, with a
   warning under **Manage CVs**, until someone adds themselves. Someone who
   owns no CV gets a new one, named after them.
+
+  An owner, or a configured CV, written in full (`alice@example.com`) is that
+  login only. Written as a name (`alice`), it is everyone whose login starts
+  with `alice@`: fine for a family, who can only be on the tailnet when
+  invited, but on a tailnet with people from other domains, write logins in
+  full.
 
 ## With NixOS
 

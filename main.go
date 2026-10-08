@@ -56,7 +56,7 @@ func serveOptions(args []string) server.ServeOptions {
 		workDir     = fl.String("work", "", "regenerable files such as extracted fonts (default: <data>/work)")
 		publicDir   = fl.String("public", "/var/lib/new-leaf/public", "webroot that the public share links are published into")
 		publicURL   = fl.String("public-url", "https://cv.example.com", "base URL the public webroot is served at")
-		users       = fl.String("users", "", "comma-separated CVs that always exist, named after their owner's tailnet login; every tailnet user can edit all CVs")
+		users       = fl.String("users", "", "comma-separated CVs that always exist, each for a tailnet login: in full (alice@example.com), or a name that is the part before \"@\" (alice); every tailnet user can edit all CVs, unless -owners-only")
 		manage      = fl.Bool("manage", true, "let editor users create, rename and delete CVs (those in -users can't be deleted)")
 		ownersOnly  = fl.Bool("owners-only", false, "only let a CV's owners open and edit it (a CV without owners stays open to all), for a tailnet shared with people who shouldn't edit each other's CVs")
 		devUser     = fl.String("dev-user", "", "skip tailnet identity and act as this user (local development only)")
@@ -91,10 +91,16 @@ func serveOptions(args []string) server.ServeOptions {
 	if o.DevUser != "" {
 		o.Users = append(o.Users, o.DevUser)
 	}
+	seen := map[string]string{}
 	for _, u := range o.Users {
-		if !cv.ValidName(u) {
-			log.Fatalf("invalid user name %q: use lowercase letters, digits and dashes", u)
+		name := cv.DeclaredName(u)
+		if name == "" {
+			log.Fatalf("invalid user %q: a tailnet login, or a name of lowercase letters, digits and dashes", u)
 		}
+		if other, ok := seen[name]; ok && other != u {
+			log.Fatalf("users %q and %q would both be the CV %q", other, u, name)
+		}
+		seen[name] = u
 	}
 	if len(o.Users) == 0 && !o.Manage {
 		log.Fatal("no CVs: pass -users, or leave -manage on to create them in the editor")

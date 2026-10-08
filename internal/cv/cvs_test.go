@@ -144,3 +144,35 @@ func TestOwnersOnly(t *testing.T) {
 		t.Errorf("adopted twice: %q", again)
 	}
 }
+
+// A configured CV given as a full login is owned by exactly that login; one
+// given as a name by every login that starts with it.
+func TestConfiguredLogins(t *testing.T) {
+	for user, want := range map[string]string{"alice": "alice", "Dave.X@example.com": "dave-x", "alice@": "alice", "no spaces": "", "@x": "", "": ""} {
+		if got := DeclaredName(user); got != want {
+			t.Errorf("DeclaredName(%q) = %q, want %q", user, got, want)
+		}
+	}
+	r := NewRegistry(&Store{Root: t.TempDir()}, []string{"carol", "dave@example.com"}, false)
+	r.OwnersOnly = true
+	if !slices.Equal(r.IDs(), []string{"carol", "dave"}) {
+		t.Errorf("IDs = %v", r.IDs())
+	}
+	for _, c := range []struct {
+		id, login string
+		owns      bool
+	}{
+		{"dave", "dave@example.com", true},
+		{"dave", "Dave@Example.com", true},
+		{"dave", "dave@other.com", false},
+		{"carol", "carol@", true},
+		{"carol", "carol@other.com", true}, // a name: anyone called carol
+	} {
+		if got := r.Owns(c.id, c.login); got != c.owns {
+			t.Errorf("Owns(%s, %s) = %v", c.id, c.login, got)
+		}
+	}
+	if got := r.ForLogin("dave@example.com"); got != "dave" {
+		t.Errorf("ForLogin = %q", got)
+	}
+}

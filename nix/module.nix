@@ -69,12 +69,17 @@ in
     users = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      example = [ "alice" ];
+      example = [
+        "alice"
+        "bob@example.com"
+      ];
       description = ''
-        CVs that always exist, named after their owner's tailnet login (in
-        full or the part before "@"). Every human tailnet user can open and
-        edit all CVs; their own opens by default. These can be renamed in the
-        editor but not deleted.
+        CVs that always exist, each for a tailnet login: in full
+        ("bob@example.com", for exactly that login), or the part before "@"
+        ("alice", for any login that starts with it), which is also the CV's
+        name. Every human tailnet user can open and edit all CVs, unless
+        {option}`services.new-leaf.ownersOnly`; their own opens by default.
+        These can be renamed in the editor but not deleted.
       '';
     };
 
@@ -95,7 +100,7 @@ in
       description = ''
         Whether only a CV's owners can open and edit it, for a tailnet shared
         with people who shouldn't edit each other's CVs. The owners of a CV in
-        {option}`services.new-leaf.users` are the person it's named after; of
+        {option}`services.new-leaf.users` are the login it's for; of
         one made in the editor, whoever made it and whoever they add. A CV
         without owners stays open to everyone, and someone without a CV gets
         their own (with {option}`services.new-leaf.manageInEditor`).

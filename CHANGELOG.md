@@ -4,6 +4,18 @@ What changed in each release of New Leaf, newest first. What counts as
 breaking is in [Compatibility](docs/compatibility.md). Releases before 0.6
 are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/releases).
 
+## Unreleased
+
+- **Security: behind `tailscale serve`, a tailnet user could sign in as
+  another** by sending an `X-Real-IP` header with their address. That
+  affects the NixOS module's `tailscaleServe` and the container; nginx was
+  safe. Update if you use either.
+- **Security: a restored backup could take over another CV's share page.** A
+  restored share link now keeps its address only if no other CV uses it.
+- Configured CVs (`users`) can be given as a full tailnet login, for exactly
+  that login, which matters with `ownersOnly` on a tailnet with people from
+  other domains.
+
 ## 0.6.0
 
 - **A format version for CVs.** The profile's shared fields (name, contact

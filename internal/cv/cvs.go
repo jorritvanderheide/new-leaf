@@ -27,8 +27,9 @@ import (
 type Registry struct {
 	store      *Store
 	declared   map[string]bool
-	Manage     bool // CVs may be created, renamed and deleted in the editor
-	OwnersOnly bool // only a CV's owners may open it
+	logins     map[string]string // configured CVs given as a full login: theirs
+	Manage     bool              // CVs may be created, renamed and deleted in the editor
+	OwnersOnly bool              // only a CV's owners may open it
 
 	mu sync.Mutex
 }
@@ -50,12 +51,36 @@ type cvMeta struct {
 
 var loginRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._@+-]{0,63}$`)
 
+// NewRegistry knows the CVs in store. The declared ones are given as a CV's
+// name ("alice"), which is also the login it's for, in full or the part
+// before "@"; or as a full login ("alice@example.com"), for a CV named after
+// the part before "@" and owned by exactly that login.
 func NewRegistry(store *Store, declared []string, manage bool) *Registry {
-	r := &Registry{store: store, declared: map[string]bool{}, Manage: manage}
-	for _, id := range declared {
+	r := &Registry{store: store, declared: map[string]bool{}, logins: map[string]string{}, Manage: manage}
+	for _, d := range declared {
+		id := DeclaredName(d)
 		r.declared[id] = true
+		if strings.Contains(d, "@") {
+			r.logins[id] = strings.ToLower(d)
+		}
 	}
 	return r
+}
+
+// DeclaredName is the CV a configured user is: the name itself, or the part
+// of a login before "@". Empty if that can't name a CV.
+func DeclaredName(user string) string {
+	user = strings.ToLower(strings.TrimSpace(user))
+	if local, _, ok := strings.Cut(user, "@"); ok {
+		if !loginRe.MatchString(user) {
+			return ""
+		}
+		return NameFor(local)
+	}
+	if !ValidName(user) {
+		return ""
+	}
+	return user
 }
 
 func (r *Registry) metaPath(id string) string { return filepath.Join(r.store.Root, id, "cv.json") }
@@ -122,7 +147,7 @@ func (r *Registry) ForLogin(login string) string {
 	local, _, _ := strings.Cut(login, "@")
 	ids := r.IDs()
 	for _, id := range ids {
-		if slices.ContainsFunc(r.meta(id).Owners, func(o string) bool { return sameLogin(o, login) }) {
+		if r.logins[id] == login || slices.ContainsFunc(r.meta(id).Owners, func(o string) bool { return sameLogin(o, login) }) {
 			return id
 		}
 	}
@@ -269,7 +294,10 @@ func sameLogin(owner, login string) bool {
 }
 
 // Owns reports whether a tailnet login owns a CV: it is in the CV's owners,
-// or the CV is from the server configuration and named after it.
+// or the CV is from the server configuration, for that login. An owner or a
+// configured CV given as a full login is that login only; one given as a
+// name is everyone whose login starts with it, which is fine for a family
+// tailnet but not for one with people from elsewhere.
 func (r *Registry) Owns(id, login string) bool {
 	if login == "" {
 		return false
@@ -278,6 +306,9 @@ func (r *Registry) Owns(id, login string) bool {
 		return true
 	}
 	local, _, _ := strings.Cut(strings.ToLower(login), "@")
+	if l := r.logins[id]; l != "" {
+		return l == strings.ToLower(login)
+	}
 	return r.declared[id] && (sameLogin(id, login) || id == NameFor(local))
 }
 
