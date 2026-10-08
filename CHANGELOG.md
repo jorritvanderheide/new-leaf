@@ -4,6 +4,12 @@ What changed in each release of New Leaf, newest first. What counts as
 breaking is in [Compatibility](docs/compatibility.md). Releases before 0.6
 are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/releases).
 
+## Unreleased
+
+- A backup is checked as fully as opening the CV would: one with versions
+  that can't be read is refused, instead of restoring and then never
+  opening.
+
 ## 0.6.1
 
 - **Security: behind `tailscale serve`, a tailnet user could sign in as

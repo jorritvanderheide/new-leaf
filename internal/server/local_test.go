@@ -134,13 +134,16 @@ func TestImportRejects(t *testing.T) {
 	_, h := newLocalServer(t)
 	profile := "---\nname: X\n---\n"
 	for name, files := range map[string]map[string]string{
-		"traversal":     {"content/_index.en.md": profile, "content/../../evil.md": "x"},
-		"unknown file":  {"content/_index.en.md": profile, "content/run.sh": "x"},
-		"no profile":    {"content/experience/job.en.md": "---\ntitle: x\nstart: \"2020\"\n---\n"},
-		"bad section":   {"content/_index.en.md": profile, "content/hobbies/x.en.md": profile},
-		"broken yaml":   {"content/_index.en.md": "---\nname: [\n---\n"},
-		"absolute path": {"content/_index.en.md": profile, "/etc/passwd": "x"},
-		"newer format":  {"content/_index.md": "---\nformat: 99\n---\n", "content/_index.en.md": profile},
+		"traversal":                          {"content/_index.en.md": profile, "content/../../evil.md": "x"},
+		"unknown file":                       {"content/_index.en.md": profile, "content/run.sh": "x"},
+		"no profile":                         {"content/experience/job.en.md": "---\ntitle: x\nstart: \"2020\"\n---\n"},
+		"bad section":                        {"content/_index.en.md": profile, "content/hobbies/x.en.md": profile},
+		"broken yaml":                        {"content/_index.en.md": "---\nname: [\n---\n"},
+		"compose in a language the CV lacks": {"content/_index.en.md": profile, "compose.json": `{"lang": "de", "entries": []}`},
+		"broken version":                     {"content/_index.en.md": profile, "versions/x.json": "{"},
+		"version without a name":             {"content/_index.en.md": profile, "versions/x.json": `{"name": "", "lang": "en", "entries": []}`},
+		"absolute path":                      {"content/_index.en.md": profile, "/etc/passwd": "x"},
+		"newer format":                       {"content/_index.md": "---\nformat: 99\n---\n", "content/_index.en.md": profile},
 	} {
 		if w := do(h, "POST", "/api/import", uploadOf(t, zipOf(t, files))); w.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d %s", name, w.Code, w.Body)
@@ -312,9 +315,8 @@ func TestRestoredLinksDontTakeOver(t *testing.T) {
 	}
 
 	bad := zipOf(t, map[string]string{"content/_index.en.md": "---\nname: Alice\n---\n", "content/links/x-abcdefgh.en.md": "---\ntitle: X\nurl: /x-abcdefgh/\n---\n"})
-	stage, _ = store.StageBackup(bad, true)
-	defer os.RemoveAll(stage)
-	if err := s.claimLinks("alice", stage); err == nil {
+	if stage, err := store.StageBackup(bad, true); err == nil {
+		os.RemoveAll(stage)
 		t.Error("a link without items was restored")
 	}
 }

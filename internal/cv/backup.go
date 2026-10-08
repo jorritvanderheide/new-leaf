@@ -161,11 +161,30 @@ func (s *Store) unpack(stage string, zr *zip.Reader, links bool) error {
 	if !found {
 		return Invalid{errors.New("this is not a CV backup: it has no profile")}
 	}
+	// The staged CV is read as the editor would, and brought up to date as
+	// opening it would, before the CV it replaces is touched: a backup that
+	// fails here would otherwise restore, and then never open.
 	check := &Store{Root: filepath.Dir(stage)}
-	if _, err := check.Profile(filepath.Base(stage)); err != nil {
+	name := filepath.Base(stage)
+	if err := check.Migrate(name); err != nil {
 		return Invalid{err}
 	}
-	if _, err := check.Items(filepath.Base(stage)); err != nil {
+	if _, err := check.Items(name); err != nil {
+		return Invalid{err}
+	}
+	if err := check.EnsureVersions(name); err != nil {
+		return Invalid{err}
+	}
+	versions, err := check.Versions(name)
+	if err != nil {
+		return Invalid{err}
+	}
+	for _, v := range versions {
+		if err := v.Validate(); err != nil {
+			return Invalid{fmt.Errorf("version %s: %w", v.ID, err)}
+		}
+	}
+	if _, err := check.Links(name); err != nil {
 		return Invalid{err}
 	}
 	return nil
