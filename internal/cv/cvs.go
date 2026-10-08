@@ -279,11 +279,11 @@ func (r *Registry) Delete(id, login string) error {
 	if r.declared[id] {
 		return Invalid{errors.New("this CV is defined in the server configuration; remove it there")}
 	}
-	if len(r.IDs()) == 1 {
-		return Invalid{errors.New("this is the only CV")}
-	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if len(r.IDs()) == 1 { // under the lock: two deletes at once can't remove the last two
+		return Invalid{errors.New("this is the only CV")}
+	}
 	trash := filepath.Join(filepath.Dir(r.store.Root), "trash")
 	if err := os.MkdirAll(trash, 0o750); err != nil {
 		return err

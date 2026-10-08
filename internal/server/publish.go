@@ -210,7 +210,10 @@ func (s *Server) reconcile() error {
 	}
 	now := time.Now()
 	for _, u := range users {
+		// Under the CV's lock, so a restore isn't caught halfway.
+		unlock := s.lock(u)
 		links, err := s.store.Links(u)
+		unlock()
 		if err != nil {
 			return fmt.Errorf("%s: %w", u, err) // don't delete anything on a read error
 		}

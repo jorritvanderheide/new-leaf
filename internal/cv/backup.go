@@ -224,12 +224,12 @@ func (s *Store) RestoreBackup(user, stage string) error {
 	if err := os.WriteFile(keep, old.Bytes(), 0o640); err != nil {
 		return err
 	}
-	// Swap in the new content and versions. A backup from before versions
-	// has compose.json instead, which EnsureVersions takes over; one from
-	// before format 1 is migrated.
+	// Swap in the new content and versions, by moving the old aside and the
+	// new in: there is never a moment without either. (The stage has been
+	// migrated and has its versions; see unpack.)
 	for _, name := range []string{"content", "versions", "compose.json"} {
-		cur, next := filepath.Join(root, name), filepath.Join(stage, name)
-		if err := os.RemoveAll(cur); err != nil {
+		cur, next, old := filepath.Join(root, name), filepath.Join(stage, name), filepath.Join(stage, name+".old")
+		if err := os.Rename(cur, old); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
 		if _, err := os.Stat(next); err == nil {

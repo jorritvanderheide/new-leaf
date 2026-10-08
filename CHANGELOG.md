@@ -18,6 +18,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   its id is shortened. JSON Resume imports with one failed altogether.
 - A JSON Resume job with only an end date is imported as ending then, not as
   going on until now.
+- Two small races: deleting two CVs at once could remove the last one, and a
+  restore could briefly take the CV's share pages offline.
 
 ## 0.6.1
 
