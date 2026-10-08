@@ -9,7 +9,7 @@ export default async function polish({ base, shots }) {
   const page = await openPage({ shots });
   const ready = async () => {
     await sleep(500);
-    await page.until(`!${W}.loading && document.querySelectorAll('[x-ref=pages] [role=button]').length > 0`, "preview", 30000);
+    await page.until(`!${W}.loading && document.querySelectorAll('[x-ref=pages] [data-mark]').length > 0`, "preview", 30000);
   };
   try {
     // Text contrast, everywhere (WCAG AA).

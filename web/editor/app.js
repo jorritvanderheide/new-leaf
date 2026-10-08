@@ -762,6 +762,7 @@ document.addEventListener("alpine:init", () => {
     fitPages: 2,
     fitting: false,
     view: "items", // phones show the outline or the preview
+    announcement: "", // read out by screen readers, e.g. where a section moved
     pdfUrl: "",
     loading: false,
     pageList: [], // drawn pages: { key, h (pt), marks }
@@ -988,6 +989,7 @@ document.addEventListener("alpine:init", () => {
           canvas.width = Math.floor(viewport.width * dpr);
           canvas.height = Math.floor(viewport.height * dpr);
           canvas.className = "block w-full";
+          canvas.setAttribute("role", "img");
           canvas.setAttribute("aria-label", `Page ${n} of ${doc.numPages}`);
           await page.render({ canvas, viewport, transform: [dpr, 0, 0, dpr, 0, 0] }).promise;
           drawn.push({ canvas, h: size.height });
@@ -1025,7 +1027,12 @@ document.addEventListener("alpine:init", () => {
 
     markTitle(key) {
       const item = this.$store.cv.state.items.find((i) => itemKey(i) === key);
-      return item ? this.$store.cv.text(item, this.lang).title : "";
+      return item ? this.itemTitle(item) : "";
+    },
+
+    // An item's title in this version's language, for labels.
+    itemTitle(item) {
+      return this.$store.cv.text(item, this.lang).title || "Untitled item";
     },
 
     hide(key) {
@@ -1168,6 +1175,8 @@ document.addEventListener("alpine:init", () => {
       const b = order.indexOf(other);
       [order[a], order[b]] = [order[b], order[a]];
       this.order = order;
+      // The handle keeps focus, and a screen reader hears where it went.
+      this.announcement = `${this.$store.cv.sectionName(section)}: moved to place ${shown.indexOf(other) + 1} of ${shown.length}`;
       this.$nextTick(() => document.querySelector(`[data-handle="${section}"]`)?.focus());
     },
 

@@ -151,7 +151,7 @@ export async function openPage({ width = 1440, height = 900, shots } = {}) {
 
     key(k, modifiers = 0) {
       const code = k.length === 1 ? "Key" + k.toUpperCase() : k;
-      const vk = k.length === 1 ? k.toUpperCase().charCodeAt(0) : { Escape: 27, Enter: 13 }[k];
+      const vk = k.length === 1 ? k.toUpperCase().charCodeAt(0) : { Escape: 27, Enter: 13, ArrowUp: 38, ArrowDown: 40 }[k];
       return send("Input.dispatchKeyEvent", { type: "keyDown", key: k, code, modifiers, windowsVirtualKeyCode: vk });
     },
 

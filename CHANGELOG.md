@@ -34,6 +34,11 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 - **A stricter content security policy for the editor**, without
   `unsafe-eval`: Alpine is now its CSP build. A CV's text can't be run as
   script anyway, and now no expression can be evaluated from a string either.
+- **Better with a screen reader.** In the preview, each item is a group
+  named after it, with Edit and Hide buttons that show when they have focus,
+  and the pages are named. In the outline, Alt+↑/↓ on a section's handle says
+  where the section went, the All and None buttons say which section they're
+  for, and a missing translation is read out.
 - The title of an item being edited now also shows for a CV without English
   or Dutch.
 - A new logo.

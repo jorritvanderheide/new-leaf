@@ -4,7 +4,7 @@
 import { api, check, openPage, sleep } from "./lib.mjs";
 
 const W = "Alpine.$data(document.querySelector('[x-data=workspace]'))";
-const marks = "document.querySelectorAll('[x-ref=pages] [role=button]')";
+const marks = "document.querySelectorAll('[x-ref=pages] [data-mark]')";
 
 export default async function versions({ base, shots }) {
   const page = await openPage({ shots });
@@ -33,7 +33,7 @@ export default async function versions({ base, shots }) {
     await page.js(`${marks}[0].click()`);
     await page.until("!!document.querySelector('#title-en')", "item editor", 5000);
     const title = await page.js("document.querySelector('#title-en').value");
-    check(first === "Edit " + title, `clicking "${title}" in the preview opened it`);
+    check(first === title, `clicking "${title}" in the preview opened it`);
     check(await page.js(`${marks}[0].className.includes('ring-accent')`), "the open item is marked in the preview");
     const round = await page.js(`${W}.pageList[0].key`);
     await page.type("#title-en", title + " (live)");
@@ -81,10 +81,26 @@ export default async function versions({ base, shots }) {
     check(shown[0] === before[before.length - 1], `dragged ${shown[0]} to the top`);
     check((await version("uva-phd")).order.find((s) => shown.includes(s)) === shown[0], "the new order is saved");
     await rendered();
-    check((await page.js("document.querySelector('[x-ref=pages] [role=button]').getAttribute('aria-label')")) !== first, "the preview follows the new order");
+    check((await page.js("document.querySelector('[x-ref=pages] [data-mark]').getAttribute('aria-label')")) !== first, "the preview follows the new order");
     await page.js("document.querySelector('button[aria-label=Undo]').click()");
     await page.until(`${W}.shownSections()[0] === ${JSON.stringify(before[0])}`, "drag undone", 3000);
     check(true, "Undo takes a whole drag back in one step");
+
+    // The same with the keyboard, as a screen reader hears it.
+    await page.js("document.querySelector('aside[aria-label=Outline] [data-handle]').focus()");
+    await page.key("ArrowDown", 1); // Alt
+    await page.until(`${W}.shownSections()[1] === ${JSON.stringify(before[0])}`, "moved down", 3000);
+    check((await page.js("document.activeElement.dataset.handle")) === before[0], "Alt+↓ moves a section, and its handle keeps focus");
+    check(/moved to place 2 of/.test(await page.js("document.querySelector('aside[aria-label=Outline] [aria-live]').textContent")), "and says where it went");
+    await page.js("document.querySelector('button[aria-label=Undo]').click()");
+    await page.until(`${W}.shownSections()[0] === ${JSON.stringify(before[0])}`, "move undone", 3000);
+
+    // In the preview, each item is a group with its own buttons, which show
+    // when they have focus.
+    check((await page.js("document.querySelectorAll('[role=button] button, [role=button] [role=button], button button').length")) === 0, "no button inside another");
+    await page.js(`${marks}[0].querySelector('button[aria-label^=Hide]').focus()`);
+    check((await page.js(`getComputedStyle(${marks}[0].querySelector('button[aria-label^=Hide]').parentElement).opacity`)) === "1", "Hide shows when it has focus");
+    check((await page.js(`${marks}[0].getAttribute('role') === 'group' && !!${marks}[0].getAttribute('aria-label')`)), "items in the preview are named groups");
 
     // Look: colour and font, saved with the version; a default for new ones.
     await page.click("button", "Look");
