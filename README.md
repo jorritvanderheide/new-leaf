@@ -10,7 +10,7 @@ look, with the PDF right next to it. See [Getting started](#2-getting-started).
 <br/>
 
 [![Checks](https://github.com/jorritvanderheide/new-leaf/actions/workflows/ci.yml/badge.svg)](https://github.com/jorritvanderheide/new-leaf/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/jorritvanderheide/new-leaf?style=flat-square&color=15803d)](https://github.com/jorritvanderheide/new-leaf/releases)
+[![Release](https://img.shields.io/github/v/release/jorritvanderheide/new-leaf?include_prereleases&style=flat-square&color=15803d)](https://github.com/jorritvanderheide/new-leaf/releases)
 ![Linux, macOS and Windows](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-15803d?style=flat-square)
 [![License: EUPL-1.2](https://img.shields.io/badge/license-EUPL--1.2-blue?style=flat-square)](LICENSE)
 
@@ -332,8 +332,8 @@ signed build provenance attestation, so you can check that what you downloaded
 is what was built:
 
 ```sh
-gh attestation verify new-leaf-v0.4.0-linux-amd64.tar.gz --repo jorritvanderheide/new-leaf
-gh attestation verify oci://ghcr.io/jorritvanderheide/new-leaf:v0.4.0 --repo jorritvanderheide/new-leaf
+gh attestation verify new-leaf-0.5.0-linux-amd64.tar.gz --repo jorritvanderheide/new-leaf
+gh attestation verify oci://ghcr.io/jorritvanderheide/new-leaf:0.5.0 --repo jorritvanderheide/new-leaf
 ```
 
 <br/>

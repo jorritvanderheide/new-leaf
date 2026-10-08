@@ -1,4 +1,4 @@
-# On a version tag (v1.2.3, matching the version in nix/package.nix):
+# On a version tag (1.2.3, matching the version in nix/package.nix):
 # archives for Linux, macOS and Windows with typst included, a draft GitHub
 # release with them and their checksums, and the container image on
 # ghcr.io for amd64 and arm64, built with Nix. The archives and the image
@@ -7,7 +7,7 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["[0-9]*"]
 
 # Read-only unless a job asks for more.
 permissions:
@@ -37,8 +37,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Before 1.0, and tags like 1.2.0-rc.1, are pre-releases.
+          prerelease=()
+          case "$GITHUB_REF_NAME" in 0.*|*-*) prerelease=(--prerelease) ;; esac
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.zip dist/SHA256SUMS \
-            --verify-tag --draft --title "New Leaf $GITHUB_REF_NAME" --generate-notes
+            --verify-tag --draft "${prerelease[@]}" --title "New Leaf $GITHUB_REF_NAME" --generate-notes
 
   image:
     strategy:
@@ -57,7 +60,7 @@ jobs:
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
       - name: Tag matches the package version
         run: |
-          want="v$(nix eval --raw .#default.version)"
+          want="$(nix eval --raw .#default.version)"
           if [ "$GITHUB_REF_NAME" != "$want" ]; then echo "tag $GITHUB_REF_NAME, package $want"; exit 1; fi
       - name: Build
         run: nix build .#docker

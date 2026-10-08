@@ -8,7 +8,7 @@
 }:
 let
   root = ../.;
-  version = "0.4.0";
+  version = "0.5.0";
 in
 buildGoModule {
   pname = "new-leaf";
@@ -33,7 +33,7 @@ buildGoModule {
   ldflags = [
     "-s"
     "-w"
-    "-X main.version=v${version}"
+    "-X main.version=${version}"
   ];
 
   nativeBuildInputs = [

@@ -12,7 +12,7 @@ import (
 	"codeberg.org/BW20/new-leaf/internal/cv"
 )
 
-// version is set when building a release: -ldflags "-X main.version=v1.2.3".
+// version is set when building a release: -ldflags "-X main.version=1.2.3".
 var version = "dev"
 
 // parseFlags parses a command's flags, which can also come from the
