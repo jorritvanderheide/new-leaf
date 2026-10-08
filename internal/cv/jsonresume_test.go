@@ -21,7 +21,8 @@ const sampleResume = `{
   "work": [
     {"name": "Company", "position": "President", "url": "https://company.example.com", "startDate": "2013-01-01", "endDate": "2014-01-01",
      "summary": "Description.", "highlights": ["Started the company"]},
-    {"name": "No dates", "position": "Ghost"}
+    {"name": "No dates", "position": "Ghost"},
+    {"name": "Old job", "position": "Clerk", "endDate": "2019-06"}
   ],
   "volunteer": [{"organization": "Organization", "position": "Volunteer", "startDate": "2012-01-01", "summary": "Helped."}],
   "education": [{"institution": "University", "area": "Software Development", "studyType": "Bachelor", "startDate": "2011-01-01", "endDate": "2013-01-01", "score": "4.0", "courses": ["DB1101 - Basic SQL"]}],
@@ -49,6 +50,7 @@ func TestParseResume(t *testing.T) {
 		got[it.Section+"/"+it.Text["en"].Title] = it
 	}
 	for key, want := range map[string]struct{ start, end, org, body string }{
+		"experience/Clerk":                        {"2019-06", "2019-06", "Old job", ""},
 		"experience/President":                    {"2013-01", "2014-01", "Company", "Description.\n\n- Started the company"},
 		"volunteering/Volunteer":                  {"2012-01", "", "Organization", "Helped."},
 		"education/Bachelor Software Development": {"2011-01", "2013-01", "University", "- DB1101 - Basic SQL"},
@@ -66,7 +68,7 @@ func TestParseResume(t *testing.T) {
 			t.Errorf("%s = %+v", key, it)
 		}
 	}
-	if len(items) != 7 {
+	if len(items) != 8 {
 		t.Errorf("%d items", len(items))
 	}
 	all := strings.Join(skipped, "\n")

@@ -203,7 +203,7 @@ func ParseResume(data []byte, lang string) (p Profile, items []Item, skipped []s
 		if IsPointSection(it.Section) {
 			it.Start, it.End = cmp.Or(it.End, it.Start), ""
 		} else if it.Start == "" {
-			it.Start, it.End = it.End, ""
+			it.Start = it.End // ended then; no end would mean it still goes on
 		}
 		it.ID, it.Link = "item", webURL(it.Link) // the ID is made when it is saved
 		it.Text = map[string]ItemText{lang: {Title: title, Org: org, Location: location, Body: strings.TrimSpace(body)}}

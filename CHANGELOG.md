@@ -16,6 +16,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   left out of PDFs and share pages.
 - An item named after a long organisation, over 64 characters, can be saved:
   its id is shortened. JSON Resume imports with one failed altogether.
+- A JSON Resume job with only an end date is imported as ending then, not as
+  going on until now.
 
 ## 0.6.1
 
