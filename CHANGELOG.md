@@ -4,7 +4,7 @@ What changed in each release of New Leaf, newest first. What counts as
 breaking is in [Compatibility](docs/compatibility.md). Releases before 0.6
 are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/releases).
 
-## Unreleased
+## 0.7.0
 
 - A backup is checked as fully as opening the CV would: one with versions
   that can't be read is refused, instead of restoring and then never
