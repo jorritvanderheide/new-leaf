@@ -7,11 +7,11 @@ show the same thing.
 
 ## How a PDF is made
 
-1. `BuildDocument` in `document.go` turns a CV and a version into a
+1. `BuildDocument` in `internal/cv/document.go` turns a CV and a version into a
    `Document`: only the chosen items, in the version's language, sorted
    newest first, sections in the version's order, empty sections left out,
    dates written out (`Sep 2023`, `sep 2023` in Dutch) and Markdown parsed.
-2. `typst.go` writes `cv.typ`, the `Document` as `data.json` and the photo into
+2. `internal/render/typst.go` writes `cv.typ`, the `Document` as `data.json` and the photo into
    a fresh temporary folder, and runs `typst compile` there with `--root` set
    to that folder, the bundled fonts only (`--ignore-system-fonts`), and at
    most four at a time.
@@ -22,7 +22,7 @@ change.
 
 ## The contract
 
-`data.json` is the `Document` type in `document.go`; `cv.typ` reads nothing
+`data.json` is the `Document` type in `internal/cv/document.go`; `cv.typ` reads nothing
 else.
 
 | Key | Value |
@@ -49,7 +49,7 @@ Typst as markup, so nothing in a CV can run as Typst code.
 The fonts are in `web/typst/fonts`, embedded in the binary and written to the
 work folder on start: Inter for `sans` and Source Serif 4 for `serif`. The
 share pages use the same fonts from `web/share/fonts`. `themeFonts` in
-`theme.go` maps a look's font to both.
+`internal/cv/theme.go` maps a look's font to both.
 
 A look is the accent colour (the headline, the section headings), the font,
 the photo shape and the spacing. The editor warns when an accent is too pale
@@ -66,7 +66,7 @@ item. Page numbers are shown when there is more than one page.
 
 **Fit on** finds the most spacing at which the version still fits on the
 chosen number of pages: a binary search over the spacing slider's steps, so
-about five PDFs (`postFit` in `api.go`).
+about five PDFs (`postFit` in `internal/server/preview.go`).
 
 ## Marks and the preview
 
@@ -92,6 +92,6 @@ change `PAGE` with them.
 ## Thumbnails
 
 The overview shows page 1 of each version, rendered with `typst compile
---format png` in the background (`thumbs.go`). Each is named after a hash of
+--format png` in the background (`internal/server/thumbs.go`). Each is named after a hash of
 its `Document`, `cv.typ` and the photo, so a version that changes gets a new thumbnail and never shows
 an old one.

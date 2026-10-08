@@ -347,7 +347,7 @@ in
           }
           // lib.optionalAttrs (cfg.nginx.share.domain != null) {
             # Static files only, with the headers New Leaf's own server for
-            # them sends (publicHandler in main.go).
+            # them sends (publicHandler in internal/server/serve.go).
             ${cfg.nginx.share.domain} = {
               root = cfg.publicDir;
               extraConfig = ''

@@ -8,11 +8,11 @@ nix run .#dev   # the server, against ./dev
 ```
 
 `nix run .#dev` runs the editor on <http://localhost:8080> as you (your login
-name, `$USER`), without Tailscale, and serves share links on <http://localhost:8081>. It reads
-the templates and scripts from disk (`-dev-assets .`), so edits show on reload,
-and rebuilds the stylesheets as you go. Set `CV_DEV_USER` to open another CV
-first. Its data is in `dev/`, which git ignores; keep real CVs there and
-nowhere else.
+name, `$USER`), without Tailscale, and serves share links on
+<http://localhost:8081>. It reads the templates and scripts from disk
+(`-dev-assets .`), so edits show on reload, and rebuilds the stylesheets as
+you go. Set `CV_DEV_USER` to open another CV first. Its data is in `dev/`,
+which git ignores; keep real CVs there and nowhere else.
 
 For local mode, `go run .` (or `go run . -data dev/local`, to keep your own
 CV out of it).
@@ -49,9 +49,10 @@ to have seen it before `nix flake check` will.
 
 ## Tests
 
-- **Go tests** are next to the code they test, `<file>_test.go`.
-  `e2e_test.go` drives the whole API, with Typst, against a temporary data
-  folder.
+- **Go tests** are next to the code they test, `<file>_test.go`, in each
+  package. `internal/cv` is tested with plain files;
+  `internal/server/e2e_test.go` drives the whole API, with Typst, against a
+  temporary data folder.
 - **Browser tests** are in `tests/browser/`, one suite per file, run by
   `run.mjs` against a fresh server with a made-up CV (`fixture.mjs`), then
   against local mode. `nix run .#browser-tests -- versions share` runs only
@@ -68,7 +69,7 @@ someone's CV wants a test before it wants a feature.
 
 ## Adding a language
 
-A language is one entry in `languages` in `languages.go`: its code, its name
+A language is one entry in `languages` in `internal/cv/languages.go`: its code, its name
 in itself and in English, and the words New Leaf adds to a CV (section titles,
 "Present", short and long month names, how a full date is written, and the
 share page's button and expiry note). `TestLanguagesComplete` checks that none

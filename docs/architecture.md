@@ -18,42 +18,41 @@ sign-in, more CVs and share links.
 
 ## Layers
 
+The command reads flags; three packages under `internal/` do the work, each
+only importing the ones below it, which the compiler enforces.
+
 ```mermaid
-flowchart LR
-    B[Browser<br/>Alpine.js, pdf.js] -->|JSON| api[api.go]
-    api --> auth[auth.go<br/>tailscale whois]
-    api --> store[store.go, versions.go, cvs.go<br/>files]
-    api --> doc[document.go<br/>Document]
-    doc --> typst[typst.go<br/>typst CLI]
-    doc --> share[share.go<br/>share pages]
-    share --> publish[publish.go<br/>public folder]
-    typst --> publish
-    typst --> thumbs[thumbs.go]
+flowchart TD
+    main[new-leaf<br/>main.go, flags.go] --> server
+    B[Browser<br/>Alpine.js, pdf.js] -->|JSON| server[internal/server<br/>editor, sign-in, share pages, publishing]
+    server --> render[internal/render<br/>Typst]
+    server --> cv[internal/cv<br/>a CV and its rules]
+    render --> cv
+    server --> web[web<br/>embedded files]
 ```
 
 | Path | What it holds |
 | --- | --- |
-| `main.go` | `new-leaf serve`: flags, the server, the public folder's own server, expiring links every five minutes |
-| `local.go` | `new-leaf` on your own computer: data folder, a free port, opening the browser, stopping when idle, moving cv-app's data |
-| `flags.go` | Flags from the environment (`NEW_LEAF_*`), `-version`, finding Typst |
-| `api.go` | Every `/api/` route, the editor's security headers, and the state the editor gets after each change |
-| `auth.go` | Who a visitor is (`tailscale whois`), and which CV opens for them |
-| `cvs.go` | Which CVs exist; making, renaming and deleting them |
-| `store.go` | Reading and writing the profile, items and links |
+| `main.go`, `flags.go` | The command: flags (also from `NEW_LEAF_*`), `-version`, finding Typst, the data folder, moving cv-app's data |
+| **`internal/cv`** | **A CV and its rules: files, no HTTP, no Typst** |
+| `store.go`, `profile.go`, `items.go`, `links.go` | Reading and writing the profile, items and share links, and the helpers for their files |
 | `versions.go` | Versions, and the first ones for CVs from before them |
-| `theme.go` | Looks: accent colour, font, photo shape |
+| `cvs.go` | Which CVs exist; making, renaming and deleting them |
+| `backup.go` | Backups: writing one, checking one fully, restoring it |
 | `languages.go` | The languages a CV can be in, with the words New Leaf adds to its PDF and share page |
+| `theme.go` | Looks: accent colour, font, photo shape |
 | `document.go` | A CV for one version and language: sorted, localised, Markdown parsed |
-| `typst.go` | Running Typst for PDFs, PNGs and marks |
+| **`internal/render`** | **Running Typst for PDFs, PNGs and marks** |
+| **`internal/server`** | **The editor and everything around it** |
+| `serve.go`, `local.go` | `new-leaf serve` (listeners, the public folder's own server, expiring links) and `new-leaf` on your own computer (a free port, the browser, stopping when idle) |
+| `server.go`, `state.go` | Routes, the editor's security headers, errors, and the state the editor gets after each change |
+| `profile.go`, `items.go`, `versions.go`, `cvs.go`, `backup.go` | The API, by topic |
+| `preview.go`, `document.go` | PDFs, fitting pages and marks for the preview |
+| `auth.go` | Who a visitor is (`tailscale whois`), and which CV opens for them |
+| `share.go`, `publish.go` | Share pages, from the same `Document` as the PDF; writing them into the public folder, and removing what isn't a link |
 | `thumbs.go` | The overview's thumbnails, rendered in the background |
-| `share.go` | Share pages, from the same `Document` as the PDF |
-| `publish.go` | Writing share links into the public folder, and removing what isn't a link |
-| `backup.go` | Download backup and Restore |
-| `assets.go` | The embedded `web/` files, the editor's pages and its icons |
-| `web/editor/` | The editor: Go templates, `app.js` (Alpine.js), `mode.js` (light or dark before the page is drawn), `editor.css` |
-| `web/share/` | The share page template, `share.css`, web fonts |
-| `web/typst/` | `cv.typ` and its fonts |
-| `web/css/` | Tailwind inputs for `editor.css` and `share.css`, which are generated and committed |
+| `assets.go` | The editor's pages and icons, from `web` or from disk while developing |
+| `web/` | The embedded files (`embed.go`): `editor/` (Go templates, `app.js`, `mode.js`, `editor.css`), `share/` (the share page and its fonts), `typst/` (`cv.typ` and its fonts); and `css/`, the Tailwind inputs for the two stylesheets, which are generated and committed |
 | `nix/` | The package, the NixOS module, its VM test, the container image |
 | `tests/browser/` | Browser tests in headless Chromium, against a made-up CV |
 | `scripts/` | Release archives with Typst, and Typst's pinned checksums |
@@ -76,12 +75,17 @@ flowchart LR
 
 ## Rules
 
+**A CV's rules live in `internal/cv`.** What a CV may hold, how its files are
+laid out and how it changes belongs there; the server only turns requests
+into calls and answers. `internal/cv` imports neither HTTP nor Typst, so its
+rules can be tested with plain files.
+
 **User text is never markup.** Typst gets runs of text, not Typst, and the
 share pages go through `html/template`. A CV can't run code anywhere it is
 shown.
 
 **The share page and the PDF come from one `Document`.** Anything that changes
-what a CV shows belongs in `document.go`, not in a template.
+what a CV shows belongs in `internal/cv/document.go`, not in a template.
 
 **Items that a version doesn't show never reach the public folder.** A share
 link is published from the version's selection, not filtered on the page.

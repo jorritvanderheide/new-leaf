@@ -77,7 +77,7 @@ Portuguese, chosen under **Languages** on the Profile page. New Leaf adds a
 few words of its own to the PDF and share page, such as the section titles and
 the months, and those are translated for these languages. Missing yours, or a
 title that reads wrong? Open an issue: a language is one table of words
-(`languages.go`).
+(`internal/cv/languages.go`).
 
 ### I removed a language. Is its text gone?
 

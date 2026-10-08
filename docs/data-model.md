@@ -80,7 +80,7 @@ only links to the web, mail and phone are kept.
 
 A CV is in one or two languages, `languages` in the profile, the main one
 first. A new CV is in English. The languages New Leaf knows are in
-`languages.go`: English (`en`), Dutch (`nl`), German (`de`), French (`fr`),
+`internal/cv/languages.go`: English (`en`), Dutch (`nl`), German (`de`), French (`fr`),
 Spanish (`es`), Italian (`it`) and Portuguese (`pt`), each with the words it
 adds to a PDF and share page.
 
@@ -176,7 +176,7 @@ CVs written by New Leaf exist on other people's computers and servers. So:
   name is a breaking change and needs a migration that runs when the CV is
   read, like the one that makes versions for CVs from before them.
 - **Adding** an optional key is not.
-- **Removing a language** from `languages.go` is breaking too: CVs in it would
+- **Removing a language** from `internal/cv/languages.go` is breaking too: CVs in it would
   lose their text.
 - **Backups** of older versions must keep restoring.
 
