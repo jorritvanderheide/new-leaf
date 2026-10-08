@@ -95,7 +95,14 @@ jobs:
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY,,}"
           echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
-          docker buildx imagetools create -t "$image:$GITHUB_REF_NAME" -t "$image:latest" \
+          # X.Y.Z, and for a release (not 1.2.0-rc.1) also X.Y, X and latest,
+          # so compose.yaml can follow 1 without getting a 2 unasked.
+          tags=(-t "$image:$GITHUB_REF_NAME")
+          case "$GITHUB_REF_NAME" in
+            *-*) ;;
+            *) tags+=(-t "$image:${GITHUB_REF_NAME%.*}" -t "$image:${GITHUB_REF_NAME%%.*}" -t "$image:latest") ;;
+          esac
+          docker buildx imagetools create "${tags[@]}" \
             "$image:$GITHUB_REF_NAME-amd64" "$image:$GITHUB_REF_NAME-arm64"
           digest=$(docker buildx imagetools inspect "$image:$GITHUB_REF_NAME" --format '{{json .Manifest}}' | jq -r .digest)
           echo "image=$image" >> "$GITHUB_OUTPUT"

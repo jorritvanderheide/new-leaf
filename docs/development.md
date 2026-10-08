@@ -94,10 +94,14 @@ The code has to be one Typst knows, for hyphenation.
      none);
    - checks the tag against the package version, builds the container image
      with Nix for amd64 and arm64, pushes it to
-     `ghcr.io/jorritvanderheide/new-leaf` as `X.Y.Z` and `latest`, and
-     attests it.
+     `ghcr.io/jorritvanderheide/new-leaf` as `X.Y.Z`, and also as `X.Y`, `X`
+     and `latest` unless the tag is like `1.0.0-rc.1`, and attests it.
 4. Publish the draft. Releases before 1.0, and tags like `1.0.0-rc.1`, are
    marked as pre-releases.
+
+`deploy/compose.yaml` follows the major version (`:1` from 1.0), so a
+major release reaches Docker users only when they change it. Make the next
+major release change it too.
 
 `scripts/release.sh <version> <folder>` also runs locally.
 

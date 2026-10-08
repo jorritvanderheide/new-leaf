@@ -35,6 +35,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 - `new-leaf serve` needs `-public-url`: it used to default to
   `https://cv.example.com`, which made share links point there. The NixOS
   module and the container always set it.
+- The container image is also tagged `X.Y` and `X`, so you can follow a major
+  version; release candidates no longer move `latest`.
 
 ## 0.6.1
 
