@@ -24,4 +24,9 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 - **JSON Resume, in and out.** Import one on the Profile page to start from a
   CV made elsewhere, or download yours in one of its languages. Sections that
   JSON Resume doesn't have go out as projects, and come back where they were.
+- **CVs for their owners only**, as an option for a tailnet shared with people
+  who shouldn't edit each other's CVs: `-owners-only`, or
+  `services.new-leaf.ownersOnly`. You own the CVs you make, and a configured
+  CV is owned by the person it's named after. A CV without owners stays open
+  to everyone until someone adds themselves.
 - A new logo.

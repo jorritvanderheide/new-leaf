@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net/http"
+	"slices"
 	"time"
 
 	"codeberg.org/BW20/new-leaf/internal/cv"
@@ -15,27 +16,31 @@ type linkView struct {
 }
 
 type editorState struct {
-	User      string        `json:"user"`
-	Langs     []string      `json:"langs"`
-	Languages []cv.Language `json:"languages"` // every language a CV can have
-	Sections  []string      `json:"sections"`
-	Point     []string      `json:"pointSections"`
-	Profile   cv.Profile    `json:"profile"`
-	Items     []cv.Item     `json:"items"`
-	Versions  []versionView `json:"versions"` // most recently edited first
-	Today     string        `json:"today"`
-	CVs       []cv.CVInfo   `json:"cvs"`     // all CVs, for the switcher
-	Manage    bool          `json:"manage"`  // CVs can be created, renamed and deleted
-	Sharing   bool          `json:"sharing"` // share links are available
-	Local     bool          `json:"local"`   // running on the user's own computer
+	User       string        `json:"user"`
+	Langs      []string      `json:"langs"`
+	Languages  []cv.Language `json:"languages"` // every language a CV can have
+	Sections   []string      `json:"sections"`
+	Point      []string      `json:"pointSections"`
+	Profile    cv.Profile    `json:"profile"`
+	Items      []cv.Item     `json:"items"`
+	Versions   []versionView `json:"versions"` // most recently edited first
+	Today      string        `json:"today"`
+	CVs        []cv.CVInfo   `json:"cvs"`        // the CVs the visitor may edit, for the switcher
+	Manage     bool          `json:"manage"`     // CVs can be created, renamed and deleted
+	OwnersOnly bool          `json:"ownersOnly"` // CVs are for their owners only
+	Login      string        `json:"login"`      // the visitor's tailnet login; none in dev and local mode
+	Sharing    bool          `json:"sharing"`    // share links are available
+	Local      bool          `json:"local"`      // running on the user's own computer
 }
 
 func (s *Server) editorState(ctx context.Context, user string) (editorState, error) {
 	st := editorState{
-		User: user, CVs: s.auth.CVs.List(), Manage: s.auth.CVs.Manage, Languages: cv.Languages, Sections: cv.Sections, Point: cv.PointSections,
+		User: user, Manage: s.auth.CVs.Manage, OwnersOnly: s.auth.CVs.OwnersOnly, Login: loginOf(ctx),
+		Languages: cv.Languages, Sections: cv.Sections, Point: cv.PointSections,
 		Sharing: s.sharing, Local: s.local,
 		Today: time.Now().In(cv.LinkZone).Format("2006-01-02"),
 	}
+	st.CVs = slices.DeleteFunc(s.auth.CVs.List(), func(c cv.CVInfo) bool { return !s.auth.MayEdit(c.ID, st.Login) })
 	var err error
 	if st.Profile, err = s.store.Profile(user); err != nil {
 		return st, err

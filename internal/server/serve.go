@@ -27,6 +27,7 @@ type ServeOptions struct {
 	ServePublic string         // also serve it here, if set
 	Users       []string       // CVs that always exist
 	Manage      bool           // make, rename and delete CVs in the editor
+	OwnersOnly  bool           // only a CV's owners may open it
 	DevUser     string         // act as this user, without Tailscale (development)
 	DevAssets   string         // read web/ from this folder (development)
 	Tailscale   string         // the tailscale command, for whois
@@ -40,6 +41,8 @@ func Serve(ctx context.Context, o ServeOptions) error {
 		cv.LinkZone = o.TimeZone
 	}
 	store := &cv.Store{Root: filepath.Join(o.Data, "users")}
+	cvs := cv.NewRegistry(store, o.Users, o.Manage)
+	cvs.OwnersOnly = o.OwnersOnly
 	assets := NewAssets(o.DevAssets)
 	typst, err := render.NewTypst(o.Typst, o.Work, assets.fs)
 	if err != nil {
@@ -52,7 +55,7 @@ func Serve(ctx context.Context, o ServeOptions) error {
 		publicDir: o.Public,
 		publicURL: strings.TrimRight(o.PublicURL, "/"),
 		work:      o.Work,
-		auth:      &Auth{DevUser: o.DevUser, CVs: cv.NewRegistry(store, o.Users, o.Manage), Whois: tailscaleWhois(o.Tailscale)},
+		auth:      &Auth{DevUser: o.DevUser, CVs: cvs, Whois: tailscaleWhois(o.Tailscale)},
 		sharing:   true,
 	}
 	if err := claimPublicDir(o.Public); err != nil {

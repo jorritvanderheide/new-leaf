@@ -197,7 +197,8 @@ the menu at the bottom of the sidebar. The PDF stays white, like paper.
 
 The menu at the bottom of the sidebar switches between CVs: yours and your
 partner's, say. **Manage CVs** creates, renames and deletes them. On a server,
-every CV opens by default for the people it belongs to.
+every CV opens by default for the people it belongs to, and the server can be
+set so that only they can open it.
 
 ### 5.8 Backups
 

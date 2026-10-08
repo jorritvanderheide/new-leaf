@@ -89,6 +89,19 @@ in
       '';
     };
 
+    ownersOnly = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Whether only a CV's owners can open and edit it, for a tailnet shared
+        with people who shouldn't edit each other's CVs. The owners of a CV in
+        {option}`services.new-leaf.users` are the person it's named after; of
+        one made in the editor, whoever made it and whoever they add. A CV
+        without owners stays open to everyone, and someone without a CV gets
+        their own (with {option}`services.new-leaf.manageInEditor`).
+      '';
+    };
+
     timeZone = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = config.time.timeZone;
@@ -255,6 +268,7 @@ in
                 "-users"
                 (lib.concatStringsSep "," cfg.users)
                 "-manage=${lib.boolToString cfg.manageInEditor}"
+                "-owners-only=${lib.boolToString cfg.ownersOnly}"
                 "-tailscale"
                 (lib.getExe cfg.tailscalePackage)
               ]

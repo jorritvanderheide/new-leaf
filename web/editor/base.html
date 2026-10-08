@@ -126,7 +126,8 @@
       <div class="card float max-h-[90vh] w-full max-w-lg space-y-5 overflow-y-auto p-6" @click.outside="$store.cv.manageOpen = false">
         <div>
           <h2 class="text-base font-semibold">CVs</h2>
-          <p class="mt-1 text-sm text-stone-500" x-show="!$store.cv.state?.local">Everyone on the tailnet can open and edit every CV. Owners get their CV when they open the editor.</p>
+          <p class="mt-1 text-sm text-stone-500" x-show="!$store.cv.state?.local && !$store.cv.state?.ownersOnly">Everyone on the tailnet can open and edit every CV. Owners get their CV when they open the editor.</p>
+          <p class="mt-1 text-sm text-stone-500" x-show="$store.cv.state?.ownersOnly">Only a CV's owners can open and edit it, and you own the CVs you make. You are <span class="font-medium" x-text="$store.cv.state?.login"></span>.</p>
         </div>
         <ul class="divide-y divide-stone-200">
           <template x-for="cv in $store.cv.state?.cvs || []" :key="cv.id">
@@ -150,10 +151,13 @@
                 </button>
               </div>
               <template x-if="!$store.cv.state.local">
-                <input class="input text-xs" x-model="owners" placeholder="Owners: tailnet logins, e.g. alice@" aria-label="Owners" @change="save(cv, name, owners)">
+                <input class="input text-xs" x-model="owners" placeholder="Owners: tailnet logins, e.g. alice@" aria-label="Owners" :disabled="$store.cv.state.ownersOnly && cv.declared" @change="save(cv, name, owners)">
+              </template>
+              <template x-if="$store.cv.state.ownersOnly && cv.open">
+                <p class="text-xs text-amber-700">No owners yet, so everyone on the tailnet can open this CV.</p>
               </template>
               <template x-if="cv.declared">
-                <p class="text-xs text-stone-500">Set in the server configuration, so it can only be removed there.</p>
+                <p class="text-xs text-stone-500">Set in the server configuration, so it can only be removed there<span x-show="$store.cv.state.ownersOnly">, and its owner is the person it's named after</span>.</p>
               </template>
             </li>
           </template>

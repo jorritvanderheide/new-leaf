@@ -58,6 +58,7 @@ pkgs.testers.runNixOSTest {
       enable = true;
       users = [ "alice" ];
       tailscalePackage = whois;
+      ownersOnly = true;
       nginx.editor.domain = "cv-editor.test";
       nginx.share = {
         domain = "cv.test";
@@ -192,6 +193,18 @@ pkgs.testers.runNixOSTest {
         web.succeed("stat -c '%G' /run/new-leaf/editor.sock | grep -x nginx")
         web.succeed("systemctl cat new-leaf.service | grep -q -- '-public-url https://cv.test'")
         web.succeed("systemctl cat new-leaf.service | grep -q -- '-timezone America/New_York'")
+
+    with subtest("owners only: someone else gets a CV of their own, and can't open alice's"):
+        web.succeed("ip addr add 100.64.0.6/32 dev lo")
+        mallory = "curl -sf --interface 100.64.0.6 -H 'X-New-Leaf: 1'"
+        state = json.loads(web.succeed(f"{mallory} -b cv-user=alice http://cv-editor.test/api/state"))
+        assert state["user"] == "mallory" and [c["id"] for c in state["cvs"]] == ["mallory"], state
+        code = web.succeed(
+            "curl -s -o /dev/null -w '%{http_code}' --interface 100.64.0.6 -H 'X-New-Leaf: 1' "
+            + "-X PUT -d '{\"name\": \"Mine\", \"owners\": [\"mallory@\"]}' http://cv-editor.test/api/cvs/alice"
+        )
+        assert code == "403", code
+        assert [c["id"] for c in json.loads(web.succeed(f"{visitor} http://cv-editor.test/api/state"))["cvs"]] == ["alice"]
 
     with subtest("nginx: backups up to 50 MB get through to New Leaf"):
         web.succeed("head -c 20M /dev/urandom > /tmp/big")

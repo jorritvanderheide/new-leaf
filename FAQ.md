@@ -160,6 +160,13 @@ A CV opens by default for its owners, or for the person it's named after. In
 **Manage CVs**, add your tailnet login as an owner of your CV. Which CV you
 picked last is remembered per browser.
 
+### Can others on the tailnet edit my CV?
+
+Yes, unless the server is set to owners only (`ownersOnly` in the NixOS
+module, `-owners-only` otherwise). Then only a CV's owners see and change it.
+A CV without owners stays open to everyone, so add yourself as its owner
+under **Manage CVs**.
+
 ### I can't delete a CV
 
 It's listed in the server's configuration (the `users` setting), so it would

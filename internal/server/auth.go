@@ -18,9 +18,10 @@ import (
 
 // Auth decides who may use the editor and which CV a request edits. The
 // editor is only reachable over the tailnet, and every (human) tailnet user
-// may edit every CV: the connecting IP is looked up with `tailscale whois`
-// only to reject non-peers and tagged (server) nodes, and to pick a default
-// CV.
+// may edit every CV, unless the CVs are for their owners only: the
+// connecting IP is looked up with `tailscale whois` to reject non-peers and
+// tagged (server) nodes, to pick a default CV, and to know whose CVs those
+// are.
 type Auth struct {
 	DevUser string       // dev and local mode: skip the tailnet check, default to this CV
 	CVs     *cv.Registry // the CVs that can be edited
@@ -45,46 +46,62 @@ var errForbidden = errors.New("forbidden")
 // cvCookie holds the CV picked in the editor's switcher.
 const cvCookie = "cv-user"
 
-// User returns the CV a request works on: the one picked in the switcher,
-// else the visitor's own, else the first. When there are no CVs yet and the
-// editor manages them, the first visitor gets one named after their login.
+// User returns the CV a request works on.
 func (a *Auth) User(r *http.Request) (string, error) {
-	login := ""
+	user, _, err := a.Visitor(r)
+	return user, err
+}
+
+// Visitor returns the CV a request works on, and the visitor's tailnet login
+// (none in dev and local mode). The CV is the one picked in the switcher,
+// else the visitor's own, else the first they may edit. When there are none
+// and the editor manages CVs, the visitor gets one named after their login.
+func (a *Auth) Visitor(r *http.Request) (user, login string, err error) {
 	if a.DevUser == "" {
 		ip := clientIP(r)
 		if ip == "" {
-			return "", errForbidden
+			return "", "", errForbidden
 		}
 		id, err := a.lookup(r.Context(), ip)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
-		if id.Tagged {
-			return "", errForbidden
+		if id.Tagged || (a.CVs.OwnersOnly && id.LoginName == "") {
+			return "", "", errForbidden
 		}
 		login = id.LoginName
 	}
-	ids := a.CVs.IDs()
+	ids := slices.DeleteFunc(a.CVs.IDs(), func(id string) bool { return !a.MayEdit(id, login) })
 	if c, err := r.Cookie(cvCookie); err == nil && slices.Contains(ids, c.Value) {
-		return c.Value, nil
+		return c.Value, login, nil
 	}
-	if id := a.CVs.ForLogin(login); id != "" {
-		return id, nil
+	if id := a.CVs.ForLogin(login); id != "" && slices.Contains(ids, id) {
+		return id, login, nil
 	}
 	if a.DevUser != "" && (len(ids) == 0 || slices.Contains(ids, a.DevUser)) {
-		return a.DevUser, nil
+		return a.DevUser, login, nil
 	}
 	if len(ids) > 0 {
-		return ids[0], nil
+		return ids[0], login, nil
+	}
+	if a.CVs.Manage && a.CVs.OwnersOnly {
+		user, err := a.CVs.Adopt(login)
+		return user, login, err
 	}
 	if a.CVs.Manage {
 		local, _, _ := strings.Cut(strings.ToLower(login), "@")
 		if name := cv.NameFor(local); name != "" {
-			return name, nil
+			return name, login, nil
 		}
-		return "cv", nil
+		return "cv", login, nil
 	}
-	return "", errForbidden
+	return "", "", errForbidden
+}
+
+// MayEdit reports whether a login may open and change a CV. In dev and
+// local mode, everyone may.
+func (a *Auth) MayEdit(id, login string) bool {
+	return a.DevUser != "" || a.CVs.MayEdit(id, login)
 }
 
 func (a *Auth) lookup(ctx context.Context, ip string) (Identity, error) {

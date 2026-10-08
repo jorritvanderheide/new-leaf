@@ -58,6 +58,7 @@ func serveOptions(args []string) server.ServeOptions {
 		publicURL   = fl.String("public-url", "https://cv.example.com", "base URL the public webroot is served at")
 		users       = fl.String("users", "", "comma-separated CVs that always exist, named after their owner's tailnet login; every tailnet user can edit all CVs")
 		manage      = fl.Bool("manage", true, "let editor users create, rename and delete CVs (those in -users can't be deleted)")
+		ownersOnly  = fl.Bool("owners-only", false, "only let a CV's owners open and edit it (a CV without owners stays open to all), for a tailnet shared with people who shouldn't edit each other's CVs")
 		devUser     = fl.String("dev-user", "", "skip tailnet identity and act as this user (local development only)")
 		devAssets   = fl.String("dev-assets", "", "read templates and static files from this directory instead of the binary, so edits show at once (development only)")
 		servePublic = fl.String("serve-public", "", "also serve the public webroot on this address, with the headers it needs, e.g. behind tailscale funnel")
@@ -69,7 +70,7 @@ func serveOptions(args []string) server.ServeOptions {
 
 	o := server.ServeOptions{
 		Listen: *listen, Data: *dataDir, Work: *workDir, Public: *publicDir, PublicURL: *publicURL,
-		ServePublic: *servePublic, Manage: *manage, DevUser: *devUser, DevAssets: *devAssets,
+		ServePublic: *servePublic, Manage: *manage, OwnersOnly: *ownersOnly, DevUser: *devUser, DevAssets: *devAssets,
 		Tailscale: *tsBin, Typst: findTypst(*typstBin),
 	}
 	if *timeZone != "" {

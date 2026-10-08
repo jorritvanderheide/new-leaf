@@ -66,6 +66,11 @@ type ctxKey struct{}
 
 func userOf(r *http.Request) string { return r.Context().Value(ctxKey{}).(string) }
 
+type loginKey struct{}
+
+// loginOf is the visitor's tailnet login; empty in dev and local mode.
+func loginOf(ctx context.Context) string { s, _ := ctx.Value(loginKey{}).(string); return s }
+
 func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/state", s.handle(s.getState))
@@ -117,7 +122,7 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "no-referrer")
 
-		user, err := s.auth.User(r)
+		user, login, err := s.auth.Visitor(r)
 		if err != nil {
 			if !errors.Is(err, errForbidden) {
 				log.Printf("auth: %v", err)
@@ -141,7 +146,8 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 			httpError(w, err)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, user)))
+		ctx := context.WithValue(context.WithValue(r.Context(), ctxKey{}, user), loginKey{}, login)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -173,6 +179,8 @@ func httpError(w http.ResponseWriter, err error) {
 		http.Error(w, bad.Error(), http.StatusBadRequest)
 	case errors.As(err, &inv):
 		http.Error(w, inv.Error(), http.StatusBadRequest)
+	case errors.Is(err, cv.ErrNotOwner):
+		http.Error(w, err.Error(), http.StatusForbidden)
 	case errors.Is(err, cv.ErrNotFound), errors.Is(err, fs.ErrNotExist):
 		http.Error(w, "not found", http.StatusNotFound)
 	default:

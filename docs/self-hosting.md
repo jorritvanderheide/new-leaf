@@ -25,7 +25,9 @@ asks Tailscale who each of them is:
    else is taken at its own address.
 3. It runs `tailscale whois` on the address. Devices that aren't on the tailnet,
    and tagged devices such as servers, are turned away.
-4. Everyone else may open and edit every CV. Their own CV opens first.
+4. Everyone else may open and edit every CV, or with `-owners-only` only
+   their own (see [CVs on a server](#cvs-on-a-server)). Their own CV opens
+   first.
 
 Writes must also carry an `X-New-Leaf` header, which a browser only sends from
 the editor itself, so other websites can't change a CV on a visitor's behalf.
@@ -40,6 +42,13 @@ the editor itself, so other websites can't change a CV on a visitor's behalf.
 - **Which CV opens:** the one picked last in this browser, or one the visitor
   owns (set under **Manage CVs**), or the one named after their login, or the
   first. On a server with no CVs at all, the first visitor gets one.
+- **Owners only** (`-owners-only`, or `ownersOnly = true`), for a tailnet
+  shared with people who shouldn't edit each other's CVs: a CV is then only
+  listed for, and opened and changed by, its owners. You own the CVs you make,
+  and only owners change who the owners are. A configured CV is owned by the
+  person it's named after. A CV without owners stays open to everyone, with a
+  warning under **Manage CVs**, until someone adds themselves. Someone who
+  owns no CV gets a new one, named after them.
 
 ## With NixOS
 
@@ -141,6 +150,7 @@ host only listens on the tailnet: use a DNS check
 | `publicURL` | from `nginx.share.domain` | Where the share links are |
 | `users` | `[ ]` | CVs that always exist, by tailnet login |
 | `manageInEditor` | `true` | Make, rename and delete CVs in the editor |
+| `ownersOnly` | `false` | Only a CV's owners can open and edit it |
 | `timeZone` | `time.timeZone` | The time zone share links end in; `null` for the system's |
 | `tailscaleServe.enable` | `false` | Serve with Tailscale: the editor on the tailnet, links through Funnel |
 | `tailscaleServe.editorPort` | `8443` | The editor's port on the tailnet |
@@ -219,6 +229,7 @@ as `NEW_LEAF_` and its name in capitals: `NEW_LEAF_PUBLIC_URL` for
 | `-serve-public` | | Also serve that folder on this address, with the headers it needs |
 | `-users` | | CVs that always exist, comma-separated tailnet logins |
 | `-manage` | `true` | Make, rename and delete CVs in the editor |
+| `-owners-only` | `false` | Only a CV's owners can open and edit it |
 | `-timezone` | the system's, or `TZ` | The time zone share links end in, such as `Europe/Amsterdam` |
 | `-tailscale` | `tailscale` | The Tailscale command, for `whois` |
 | `-typst` | next to `new-leaf`, or on the `PATH` | The Typst command |

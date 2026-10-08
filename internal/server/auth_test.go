@@ -140,3 +140,35 @@ func TestFirstVisitorGetsACV(t *testing.T) {
 		t.Error("without -manage and CVs, nobody gets in")
 	}
 }
+
+// With -owners-only, the switcher can't open someone else's CV, and someone
+// without one gets their own.
+func TestOwnersOnlyAuth(t *testing.T) {
+	logins := map[string]string{"100.64.0.1": "carol@", "100.64.0.2": "mallory@"}
+	a := &Auth{
+		CVs: cv.NewRegistry(&cv.Store{Root: t.TempDir()}, []string{"carol", "alice"}, true),
+		Whois: func(_ context.Context, ip string) (Identity, error) {
+			return Identity{LoginName: logins[ip]}, nil
+		},
+	}
+	a.CVs.OwnersOnly = true
+	for _, c := range []struct{ ip, cookie, want string }{
+		{"100.64.0.1", "", "carol"},
+		{"100.64.0.1", "alice", "carol"}, // not hers
+		{"100.64.0.2", "carol", "mallory"},
+		{"100.64.0.2", "", "mallory"},
+	} {
+		if got, _ := a.User(tailnetRequest(c.ip, c.cookie)); got != c.want {
+			t.Errorf("%s with cookie %q: %q, want %q", logins[c.ip], c.cookie, got, c.want)
+		}
+	}
+
+	if _, err := a.User(tailnetRequest("100.64.0.3", "")); err == nil {
+		t.Error("an identity without a login got in")
+	}
+	logins["100.64.0.3"] = "dave@"
+	a.CVs.Manage = false
+	if _, err := a.User(tailnetRequest("100.64.0.3", "")); err == nil {
+		t.Error("without -manage, someone without a CV gets none")
+	}
+}

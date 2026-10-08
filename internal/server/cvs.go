@@ -17,7 +17,7 @@ func (s *Server) postCV(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err)
 		return
 	}
-	id, err := s.auth.CVs.Create(req.Name, req.Owners)
+	id, err := s.auth.CVs.Create(req.Name, req.Owners, loginOf(r.Context()))
 	if err != nil {
 		httpError(w, err)
 		return
@@ -30,7 +30,7 @@ func (s *Server) putCV(r *http.Request, user string) error {
 	if err := readJSON(r, &req); err != nil {
 		return err
 	}
-	return s.auth.CVs.Update(r.PathValue("id"), req.Name, req.Owners)
+	return s.auth.CVs.Update(r.PathValue("id"), req.Name, req.Owners, loginOf(r.Context()))
 }
 
 // deleteCV moves a CV to the trash and takes its share links offline.
@@ -39,7 +39,7 @@ func (s *Server) deleteCV(w http.ResponseWriter, r *http.Request) {
 	st := s.state(id)
 	st.publish.Lock()
 	st.content.Lock()
-	err := s.auth.CVs.Delete(id)
+	err := s.auth.CVs.Delete(id, loginOf(r.Context()))
 	st.content.Unlock()
 	st.publish.Unlock()
 	if err != nil {
