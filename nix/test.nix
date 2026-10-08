@@ -101,6 +101,7 @@ pkgs.testers.runNixOSTest {
         assert bob["user"] == "bob" and [c["id"] for c in bob["cvs"]] == ["alice", "bob"], bob
         machine.fail("editor-curl -sf -H 'X-Real-IP: 100.64.0.7' http://cv/api/state")  # not a peer
         machine.fail("editor-curl -sf -b cv-user=bob http://cv/api/state")  # no identity at all
+        assert machine.succeed("editor-curl -sf http://cv/healthz") == "ok\n"  # monitoring needs none
 
     with subtest("only the proxy can reach the editor"):
         machine.fail("curl -s --max-time 2 http://127.0.0.1:8090/api/state")  # no TCP port
@@ -190,6 +191,7 @@ pkgs.testers.runNixOSTest {
         visitor = "curl -sf --interface 100.64.0.5 -H 'X-New-Leaf: 1'"
         assert json.loads(web.succeed(f"{visitor} http://cv-editor.test/api/state"))["user"] == "alice"
         web.fail("curl -sf http://cv-editor.test/api/state")  # 127.0.0.1 is no tailnet device
+        web.succeed("curl -sf http://cv-editor.test/healthz | grep -x ok")
         web.succeed("stat -c '%G' /run/new-leaf/editor.sock | grep -x nginx")
         web.succeed("systemctl cat new-leaf.service | grep -q -- '-public-url https://cv.test'")
         web.succeed("systemctl cat new-leaf.service | grep -q -- '-timezone America/New_York'")

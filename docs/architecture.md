@@ -47,6 +47,7 @@ flowchart TD
 | **`internal/server`** | **The editor and everything around it** |
 | `serve.go`, `local.go` | `new-leaf serve` (listeners, the public folder's own server, expiring links) and `new-leaf` on your own computer (a free port, the browser, stopping when idle) |
 | `server.go`, `state.go` | Routes, the editor's security headers, errors, and the state the editor gets after each change |
+| `health.go` | `/healthz`, for monitoring |
 | `profile.go`, `items.go`, `versions.go`, `cvs.go`, `backup.go` | The API, by topic |
 | `preview.go`, `document.go` | PDFs, fitting pages and marks for the preview |
 | `auth.go` | Who a visitor is (`tailscale whois`), and which CV opens for them |

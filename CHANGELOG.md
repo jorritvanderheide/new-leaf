@@ -29,4 +29,6 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   `services.new-leaf.ownersOnly`. You own the CVs you make, and a configured
   CV is owned by the person it's named after. A CV without owners stays open
   to everyone until someone adds themselves.
+- **`/healthz`** on the editor, for monitoring: `ok`, or `503` and what's
+  wrong. It needs no tailnet identity.
 - A new logo.

@@ -109,7 +109,11 @@ func (s *Server) routes() http.Handler {
 		})
 	}
 	mux.Handle("/", s.uiHandler())
-	return s.authenticate(mux)
+	// For monitoring, which has no tailnet identity of its own.
+	top := http.NewServeMux()
+	top.HandleFunc("GET /healthz", s.getHealth)
+	top.Handle("/", s.authenticate(mux))
+	return top
 }
 
 // authenticate resolves the tailnet user for every request, including the

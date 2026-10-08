@@ -5,9 +5,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"codeberg.org/BW20/new-leaf/internal/cv"
+	"codeberg.org/BW20/new-leaf/internal/render"
 )
 
 func TestClientIP(t *testing.T) {
@@ -170,5 +175,45 @@ func TestOwnersOnlyAuth(t *testing.T) {
 	a.CVs.Manage = false
 	if _, err := a.User(tailnetRequest("100.64.0.3", "")); err == nil {
 		t.Error("without -manage, someone without a CV gets none")
+	}
+}
+
+// /healthz answers monitoring, which has no tailnet identity, and says when
+// New Leaf can't write.
+func TestHealth(t *testing.T) {
+	if _, err := exec.LookPath("typst"); err != nil {
+		t.Skip("typst not in PATH")
+	}
+	assets := NewAssets("")
+	typst, err := render.NewTypst("typst", t.TempDir(), assets.fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{
+		store: &cv.Store{Root: filepath.Join(t.TempDir(), "users")}, typst: typst, assets: assets, sharing: true, publicDir: t.TempDir(),
+		auth: &Auth{CVs: cv.NewRegistry(&cv.Store{Root: t.TempDir()}, []string{"alice"}, false),
+			Whois: func(context.Context, string) (Identity, error) { return Identity{}, errForbidden }},
+	}
+	h := s.routes()
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, tailnetRequest("100.64.0.9", ""))
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("the editor let a non-peer in: %d", w.Code)
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/healthz", nil))
+	if w.Code != http.StatusOK || w.Body.String() != "ok\n" {
+		t.Fatalf("healthz: %d %s", w.Code, w.Body)
+	}
+
+	if os.Geteuid() == 0 {
+		return // root writes anyway
+	}
+	os.Chmod(s.publicDir, 0o500)
+	defer os.Chmod(s.publicDir, 0o700)
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/healthz", nil))
+	if w.Code != http.StatusServiceUnavailable || !strings.Contains(w.Body.String(), "share links") {
+		t.Errorf("healthz with a read-only share links folder: %d %s", w.Code, w.Body)
 	}
 }

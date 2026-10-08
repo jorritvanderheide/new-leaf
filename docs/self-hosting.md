@@ -213,6 +213,14 @@ container's network.
   static files, or `-serve-public` for New Leaf's own.
 - **The `tailscale` command**, talking to the machine's Tailscale.
 
+## Monitoring
+
+`GET /healthz` on the editor's address answers `ok` when New Leaf can write
+CVs and share links and run Typst, and `503` with what's wrong when it can't.
+It needs no tailnet identity, so a monitor can reach it through the same proxy
+as the editor. The share links are static files: check those with any file in
+the public folder, such as `/fonts/OFL.txt`.
+
 ## Command-line options
 
 `new-leaf serve -h` lists them. Every option can also be set in the environment,
