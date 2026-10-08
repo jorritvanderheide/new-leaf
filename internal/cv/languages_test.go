@@ -40,7 +40,7 @@ func TestProfileLangs(t *testing.T) {
 	// From before languages could be chosen: English and Dutch files.
 	os.MkdirAll(s.dir("old"), 0o750)
 	for _, lang := range []string{"en", "nl"} {
-		writeMarkdown(filepath.Join(s.dir("old"), "_index."+lang+".md"), profileFile{Name: "Old"}, "")
+		writeMarkdown(filepath.Join(s.dir("old"), "_index."+lang+".md"), legacyProfileFile{profileShared: profileShared{Name: "Old"}}, "")
 	}
 	if langs, _ := s.Langs("old"); !slices.Equal(langs, []string{"en", "nl"}) {
 		t.Errorf("an old CV's languages = %v", langs)

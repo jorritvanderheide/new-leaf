@@ -125,6 +125,7 @@ func TestImportRejects(t *testing.T) {
 		"bad section":   {"content/_index.en.md": profile, "content/hobbies/x.en.md": profile},
 		"broken yaml":   {"content/_index.en.md": "---\nname: [\n---\n"},
 		"absolute path": {"content/_index.en.md": profile, "/etc/passwd": "x"},
+		"newer format":  {"content/_index.md": "---\nformat: 99\n---\n", "content/_index.en.md": profile},
 	} {
 		if w := do(h, "POST", "/api/import", uploadOf(t, zipOf(t, files))); w.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d %s", name, w.Code, w.Body)
@@ -134,6 +135,21 @@ func TestImportRejects(t *testing.T) {
 	ok := zipOf(t, map[string]string{"content/_index.en.md": profile, "content/links/x-abcdefgh.en.md": "---\ntitle: x\n---\n"})
 	if w := do(h, "POST", "/api/import", uploadOf(t, ok)); w.Code != http.StatusOK {
 		t.Errorf("server backup locally: %d %s", w.Code, w.Body)
+	}
+}
+
+// A backup from before format 1 restores, and is migrated as it lands.
+func TestRestoreOldBackup(t *testing.T) {
+	s, h := newLocalServer(t)
+	old := zipOf(t, map[string]string{"content/_index.en.md": "---\nname: Old Example\nlanguages: [en]\nheadline: Designer\n---\nHello.\n"})
+	if w := do(h, "POST", "/api/import", uploadOf(t, old)); w.Code != http.StatusOK {
+		t.Fatalf("import: %d %s", w.Code, w.Body)
+	}
+	if _, err := os.Stat(filepath.Join(s.store.ContentDir("me"), "_index.md")); err != nil {
+		t.Errorf("not migrated: %v", err)
+	}
+	if p, _ := s.store.Profile("me"); p.Name != "Old Example" || p.Text["en"].Headline != "Designer" || p.Text["en"].Summary != "Hello." {
+		t.Errorf("profile = %+v", p)
 	}
 }
 

@@ -1,8 +1,10 @@
 package cv
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -332,5 +334,70 @@ func TestLinksInEveryLanguage(t *testing.T) {
 	}
 	if m, _ := filepath.Glob(filepath.Join(s.dir("alice"), "links", "uva-abcdefgh.*")); len(m) != 0 {
 		t.Errorf("files left after delete: %v", m)
+	}
+}
+
+// A CV from before format 1 has the shared profile fields in every
+// language's file. Migrate moves them to _index.md, also out of a language
+// the CV no longer has, and changes nothing the editor shows.
+func TestMigrate(t *testing.T) {
+	s := &Store{Root: t.TempDir()}
+	dir := s.dir("old")
+	os.MkdirAll(dir, 0o750)
+	shared := "name: Old Example\nlanguages: [en, nl]\nemail: old@example.com\nlinks:\n  - label: Site\n    url: https://example.com\n"
+	os.WriteFile(filepath.Join(dir, "_index.en.md"), []byte("---\n"+shared+"headline: Designer\n---\nHello.\n"), 0o640)
+	os.WriteFile(filepath.Join(dir, "_index.nl.md"), []byte("---\n"+shared+"headline: Ontwerper\n---\nHallo.\n"), 0o640)
+	os.WriteFile(filepath.Join(dir, "_index.de.md"), []byte("---\n"+shared+"headline: Gestalterin\n---\n"), 0o640) // hidden
+	before, err := s.Profile("old")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Migrate("old"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := s.Profile("old")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(before, after) || after.Name != "Old Example" || after.Text["de"].Headline != "Gestalterin" {
+		t.Errorf("profile changed:\n%+v\n%+v", before, after)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "_index.md"))
+	if !strings.Contains(string(data), "format: 1") || !strings.Contains(string(data), "name: Old Example") {
+		t.Errorf("_index.md = %s", data)
+	}
+	for _, lang := range []string{"en", "nl", "de"} {
+		data, _ := os.ReadFile(filepath.Join(dir, "_index."+lang+".md"))
+		if strings.Contains(string(data), "name:") || strings.Contains(string(data), "languages:") || !strings.Contains(string(data), "headline:") {
+			t.Errorf("_index.%s.md = %s", lang, data)
+		}
+	}
+
+	// Saving no longer touches a language the CV doesn't have.
+	after.Name = "New Example"
+	if err := s.SaveProfile("old", after); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(dir, "_index.de.md")); string(data) != "---\nheadline: Gestalterin\n---\n" {
+		t.Errorf("_index.de.md = %q", data)
+	}
+	if err := s.Migrate("old"); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := s.Profile("old"); p.Name != "New Example" {
+		t.Errorf("a second Migrate changed the profile: %+v", p)
+	}
+}
+
+// A CV from a newer New Leaf is refused, not read half and written back.
+func TestNewerFormat(t *testing.T) {
+	s := newTestStore(t)
+	os.WriteFile(filepath.Join(s.dir("alice"), "_index.md"), []byte("---\nformat: 2\nname: Alice\n---\n"), 0o640)
+	if _, err := s.Profile("alice"); !errors.Is(err, ErrNewerFormat) {
+		t.Errorf("Profile = %v", err)
+	}
+	if err := s.Migrate("alice"); err != nil {
+		t.Errorf("Migrate = %v", err)
 	}
 }

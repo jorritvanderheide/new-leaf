@@ -131,6 +131,9 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 			if err := s.store.Init(user); err != nil {
 				return err
 			}
+			if err := s.store.Migrate(user); err != nil {
+				return err
+			}
 			return s.store.EnsureVersions(user)
 		}); err != nil {
 			httpError(w, err)

@@ -9,7 +9,8 @@ page lists every file it reads and writes.
 
 ```
 users/<cv>/cv.json                              display name and owners
-users/<cv>/content/_index.<lang>.md             profile, per language
+users/<cv>/content/_index.md                    profile: what it has once, and the format
+users/<cv>/content/_index.<lang>.md             profile: its text, per language
 users/<cv>/content/photo.{jpg,png,webp}         profile photo
 users/<cv>/content/<section>/<id>.<lang>.md     one item, per language
 users/<cv>/content/links/<slug>.<lang>.md       share link of a version (server only)
@@ -29,23 +30,30 @@ server later. On a server it is `-data` (`/var/lib/new-leaf`).
 
 ## The profile
 
-`_index.<lang>.md`, one per language. The body is the summary, in Markdown.
-The front matter:
+`_index.md` holds what the profile has once, in its front matter:
 
-| Key | Per language | Value |
-| --- | --- | --- |
-| `languages` | no | The CV's languages, the main one first (see [Languages](#languages)) |
-| `name` | no | Your name |
-| `headline` | yes | One line under the name, such as a job title |
-| `location` | yes | Where you live, as it should read on the CV |
-| `email`, `phone`, `website` | no | Contact details |
-| `links` | no | A list of `label` and `url`, such as LinkedIn |
-| `order` | no | The default section order, for new versions |
-| `theme` | no | The default look, for new versions (see [Looks](#looks)) |
-| `spacing` | no | The default spacing, for new versions, from `0.4` to `1.4`; none means `1` |
+| Key | Value |
+| --- | --- |
+| `format` | The layout of the CV's files, `1` (see [Compatibility](compatibility.md#data-files)) |
+| `languages` | The CV's languages, the main one first (see [Languages](#languages)) |
+| `name` | Your name |
+| `email`, `phone`, `website` | Contact details |
+| `links` | A list of `label` and `url`, such as LinkedIn |
+| `order` | The default section order, for new versions |
+| `theme` | The default look, for new versions (see [Looks](#looks)) |
+| `spacing` | The default spacing, for new versions, from `0.4` to `1.4`; none means `1` |
 
-Keys that aren't per language are written to every file, and read from the
-first one that has them.
+`_index.<lang>.md` holds the text, one file per language. The body is the
+summary, in Markdown. The front matter:
+
+| Key | Value |
+| --- | --- |
+| `headline` | One line under the name, such as a job title |
+| `location` | Where you live, as it should read on the CV |
+
+A CV from before `format` (New Leaf 0.5 and older) has no `_index.md`: the
+shared keys were in every `_index.<lang>.md`. It is moved over the first time
+it is opened, and when a backup of one is restored.
 
 ## Items
 
@@ -86,9 +94,9 @@ adds to a PDF and share page.
 
 - **New versions** start in the main language, and the editor names items by
   their title in it.
-- **A language the CV loses** keeps its files. They are hidden, still get the
-  shared keys (dates, links, name) when those change, and their text comes
-  back with the language. Versions in it move to the main language; a shared
+- **A language the CV loses** keeps its files. They are hidden, its items'
+  files still get the shared keys (dates, links) when those change, and the
+  text comes back with the language. Versions in it move to the main language; a shared
   version keeps it from being removed.
 - **A share link** is published in each of the CV's languages, and its files
   follow them.

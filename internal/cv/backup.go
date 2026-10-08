@@ -17,7 +17,7 @@ import (
 
 // A backup is a zip of one CV: its content files and versions,
 //
-//	content/_index.<lang>.md, content/photo.<ext>,
+//	content/_index.md, content/_index.<lang>.md, content/photo.<ext>,
 //	content/<section>/<id>.<lang>.md, content/links/<slug>.<lang>.md,
 //	versions/<id>.json
 //
@@ -55,12 +55,7 @@ func backupFile(name string, links bool) (ok, skip bool) {
 				return true, false
 			}
 		}
-		for _, lang := range langCodes() {
-			if file == "_index."+lang+".md" {
-				return true, false
-			}
-		}
-		return false, false
+		return isProfileFile(file), false
 	case "links/":
 		_, _, ok := splitLangFile(file)
 		return ok, ok && !links
@@ -161,12 +156,15 @@ func (s *Store) unpack(stage string, zr *zip.Reader, links bool) error {
 				return Invalid{fmt.Errorf("%s: %v", f.Name, err)}
 			}
 		}
-		found = found || slices.ContainsFunc(langCodes(), func(lang string) bool { return f.Name == "content/_index."+lang+".md" })
+		found = found || isProfileFile(strings.TrimPrefix(f.Name, "content/"))
 	}
 	if !found {
 		return Invalid{errors.New("this is not a CV backup: it has no profile")}
 	}
 	check := &Store{Root: filepath.Dir(stage)}
+	if _, err := check.Profile(filepath.Base(stage)); err != nil {
+		return Invalid{err}
+	}
 	if _, err := check.Items(filepath.Base(stage)); err != nil {
 		return Invalid{err}
 	}
@@ -190,7 +188,8 @@ func (s *Store) RestoreBackup(user, stage string) error {
 		return err
 	}
 	// Swap in the new content and versions. A backup from before versions
-	// has compose.json instead, which EnsureVersions takes over.
+	// has compose.json instead, which EnsureVersions takes over; one from
+	// before format 1 is migrated.
 	for _, name := range []string{"content", "versions", "compose.json"} {
 		cur, next := filepath.Join(root, name), filepath.Join(stage, name)
 		if err := os.RemoveAll(cur); err != nil {
@@ -202,5 +201,11 @@ func (s *Store) RestoreBackup(user, stage string) error {
 			}
 		}
 	}
-	return nil
+	return s.Migrate(user)
+}
+
+// isProfileFile reports whether a file in content/ is part of the profile:
+// _index.md (from format 1) or _index.<lang>.md.
+func isProfileFile(name string) bool {
+	return name == "_index.md" || slices.ContainsFunc(langCodes(), func(lang string) bool { return name == "_index."+lang+".md" })
 }

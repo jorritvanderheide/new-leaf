@@ -21,7 +21,8 @@ import (
 
 // Content layout per user:
 //
-//	_index.<lang>.md                  profile; body is the summary
+//	_index.md                         profile: what it has once, and the format
+//	_index.<lang>.md                  profile text; body is the summary
 //	photo.{jpg,png,webp}              optional profile photo
 //	<section>/<id>.<lang>.md          one CV item; body is the description
 //	links/<slug>.<lang>.md            one share link, rendered in <lang>
