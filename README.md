@@ -1,4 +1,4 @@
-# New Leaf
+# <img src="web/editor/icon.svg" width="48" align="absmiddle" /> New Leaf
 
 **Keep one CV, and turn over a new leaf for every application.**
 
