@@ -231,9 +231,6 @@
                       :title="c.name"
                       @click="theme.accent = c.hex"></button>
                   </template>
-                  <label class="relative size-7 cursor-pointer rounded-md bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] ring-offset-2 ring-offset-white" :class="customAccent() && 'ring-2 ring-stone-900'" title="Another colour">
-                    <input type="color" class="absolute inset-0 size-full cursor-pointer opacity-0" :value="resolvedTheme().accent" @input="theme.accent = $event.target.value" aria-label="Another colour">
-                  </label>
                 </div>
                 <div x-show="accentContrast() < 4.5" class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
                   Hard to read as text on white (<span x-text="accentContrast().toFixed(1)"></span>:1; 4.5:1 is the minimum).

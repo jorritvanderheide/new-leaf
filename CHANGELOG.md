@@ -9,6 +9,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 - Sections can be dragged into a new order on a touchscreen too, by their
   handle.
 - The "Add an item to another section" box has room before its "+".
+- The rainbow button for a colour of your own is gone from Look for now; it
+  didn't work as it should. An accent you already picked stays.
 ## 0.7.1
 
 - A new share link's address is 12 random characters, without the version's

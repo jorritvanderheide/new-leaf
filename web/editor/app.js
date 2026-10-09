@@ -862,10 +862,6 @@ document.addEventListener("alpine:init", () => {
       scrollTo(0, 0);
     },
 
-    customAccent() {
-      return !this.accents.some((c) => c.hex === this.resolvedTheme().accent);
-    },
-
     // Called from x-effect when a setting changes, and once on load, when
     // there is nothing to save yet. Only the snapshot is taken inside the
     // effect: what follows reads and writes state, which would run it again.
