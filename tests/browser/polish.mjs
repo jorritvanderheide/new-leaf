@@ -126,11 +126,12 @@ export default async function polish({ base, shots }) {
     check((await page.js("visualViewport.scale")) === 1, "and not the whole page");
     const box = await page.js("(() => { const r = document.querySelector('[x-ref=pages]').parentElement.getBoundingClientRect(); return [r.left, r.right]; })()");
     check(box[0] === 0 && box[1] === 390, `the zoomed pages reach the edges of the screen (${box})`);
-    const around = await page.js(`(() => {
-      const bar = document.querySelector('[aria-label=Language]').parentElement, r = bar.getBoundingClientRect();
-      return [r.top - 8, r.bottom + 8].every((y) => document.elementFromPoint(195, y) === bar.parentElement);
+    const over = await page.js(`(() => {
+      const r = document.querySelector('[data-settings]').getBoundingClientRect();
+      const under = (y) => document.elementFromPoint(195, y).closest('[x-ref=pages]');
+      return r.top > document.querySelector('[aria-label="Version name"]').getBoundingClientRect().bottom && !!under(r.top - 4) && !!under(r.bottom + 4);
     })()`);
-    check(around, "the settings bar keeps its space while the page scrolls under it");
+    check(over, "the settings float under the header, over the scrolled pages");
     await page.until(`document.querySelector('[x-ref=pages] canvas').width > ${sharp * 1.9}`, "zoomed redraw", 10000);
     check(true, "the zoomed pages are drawn sharp");
     await pinch(200, 100);

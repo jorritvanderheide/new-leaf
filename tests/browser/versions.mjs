@@ -129,12 +129,21 @@ export default async function versions({ base, shots }) {
     await rendered();
     check(await page.js(`${W}.pages > 0`), "the preview renders in the new look");
 
-    // An inner shadow shows where the preview has more to scroll.
-    const pane = "document.querySelector('[x-ref=pages]').parentElement";
-    check(await page.js(`${pane}.parentElement.hasAttribute('data-below') && !${pane}.parentElement.hasAttribute('data-above')`), "a shadow below the preview, none above");
+    // The first page starts a little under the settings bar. An inner shadow
+    // shows where the preview has more to scroll below; above, the bar's own
+    // shadow does, as the pages scroll under it.
+    const pane = "document.querySelector('[x-ref=pages]').parentElement.parentElement";
+    const gap = await page.js("document.querySelector('[x-ref=pages] canvas').getBoundingClientRect().top - document.querySelector('[data-settings]').getBoundingClientRect().bottom");
+    check(Math.abs(gap - 24) < 1, `the first page starts 24px under the settings bar (${gap}px)`);
+    check(await page.js(`${pane}.parentElement.hasAttribute('data-below')`), "a shadow below the preview");
     await page.js(`${pane}.scrollTop = 200`);
     await sleep(200);
-    check(await page.js(`${pane}.parentElement.hasAttribute('data-above')`), "and one above once scrolled");
+    check(await page.js(`getComputedStyle(${pane}.parentElement, '::before').display === 'none'`), "none above once scrolled: the settings bar has its own");
+    const above = await page.js(`(() => {
+      const r = document.querySelector('[data-settings]').getBoundingClientRect();
+      return !!document.elementFromPoint(r.left + r.width / 2, r.top - 4).closest('[x-ref=pages]');
+    })()`);
+    check(!above, "the scrolled pages are cut off at the settings bar");
     await page.js(`${pane}.scrollTop = 0`);
     const spacing = await page.js(`${W}.spacing`);
     await page.js(`${W}.spacing = 0.85`);

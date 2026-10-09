@@ -6,6 +6,12 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 
 ## Unreleased
 
+- The bar with the language, the look and the pages floats over the
+  preview, and the PDF scrolls under it. On a phone the PDF shows up to the
+  version's header; on a larger screen it is cut off at the bar.
+
+## 0.7.3
+
 - On a phone, a zoomed preview reaches the edges of the screen, and the bar
   with the language and the look keeps its space while the PDF scrolls
   under it.

@@ -339,8 +339,8 @@ signed build provenance attestation, so you can check that what you downloaded
 is what was built:
 
 ```sh
-gh attestation verify new-leaf-0.7.2-linux-amd64.tar.gz --repo jorritvanderheide/new-leaf
-gh attestation verify oci://ghcr.io/jorritvanderheide/new-leaf:0.7.2 --repo jorritvanderheide/new-leaf
+gh attestation verify new-leaf-0.7.3-linux-amd64.tar.gz --repo jorritvanderheide/new-leaf
+gh attestation verify oci://ghcr.io/jorritvanderheide/new-leaf:0.7.3 --repo jorritvanderheide/new-leaf
 ```
 
 <br/>

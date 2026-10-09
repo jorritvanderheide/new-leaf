@@ -1093,10 +1093,11 @@ document.addEventListener("alpine:init", () => {
         // max-w-3xl is 48rem.
         pages.style.width = zoom === 1 ? "" : `${zoom * 100}%`;
         pages.style.maxWidth = zoom === 1 ? "" : `${zoom * 48}rem`;
-        // The preview scrolls sideways, and on a phone the page scrolls down.
+        // The pages scroll sideways in their box, and down with the preview
+        // (on a phone, with the page).
         const [dx, dy] = off(start.fx, start.fy, at);
         box.scrollLeft += dx;
-        box.scrollTop += dy;
+        box.parentElement.scrollTop += dy;
         scrollBy(...off(start.fx, start.fy, at));
       }, { passive: false });
       box.addEventListener("touchend", (e) => {

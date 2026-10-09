@@ -194,146 +194,147 @@
         </aside>
       </div>
 
-      {{/* Preview, with the layout settings above it */}}
+      {{/* Preview, with the layout settings over it */}}
       <section class="flex min-h-0 min-w-0 flex-col" :class="view !== 'preview' && 'max-lg:hidden'">
-        {{/* Below large screens it stays under the version's header, with the
-             space around it. */}}
-        <div class="max-lg:sticky max-lg:top-14 max-lg:z-10 max-lg:-mx-4 max-lg:-mt-4 max-lg:bg-stone-50 max-lg:px-4 max-lg:py-4 sm:max-lg:-mx-6 sm:max-lg:px-6">
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-stone-200 bg-white px-3 py-2 sm:gap-x-4">
-            <div class="seg" role="group" aria-label="Language" x-show="$store.cv.state.langs.length > 1">
-              <template x-for="l in $store.cv.state.langs" :key="l">
-                <button type="button" :aria-pressed="lang === l" @click="lang = l" x-text="l.toUpperCase()"></button>
-              </template>
-            </div>
-            {{/* Look: colour, font, photo, spacing */}}
-            <div class="relative" @keydown.escape.stop="lookOpen = false" @click.outside="lookOpen = false">
-              <button type="button" class="btn py-1" @click="lookOpen = !lookOpen" :aria-expanded="lookOpen">
-                <span class="size-3.5 rounded-full ring-1 ring-stone-900/10" :style="{ backgroundColor: resolvedTheme().accent }"></span>
-                Look
-              </button>
-              <div x-cloak x-show="lookOpen" x-transition.opacity class="card float absolute top-full left-0 z-20 mt-2 w-72 space-y-4 p-4 max-sm:fixed max-sm:inset-x-4 max-sm:top-28 max-sm:mt-0 max-sm:w-auto" role="dialog" aria-label="Look">
-                <div>
-                  <p class="label">Colour</p>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <template x-for="c in accents" :key="c.hex">
-                      <button
-                        type="button"
-                        class="size-7 rounded-md ring-offset-2 ring-offset-white transition"
-                        :class="resolvedTheme().accent === c.hex ? 'ring-2 ring-stone-900' : 'hover:ring-2 hover:ring-stone-300'"
-                        :style="{ backgroundColor: c.hex }"
-                        :aria-label="c.name"
-                        :aria-pressed="resolvedTheme().accent === c.hex"
-                        :title="c.name"
-                        @click="theme.accent = c.hex"></button>
+        {{/* Below large screens a zoomed PDF reaches the edges of the screen. The
+             settings bar's shadow stands in for the one above. */}}
+        <div class="scroll-shadows relative flex flex-col before:hidden max-lg:-mx-4 sm:max-lg:-mx-6 lg:min-h-0 lg:flex-1">
+          <div class="min-h-0 flex-1 lg:overflow-y-auto" x-init="scrollShadows($el)">
+            {{/* The settings float over the PDF, which scrolls under them. Below
+                 large screens it shows up to the version's header; on large
+                 ones it is cut off at the settings. */}}
+            <div data-settings class="float sticky top-18 z-10 mx-4 mb-1 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-stone-200 bg-white px-3 py-2 sm:gap-x-4 sm:max-lg:mx-6 lg:top-0 lg:mx-0 lg:mb-0">
+              <div class="seg" role="group" aria-label="Language" x-show="$store.cv.state.langs.length > 1">
+                <template x-for="l in $store.cv.state.langs" :key="l">
+                  <button type="button" :aria-pressed="lang === l" @click="lang = l" x-text="l.toUpperCase()"></button>
+                </template>
+              </div>
+              {{/* Look: colour, font, photo, spacing */}}
+              <div class="relative" @keydown.escape.stop="lookOpen = false" @click.outside="lookOpen = false">
+                <button type="button" class="btn py-1" @click="lookOpen = !lookOpen" :aria-expanded="lookOpen">
+                  <span class="size-3.5 rounded-full ring-1 ring-stone-900/10" :style="{ backgroundColor: resolvedTheme().accent }"></span>
+                  Look
+                </button>
+                <div x-cloak x-show="lookOpen" x-transition.opacity class="card float absolute top-full left-0 z-20 mt-2 w-72 space-y-4 p-4 max-sm:fixed max-sm:inset-x-4 max-sm:top-28 max-sm:mt-0 max-sm:w-auto" role="dialog" aria-label="Look">
+                  <div>
+                    <p class="label">Colour</p>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <template x-for="c in accents" :key="c.hex">
+                        <button
+                          type="button"
+                          class="size-7 rounded-md ring-offset-2 ring-offset-white transition"
+                          :class="resolvedTheme().accent === c.hex ? 'ring-2 ring-stone-900' : 'hover:ring-2 hover:ring-stone-300'"
+                          :style="{ backgroundColor: c.hex }"
+                          :aria-label="c.name"
+                          :aria-pressed="resolvedTheme().accent === c.hex"
+                          :title="c.name"
+                          @click="theme.accent = c.hex"></button>
+                      </template>
+                    </div>
+                    <div x-show="accentContrast() < 4.5" class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
+                      Hard to read as text on white (<span x-text="accentContrast().toFixed(1)"></span>:1; 4.5:1 is the minimum).
+                      <button type="button" class="font-semibold hover:underline" @click="darkenAccent()">Use a darker shade</button>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="label">Font</p>
+                    <div class="seg" role="group" aria-label="Font">
+                      <button type="button" :aria-pressed="resolvedTheme().font === 'sans'" @click="theme.font = 'sans'">Sans</button>
+                      <button type="button" :aria-pressed="resolvedTheme().font === 'serif'" @click="theme.font = 'serif'">Serif</button>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="label">Photo</p>
+                    <template x-if="$store.cv.state.profile.photo">
+                      <div class="flex flex-wrap items-center gap-3">
+                        <label class="flex items-center gap-2 text-sm text-stone-700">
+                          <input type="checkbox" class="size-4 accent-accent" x-model="photo">
+                          Show
+                        </label>
+                        <div class="seg" role="group" aria-label="Photo shape" x-show="photo">
+                          <template x-for="shape in ['rounded', 'circle', 'square']" :key="shape">
+                            <button type="button" class="capitalize" :aria-pressed="resolvedTheme().photo === shape" @click="theme.photo = shape" x-text="shape"></button>
+                          </template>
+                        </div>
+                      </div>
+                    </template>
+                    <template x-if="!$store.cv.state.profile.photo">
+                      <a href="/profile/" class="text-sm text-stone-500 underline decoration-stone-300 underline-offset-2 hover:text-stone-900">Add a photo on your Profile</a>
                     </template>
                   </div>
-                  <div x-show="accentContrast() < 4.5" class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
-                    Hard to read as text on white (<span x-text="accentContrast().toFixed(1)"></span>:1; 4.5:1 is the minimum).
-                    <button type="button" class="font-semibold hover:underline" @click="darkenAccent()">Use a darker shade</button>
-                  </div>
-                </div>
-                <div>
-                  <p class="label">Font</p>
-                  <div class="seg" role="group" aria-label="Font">
-                    <button type="button" :aria-pressed="resolvedTheme().font === 'sans'" @click="theme.font = 'sans'">Sans</button>
-                    <button type="button" :aria-pressed="resolvedTheme().font === 'serif'" @click="theme.font = 'serif'">Serif</button>
-                  </div>
-                </div>
-                <div>
-                  <p class="label">Photo</p>
-                  <template x-if="$store.cv.state.profile.photo">
-                    <div class="flex flex-wrap items-center gap-3">
-                      <label class="flex items-center gap-2 text-sm text-stone-700">
-                        <input type="checkbox" class="size-4 accent-accent" x-model="photo">
-                        Show
-                      </label>
-                      <div class="seg" role="group" aria-label="Photo shape" x-show="photo">
-                        <template x-for="shape in ['rounded', 'circle', 'square']" :key="shape">
-                          <button type="button" class="capitalize" :aria-pressed="resolvedTheme().photo === shape" @click="theme.photo = shape" x-text="shape"></button>
-                        </template>
-                      </div>
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <label class="label" for="spacing">Spacing</label>
+                      <button
+                        type="button"
+                        class="mb-1 font-mono text-xs text-stone-500 hover:text-stone-900"
+                        :title="spacing !== 1 ? 'Reset to 100%' : ''"
+                        @click="spacing = 1"
+                        x-text="Math.round(spacing * 100) + '%'"></button>
                     </div>
-                  </template>
-                  <template x-if="!$store.cv.state.profile.photo">
-                    <a href="/profile/" class="text-sm text-stone-500 underline decoration-stone-300 underline-offset-2 hover:text-stone-900">Add a photo on your Profile</a>
-                  </template>
-                </div>
-                <div>
-                  <div class="flex items-center justify-between">
-                    <label class="label" for="spacing">Spacing</label>
-                    <button
-                      type="button"
-                      class="mb-1 font-mono text-xs text-stone-500 hover:text-stone-900"
-                      :title="spacing !== 1 ? 'Reset to 100%' : ''"
-                      @click="spacing = 1"
-                      x-text="Math.round(spacing * 100) + '%'"></button>
+                    <input id="spacing" type="range" min="0.4" max="1.4" step="0.05" class="w-full accent-accent" x-model.number="spacing">
                   </div>
-                  <input id="spacing" type="range" min="0.4" max="1.4" step="0.05" class="w-full accent-accent" x-model.number="spacing">
+                  <div class="border-t border-stone-200 pt-3 text-xs">
+                    <span x-show="isDefault()" class="text-stone-500">New versions get this look and section order.</span>
+                    <button type="button" x-show="!isDefault()" class="font-medium text-accent hover:underline" @click="makeDefault()">Use look and section order for new versions</button>
+                  </div>
                 </div>
-                <div class="border-t border-stone-200 pt-3 text-xs">
-                  <span x-show="isDefault()" class="text-stone-500">New versions get this look and section order.</span>
-                  <button type="button" x-show="!isDefault()" class="font-medium text-accent hover:underline" @click="makeDefault()">Use look and section order for new versions</button>
+              </div>
+
+              {{/* Pages: how many, and fitting them */}}
+              <div class="relative flex items-center gap-2" x-show="pages && selected.length" @keydown.escape.stop="pagesOpen = false" @click.outside="pagesOpen = false">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium"
+                  :class="pages <= fitPages ? 'bg-accent-tint text-accent-dark hover:brightness-95' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'"
+                  :aria-expanded="pagesOpen"
+                  @click="pagesOpen = !pagesOpen">
+                  {{ icon "compose" "size-4" }}
+                  <span x-text="(pages === 1 ? '1 page' : pages + ' pages') + (fitting ? ', fitting…' : '')"></span>
+                  {{ icon "updown" "size-3.5" }}
+                </button>
+                <span class="hidden font-mono text-xs text-stone-500 sm:inline" x-text="loading ? 'Rendering…' : fitHint()"></span>
+                <div x-cloak x-show="pagesOpen" x-transition.opacity class="card float absolute top-full right-0 z-20 mt-2 w-64 space-y-2 p-4 sm:right-auto sm:left-0" role="dialog" aria-label="Fit">
+                  <p class="label">Fit on how many pages?</p>
+                  <div class="seg w-full" role="group" aria-label="Fit on">
+                    <template x-for="n in [1, 2, 3, 4]" :key="n">
+                      <button type="button" class="flex-1" :aria-pressed="n === fitPages" :disabled="fitting" @click="fitTo(n)" x-text="n"></button>
+                    </template>
+                  </div>
+                  <p class="text-xs text-stone-500">Sets the spacing as generous as still fits. <span x-text="fitHint()"></span></p>
                 </div>
               </div>
             </div>
-
-            {{/* Pages: how many, and fitting them */}}
-            <div class="relative flex items-center gap-2" x-show="pages && selected.length" @keydown.escape.stop="pagesOpen = false" @click.outside="pagesOpen = false">
-              <button
-                type="button"
-                class="inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium"
-                :class="pages <= fitPages ? 'bg-accent-tint text-accent-dark hover:brightness-95' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'"
-                :aria-expanded="pagesOpen"
-                @click="pagesOpen = !pagesOpen">
-                {{ icon "compose" "size-4" }}
-                <span x-text="(pages === 1 ? '1 page' : pages + ' pages') + (fitting ? ', fitting…' : '')"></span>
-                {{ icon "updown" "size-3.5" }}
-              </button>
-              <span class="hidden font-mono text-xs text-stone-500 sm:inline" x-text="loading ? 'Rendering…' : fitHint()"></span>
-              <div x-cloak x-show="pagesOpen" x-transition.opacity class="card float absolute top-full right-0 z-20 mt-2 w-64 space-y-2 p-4 sm:right-auto sm:left-0" role="dialog" aria-label="Fit">
-                <p class="label">Fit on how many pages?</p>
-                <div class="seg w-full" role="group" aria-label="Fit on">
-                  <template x-for="n in [1, 2, 3, 4]" :key="n">
-                    <button type="button" class="flex-1" :aria-pressed="n === fitPages" :disabled="fitting" @click="fitTo(n)" x-text="n"></button>
-                  </template>
-                </div>
-                <p class="text-xs text-stone-500">Sets the spacing as generous as still fits. <span x-text="fitHint()"></span></p>
+            <div class="overflow-x-auto p-3 max-lg:px-7 sm:max-lg:px-9 lg:pt-6">
+              <div x-show="!selected.length" class="card mx-auto max-w-md p-6 text-center text-sm text-stone-500">
+                Nothing selected yet. Tick the items for this version in the list on the left.
               </div>
-            </div>
-          </div>
-        </div>
-
-        {{/* Below large screens a zoomed PDF reaches the edges of the screen. */}}
-        <div class="scroll-shadows relative flex flex-col max-lg:-mx-4 sm:max-lg:-mx-6 lg:mt-1 lg:min-h-0 lg:flex-1">
-          <div class="min-h-0 flex-1 overflow-auto p-3 max-lg:px-7 max-lg:pt-0 sm:max-lg:px-9" x-init="scrollShadows($el)">
-            <div x-show="!selected.length" class="card mx-auto max-w-md p-6 text-center text-sm text-stone-500">
-              Nothing selected yet. Tick the items for this version in the list on the left.
-            </div>
-            <div x-ref="pages" x-show="selected.length" x-init="pinchZoom($el)" role="region" aria-label="PDF preview" class="mx-auto max-w-3xl space-y-6 transition-opacity" :class="loading && 'opacity-60'">
-              <template x-for="p in pageList" :key="p.key">
-                <div class="relative bg-white shadow-[0_1px_2px_rgb(28_25_23/0.06),0_2px_10px_rgb(28_25_23/0.08)] ring-1 ring-stone-900/5" x-init="$el.prepend(canvas(p))">
-                  {{/* Each item on the page: hover to see it, click to edit. For
-                       the keyboard and screen readers, a group named after the
-                       item, with its buttons, which show when they have focus. */}}
-                  <template x-for="m in p.marks" :key="m.id">
-                    <div
-                      data-mark
-                      role="group"
-                      class="group absolute inset-x-[2%] cursor-pointer rounded-md transition"
-                      :class="isOpenKey(m.id) ? 'bg-accent/5 ring-2 ring-accent' : hover === m.id ? 'bg-accent/5 ring-2 ring-accent/40' : 'focus-within:ring-2 focus-within:ring-accent/40'"
-                      :style="markStyle(m, p)"
-                      :aria-label="markTitle(m.id)"
-                      @mouseenter="hover = m.id"
-                      @mouseleave="hover = null"
-                      @click="openKey(m.id)">
-                      <div class="absolute top-1.5 right-1.5 flex gap-1" :class="hover === m.id ? '' : 'pointer-events-none opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100'">
-                        <button type="button" class="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm hover:text-accent" @click.stop="openKey(m.id)" :aria-label="'Edit ' + markTitle(m.id)">Edit</button>
-                        <button type="button" class="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm hover:text-red-700" @click.stop="hide(m.id)" :aria-label="'Hide ' + markTitle(m.id) + ' in this version'">Hide</button>
+              <div x-ref="pages" x-show="selected.length" x-init="pinchZoom($el)" role="region" aria-label="PDF preview" class="mx-auto max-w-3xl space-y-6 transition-opacity" :class="loading && 'opacity-60'">
+                <template x-for="p in pageList" :key="p.key">
+                  <div class="relative bg-white shadow-[0_1px_2px_rgb(28_25_23/0.06),0_2px_10px_rgb(28_25_23/0.08)] ring-1 ring-stone-900/5" x-init="$el.prepend(canvas(p))">
+                    {{/* Each item on the page: hover to see it, click to edit. For
+                         the keyboard and screen readers, a group named after the
+                         item, with its buttons, which show when they have focus. */}}
+                    <template x-for="m in p.marks" :key="m.id">
+                      <div
+                        data-mark
+                        role="group"
+                        class="group absolute inset-x-[2%] cursor-pointer rounded-md transition"
+                        :class="isOpenKey(m.id) ? 'bg-accent/5 ring-2 ring-accent' : hover === m.id ? 'bg-accent/5 ring-2 ring-accent/40' : 'focus-within:ring-2 focus-within:ring-accent/40'"
+                        :style="markStyle(m, p)"
+                        :aria-label="markTitle(m.id)"
+                        @mouseenter="hover = m.id"
+                        @mouseleave="hover = null"
+                        @click="openKey(m.id)">
+                        <div class="absolute top-1.5 right-1.5 flex gap-1" :class="hover === m.id ? '' : 'pointer-events-none opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100'">
+                          <button type="button" class="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm hover:text-accent" @click.stop="openKey(m.id)" :aria-label="'Edit ' + markTitle(m.id)">Edit</button>
+                          <button type="button" class="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-700 shadow-sm hover:text-red-700" @click.stop="hide(m.id)" :aria-label="'Hide ' + markTitle(m.id) + ' in this version'">Hide</button>
+                        </div>
                       </div>
-                    </div>
-                  </template>
-                </div>
-              </template>
+                    </template>
+                  </div>
+                </template>
+              </div>
             </div>
           </div>
         </div>
