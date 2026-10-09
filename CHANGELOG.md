@@ -8,6 +8,7 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 
 - Sections can be dragged into a new order on a touchscreen too, by their
   handle.
+- The "Add an item to another section" box has room before its "+".
 ## 0.7.1
 
 - A new share link's address is 12 random characters, without the version's
