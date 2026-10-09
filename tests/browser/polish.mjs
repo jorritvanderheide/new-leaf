@@ -103,6 +103,31 @@ export default async function polish({ base, shots }) {
     await sleep(300);
     const header = await page.js("document.querySelector('[aria-label=\"Version name\"]').getBoundingClientRect().top");
     check(header >= 0 && header < 20, `the header stays at the top while scrolling (${Math.round(header)}px)`);
+
+    // Pinching the preview zooms its pages, around the fingers, and draws
+    // them sharp again after.
+    const pinch = (from, to) =>
+      page.js(`(() => {
+        const box = document.querySelector('[x-ref=pages]').parentElement;
+        const r = box.getBoundingClientRect();
+        const x = r.left + r.width / 2, y = 844 / 2;
+        const at = (d) => [1, -1].map((s, i) => new Touch({ identifier: i, target: box, clientX: x + (s * d) / 2, clientY: y }));
+        const fire = (type, touches) => box.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches, targetTouches: touches, changedTouches: touches }));
+        fire('touchstart', at(${from}));
+        fire('touchmove', at(${to}));
+        fire('touchend', []);
+      })()`);
+    const fit = await page.js("document.querySelector('[x-ref=pages]').getBoundingClientRect().width");
+    const sharp = await page.js("document.querySelector('[x-ref=pages] canvas').width");
+    await pinch(100, 200);
+    const zoomed = await page.js("document.querySelector('[x-ref=pages]').getBoundingClientRect().width");
+    check(Math.abs(zoomed - 2 * fit) < 2, `pinching zooms the pages (${Math.round(fit)} to ${Math.round(zoomed)}px)`);
+    check((await page.js("document.querySelector('[x-ref=pages]').parentElement.scrollLeft")) > fit / 3, "around the fingers");
+    check((await page.js("visualViewport.scale")) === 1, "and not the whole page");
+    await page.until(`document.querySelector('[x-ref=pages] canvas').width > ${sharp * 1.9}`, "zoomed redraw", 10000);
+    check(true, "the zoomed pages are drawn sharp");
+    await pinch(200, 100);
+    check(Math.abs((await page.js("document.querySelector('[x-ref=pages]').getBoundingClientRect().width")) - fit) < 2, "pinching back fits them again");
     await page.js("document.querySelector('[aria-label=More]').click()");
     await sleep(300);
     check((await page.js("[...document.querySelectorAll('[role=menu] [role=menuitem]')].filter((m) => m.offsetParent).map((m) => m.textContent.trim()).join()")) === "Download PDF,Undo,Redo", "Download, Undo and Redo are in the ⋯ menu");

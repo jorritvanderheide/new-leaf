@@ -975,12 +975,14 @@ document.addEventListener("alpine:init", () => {
         // Hidden behind the phone tab the preview has no width yet: draw at
         // a fixed size (it scales with CSS) and redraw sharp when shown.
         const width = this.$refs.pages.clientWidth || 800;
-        const dpr = window.devicePixelRatio || 1;
         const drawn = [];
         for (let n = 1; n <= doc.numPages; n++) {
           const page = await doc.getPage(n);
           const size = page.getViewport({ scale: 1 }); // in pt
           const viewport = page.getViewport({ scale: width / size.width });
+          // Zoomed in on a phone, a page at full sharpness would be more
+          // pixels than Safari draws on a canvas; 8 million is safely below.
+          const dpr = Math.min(window.devicePixelRatio || 1, Math.sqrt(8e6 / (viewport.width * viewport.height)));
           const canvas = document.createElement("canvas");
           canvas.width = Math.floor(viewport.width * dpr);
           canvas.height = Math.floor(viewport.height * dpr);
@@ -1005,6 +1007,52 @@ document.addEventListener("alpine:init", () => {
 
     canvas(p) {
       return canvases.get(p.key);
+    },
+
+    // Pinching the preview zooms its pages, up to 3×, rather than the whole
+    // editor; the spot between the fingers stays under them. The pages
+    // stretch as they are pinched and are drawn sharp again after.
+    pinchZoom(pages) {
+      const box = pages.parentElement;
+      let zoom = 1;
+      let start = null;
+      const fingers = (e) => {
+        const [a, b] = e.touches;
+        return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2, d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) };
+      };
+      // Where a fraction of the pages is, from where it should be.
+      const off = (fx, fy, at) => {
+        const r = pages.getBoundingClientRect();
+        return [r.left + fx * r.width - at.x, r.top + fy * r.height - at.y];
+      };
+      box.addEventListener("touchstart", (e) => {
+        if (e.touches.length !== 2) return;
+        e.preventDefault();
+        const at = fingers(e);
+        const r = pages.getBoundingClientRect();
+        start = { ...at, zoom, fx: (at.x - r.left) / r.width, fy: (at.y - r.top) / r.height };
+      }, { passive: false });
+      box.addEventListener("touchmove", (e) => {
+        if (!start || e.touches.length !== 2) return;
+        if (e.cancelable) e.preventDefault();
+        const at = fingers(e);
+        zoom = Math.min(3, Math.max(1, (start.zoom * at.d) / start.d));
+        // max-w-3xl is 48rem.
+        pages.style.width = zoom === 1 ? "" : `${zoom * 100}%`;
+        pages.style.maxWidth = zoom === 1 ? "" : `${zoom * 48}rem`;
+        // The preview scrolls sideways, and on a phone the page scrolls down.
+        const [dx, dy] = off(start.fx, start.fy, at);
+        box.scrollLeft += dx;
+        box.scrollTop += dy;
+        scrollBy(...off(start.fx, start.fy, at));
+      }, { passive: false });
+      box.addEventListener("touchend", (e) => {
+        if (!start || e.touches.length === 2) return;
+        start = null;
+        this.resized();
+      });
+      // Safari zooms on its own gesture events too.
+      box.addEventListener("gesturestart", (e) => e.preventDefault());
     },
 
     // Redraw at the new width after the window is resized.

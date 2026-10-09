@@ -308,11 +308,11 @@
         </div>
 
         <div class="scroll-shadows relative mt-1 flex flex-col lg:min-h-0 lg:flex-1">
-          <div class="min-h-0 flex-1 overflow-y-auto p-3" x-init="scrollShadows($el)">
+          <div class="min-h-0 flex-1 overflow-auto p-3" x-init="scrollShadows($el)">
             <div x-show="!selected.length" class="card mx-auto max-w-md p-6 text-center text-sm text-stone-500">
               Nothing selected yet. Tick the items for this version in the list on the left.
             </div>
-            <div x-ref="pages" x-show="selected.length" role="region" aria-label="PDF preview" class="mx-auto max-w-3xl space-y-6 transition-opacity" :class="loading && 'opacity-60'">
+            <div x-ref="pages" x-show="selected.length" x-init="pinchZoom($el)" role="region" aria-label="PDF preview" class="mx-auto max-w-3xl space-y-6 transition-opacity" :class="loading && 'opacity-60'">
               <template x-for="p in pageList" :key="p.key">
                 <div class="relative bg-white shadow-[0_1px_2px_rgb(28_25_23/0.06),0_2px_10px_rgb(28_25_23/0.08)] ring-1 ring-stone-900/5" x-init="$el.prepend(canvas(p))">
                   {{/* Each item on the page: hover to see it, click to edit. For

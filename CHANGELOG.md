@@ -13,6 +13,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   didn't work as it should. An accent you already picked stays.
 - A name over two lines has them about as long, and closer together, in the
   PDF and on share pages.
+- On a phone, pinching the preview zooms the PDF rather than the whole
+  editor, and the pages are drawn sharp again once you let go.
 ## 0.7.1
 
 - A new share link's address is 12 random characters, without the version's
