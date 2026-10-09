@@ -4,6 +4,12 @@ What changed in each release of New Leaf, newest first. What counts as
 breaking is in [Compatibility](docs/compatibility.md). Releases before 0.6
 are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/releases).
 
+## Unreleased
+
+- On a phone, a zoomed preview reaches the edges of the screen, and the bar
+  with the language and the look keeps its space while the PDF scrolls
+  under it.
+
 ## 0.7.2
 
 - Sections can be dragged into a new order on a touchscreen too, by their

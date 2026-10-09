@@ -124,6 +124,13 @@ export default async function polish({ base, shots }) {
     check(Math.abs(zoomed - 2 * fit) < 2, `pinching zooms the pages (${Math.round(fit)} to ${Math.round(zoomed)}px)`);
     check((await page.js("document.querySelector('[x-ref=pages]').parentElement.scrollLeft")) > fit / 3, "around the fingers");
     check((await page.js("visualViewport.scale")) === 1, "and not the whole page");
+    const box = await page.js("(() => { const r = document.querySelector('[x-ref=pages]').parentElement.getBoundingClientRect(); return [r.left, r.right]; })()");
+    check(box[0] === 0 && box[1] === 390, `the zoomed pages reach the edges of the screen (${box})`);
+    const around = await page.js(`(() => {
+      const bar = document.querySelector('[aria-label=Language]').parentElement, r = bar.getBoundingClientRect();
+      return [r.top - 8, r.bottom + 8].every((y) => document.elementFromPoint(195, y) === bar.parentElement);
+    })()`);
+    check(around, "the settings bar keeps its space while the page scrolls under it");
     await page.until(`document.querySelector('[x-ref=pages] canvas').width > ${sharp * 1.9}`, "zoomed redraw", 10000);
     check(true, "the zoomed pages are drawn sharp");
     await pinch(200, 100);

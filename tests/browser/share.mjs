@@ -12,7 +12,7 @@ export default async function share({ base, shots }) {
     await page.click("form button", "Create link");
     await page.until("!!document.querySelector('input[aria-label=Link]')?.value", "link published", 30000);
     const url = await page.js("document.querySelector('input[aria-label=Link]').value");
-    check(/\/full-cv-[a-z0-9]{8}\/$/.test(url), "unguessable URL: " + url);
+    check(/\/[a-z2-7]{12}\/$/.test(url), "unguessable URL: " + url);
     await page.shot("share-dialog");
     await page.click("form button", "Done");
     await page.go(base + "/");
