@@ -69,7 +69,7 @@ export default async function versions({ base, shots }) {
       const cards = [...document.querySelectorAll('aside[aria-label=Outline] [data-handle]')].map((h) => h.closest('.card'));
       const last = cards[cards.length - 1], top = cards[0];
       const dt = new DataTransfer();
-      last.querySelector('[data-handle]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      last.querySelector('[data-handle]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' }));
       return Alpine.nextTick(() => {
         last.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
         top.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
@@ -85,6 +85,22 @@ export default async function versions({ base, shots }) {
     await page.js("document.querySelector('button[aria-label=Undo]').click()");
     await page.until(`${W}.shownSections()[0] === ${JSON.stringify(before[0])}`, "drag undone", 3000);
     check(true, "Undo takes a whole drag back in one step");
+
+    // The same with a finger, which gets no drag and drop from the browser.
+    await page.js(`(() => {
+      const handles = [...document.querySelectorAll('aside[aria-label=Outline] [data-handle]')];
+      const top = handles[0].closest('.card');
+      top.scrollIntoView();
+      const r = top.getBoundingClientRect();
+      const at = { bubbles: true, pointerType: 'touch', clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+      handles[handles.length - 1].dispatchEvent(new PointerEvent('pointerdown', at));
+      dispatchEvent(new PointerEvent('pointermove', at));
+      dispatchEvent(new PointerEvent('pointerup', at));
+    })()`);
+    await page.until(`${W}.shownSections()[0] === ${JSON.stringify(before[before.length - 1])}`, "touch drag", 3000);
+    check(true, "a touch drag on the handle moves a section too");
+    await page.js("document.querySelector('button[aria-label=Undo]').click()");
+    await page.until(`${W}.shownSections()[0] === ${JSON.stringify(before[0])}`, "touch drag undone", 3000);
 
     // The same with the keyboard, as a screen reader hears it.
     await page.js("document.querySelector('aside[aria-label=Outline] [data-handle]').focus()");

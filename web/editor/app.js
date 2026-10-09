@@ -1049,6 +1049,29 @@ document.addEventListener("alpine:init", () => {
       return this.order.filter((s) => !this.$store.cv.items(s).length);
     },
 
+    // A mouse drags the card the browser's way. Touch and pens get no
+    // drag and drop from it, so the section follows the finger instead.
+    holdHandle(event, section) {
+      if (event.pointerType === "mouse") {
+        this.grab = section;
+        return;
+      }
+      this.dragging = section;
+      const move = (e) => {
+        const over = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-section]");
+        if (over) this.dragOver(over.dataset.section);
+      };
+      const end = () => {
+        removeEventListener("pointermove", move);
+        removeEventListener("pointerup", end);
+        removeEventListener("pointercancel", end);
+        this.dragEnd();
+      };
+      addEventListener("pointermove", move);
+      addEventListener("pointerup", end);
+      addEventListener("pointercancel", end);
+    },
+
     dragStart(event, section) {
       this.dragging = section;
       event.dataTransfer.effectAllowed = "move";
