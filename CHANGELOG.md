@@ -4,7 +4,7 @@ What changed in each release of New Leaf, newest first. What counts as
 breaking is in [Compatibility](docs/compatibility.md). Releases before 0.6
 are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/releases).
 
-## Unreleased
+## 0.7.2
 
 - Sections can be dragged into a new order on a touchscreen too, by their
   handle.
@@ -15,6 +15,7 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   PDF and on share pages.
 - On a phone, pinching the preview zooms the PDF rather than the whole
   editor, and the pages are drawn sharp again once you let go.
+
 ## 0.7.1
 
 - A new share link's address is 12 random characters, without the version's
