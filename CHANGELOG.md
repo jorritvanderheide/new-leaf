@@ -9,6 +9,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 - On a phone, a zoomed preview reaches the edges of the screen, and the bar
   with the language and the look keeps its space while the PDF scrolls
   under it.
+- Keyboard shortcuts are shown as Ctrl (Ctrl+K, Ctrl+Z) instead of ⌘, in
+  the editor and the README. Ctrl works on a Mac too, as does ⌘.
 
 ## 0.7.2
 
