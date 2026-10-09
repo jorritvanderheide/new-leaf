@@ -103,9 +103,9 @@ it tells you what it left out. **Download JSON Resume** goes the other way.
 
 ### Can I undo?
 
-Changes to a version (items, order, language, look) have undo and redo, ⌘Z and
-⇧⌘Z. Deleting an item or a version shows an **Undo** button for a few
-seconds. Text you type has your browser's own undo.
+Changes to a version (items, order, language, look) have undo and redo, Ctrl+Z
+and Ctrl+Shift+Z. Deleting an item or a version shows an **Undo** button for a
+few seconds. Text you type has your browser's own undo.
 
 ## The PDF
 

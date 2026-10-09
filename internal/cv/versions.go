@@ -248,7 +248,7 @@ func (s *Store) EnsureVersions(user string) error {
 
 // PrintOptions select what a PDF shows and how it is laid out.
 type PrintOptions struct {
-	Lang    string   `json:"lang"` // opens at /<slug>/; the other languages at /<slug>/<lang>/
+	Lang    string   `json:"lang"` // the language the PDF is in
 	Entries []string `json:"entries"`
 	Photo   bool     `json:"photo"`
 	Spacing float64  `json:"spacing"`         // whitespace scale, MinSpacing..MaxSpacing; 0 means 1

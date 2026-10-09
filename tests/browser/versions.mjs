@@ -54,14 +54,14 @@ export default async function versions({ base, shots }) {
     check(!(await version("uva-phd")).entries.includes(hidden), "Hide takes the item off this version");
     check((await version("full-cv")).entries.includes(hidden), "and leaves other versions alone");
 
-    // Undo and redo: the hide comes back, and goes again with ⇧⌘Z.
+    // Undo and redo: the hide comes back, and goes again with Ctrl+Shift+Z.
     await page.js("document.querySelector('button[aria-label=Undo]').click()");
     await page.until(`${W}.selected.includes(${JSON.stringify(hidden)})`, "undone", 3000);
     await sleep(1200);
     check((await version("uva-phd")).entries.includes(hidden), "Undo brings a hidden item back, and saves that");
-    await page.key("z", 4 | 8); // Shift+Meta
+    await page.key("z", 2 | 8); // Ctrl+Shift
     await page.until(`!${W}.selected.includes(${JSON.stringify(hidden)})`, "redone", 3000);
-    check(true, "⇧⌘Z redoes it");
+    check(true, "Ctrl+Shift+Z redoes it");
 
     // Reorder sections by dragging.
     const before = await page.js(`${W}.shownSections()`);

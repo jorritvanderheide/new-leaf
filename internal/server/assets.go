@@ -166,7 +166,7 @@ func (s *Server) servePage(w http.ResponseWriter, p editorPage) {
 
 // --- template functions
 
-// Small line icons, 20×20, drawn with currentColor.
+// Small line icons, 20x20, drawn with currentColor.
 var icons = map[string]string{
 	"compose": `<path d="M5.25 2.75h6l3.5 3.5v11h-9.5z"/><path d="M11 2.75v3.75h3.75M7.75 10.25h4.5M7.75 13.25h4.5"/>`,
 	"items":   `<path d="M7.5 5.75h9M7.5 10h9M7.5 14.25h9"/><path d="M3.75 5.75h.01M3.75 10h.01M3.75 14.25h.01" stroke-width="2.2"/>`,

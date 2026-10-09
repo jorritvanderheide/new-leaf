@@ -154,8 +154,9 @@ func (s *Server) isPublished(l cv.Link, langs []string, files map[string][]byte)
 	return true
 }
 
-// syncAssets writes the share pages' stylesheet and fonts. Additive only:
-// pages published by an older version keep the stylesheet they reference.
+// syncAssets writes the share pages' stylesheet and fonts. It only adds
+// files, so pages published by an older version keep the stylesheet they
+// reference.
 func (s *Server) syncAssets() error {
 	files := map[string]string{s.shareCSS(): "share/share.css"}
 	fonts, err := fs.ReadDir(s.assets.fs, "share/fonts")

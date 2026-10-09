@@ -130,7 +130,8 @@ const addDays = (date, days) => {
   return d.toISOString().slice(0, 10);
 };
 
-// Changes waiting to be saved, so ⌘S and leaving the page can deal with them.
+// Changes waiting to be saved, so Ctrl+S and leaving the page can deal with
+// them.
 const pending = new Set();
 
 // autosaver saves after a pause in editing; flush() saves right away.
@@ -475,7 +476,7 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
-    // Global shortcuts: ⌘K / Ctrl+K search, ⌘S / Ctrl+S save now.
+    // Global shortcuts (Cmd on a Mac): Ctrl+K search, Ctrl+S save now.
     keys(event) {
       const mod = event.metaKey || event.ctrlKey;
       if (mod && event.key.toLowerCase() === "k") {
@@ -562,7 +563,7 @@ document.addEventListener("alpine:init", () => {
     },
   });
 
-  // ⌘K: jump to any page, item or CV.
+  // Ctrl+K: jump to any page, item or CV.
   Alpine.data("palette", () => ({
     q: "",
     index: 0,
@@ -615,9 +616,8 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
-  // Manage CVs: create, rename and delete. CVs from the server
-  // configuration can be renamed but not deleted.
-  // The CV menu: switch CVs, manage them.
+  // The CV menu: switch CVs, and create, rename and delete them. CVs from
+  // the server configuration can be renamed but not deleted.
   Alpine.data("cvMenu", () => ({
     open: false,
 
@@ -914,7 +914,7 @@ document.addEventListener("alpine:init", () => {
       Object.assign(this, JSON.parse(this._snap));
     },
 
-    // ⌘Z / Ctrl+Z, and with Shift to redo; text fields keep their own.
+    // Ctrl+Z, and with Shift to redo; text fields keep their own.
     undoKey(event) {
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
       if (event.target.closest?.("textarea, select, input:not([type=checkbox]):not([type=range])")) return;
@@ -1009,7 +1009,7 @@ document.addEventListener("alpine:init", () => {
       return canvases.get(p.key);
     },
 
-    // Pinching the preview zooms its pages, up to 3×, rather than the whole
+    // Pinching the preview zooms its pages, up to 3x, rather than the whole
     // editor; the spot between the fingers stays under them. The pages
     // stretch as they are pinched and are drawn sharp again after.
     pinchZoom(pages) {
@@ -1232,7 +1232,7 @@ document.addEventListener("alpine:init", () => {
       return out;
     },
 
-    // Alt+↑/↓ on a section's handle; the handle keeps the focus.
+    // Alt+Up/Down on a section's handle; the handle keeps the focus.
     moveSection(section, step) {
       const shown = this.shownSections();
       const other = shown[shown.indexOf(section) + step];

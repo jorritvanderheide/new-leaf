@@ -53,9 +53,9 @@
         };
 
         # Local development: rebuilds the stylesheets on change and runs the
-        # server as you ($USER, or NEW_LEAF_DEV_USER) against ./dev, with templates read from
-        # disk; serves the public webroot on :8081 so share links can be
-        # clicked through.
+        # server as you ($USER, or NEW_LEAF_DEV_USER) against ./dev, with
+        # templates read from disk; serves the public webroot on :8081 so share
+        # links can be clicked through.
         dev = {
           type = "app";
           program = pkgs.lib.getExe (

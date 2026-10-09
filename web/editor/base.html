@@ -29,7 +29,7 @@
       <button type="button" class="mx-3 mb-3 flex items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-sm text-stone-500 hover:border-line hover:text-stone-900" @click="$store.cv.paletteOpen = true">
         {{ icon "search" "size-4" }}
         Search
-        <kbd class="meta ml-auto">⌘K</kbd>
+        <kbd class="meta ml-auto">Ctrl+K</kbd>
       </button>
       <nav class="flex-1 space-y-0.5 px-3" aria-label="Main">
         {{ range .Nav }}
@@ -78,7 +78,7 @@
       </div>
     </main>
 
-    {{/* ⌘K search */}}
+    {{/* Ctrl+K search */}}
     <div
       x-data="palette"
       x-cloak

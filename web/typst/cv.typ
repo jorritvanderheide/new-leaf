@@ -1,6 +1,7 @@
 // The CV as a PDF. All content comes from data.json (see Document in
-// internal/cv/document.go): sorted, filtered and localised by the app, with user text as
-// structured runs, so nothing typed by a user is ever evaluated as Typst.
+// internal/cv/document.go): sorted, filtered and localised by the app, with
+// user text as structured runs, so nothing typed by a user is ever evaluated
+// as Typst.
 
 #let data = json("data.json")
 #let s = data.spacing // whitespace scale, 1 = default
@@ -54,7 +55,7 @@
 
 // The name, the sections and the items are headings (1, 2 and 3), so the PDF
 // has them as such: for screen readers, applicant tracking systems, and
-// bookmarks to the sections. They look exactly as they did as plain text.
+// bookmarks to the sections. They are styled to look like plain text.
 
 // Header: name, headline, contact details, photo.
 #show heading.where(level: 1): set block(spacing: 0.45 * base)
@@ -150,7 +151,7 @@
 )
 
 // An item that tells where it ended up, for the editor's preview: its page,
-// top and height in pt (`typst eval 'query(<cv-item>)…'`). Leaves the layout
+// top and height in pt (`typst eval 'query(<cv-item>)...'`). Leaves the layout
 // as it is.
 #let marked(id, body) = block(breakable: false, width: 100%, layout(size => {
   let height = measure(body, width: size.width).height

@@ -77,7 +77,7 @@ close the tab. Then:
 5. **Send it.** **Download PDF**. On a server you can also **Share** it, as a
    link to a web page with the PDF, in each of your languages.
 
-Changes save as you go. ⌘K (Ctrl+K) finds any item, page or version.
+Changes save as you go. Ctrl+K finds any item, page or version.
 
 <br/>
 
@@ -227,7 +227,7 @@ fixed everywhere. A version only holds choices:
 - **The look**: colour, typeface, photo shape, spacing.
 - **How many pages** it should fit on.
 
-Undo (⌘Z) and redo (⇧⌘Z) go back and forth through these choices.
+Undo (Ctrl+Z) and redo (Ctrl+Shift+Z) go back and forth through these choices.
 
 ### 6.2 Fitting the pages
 
@@ -267,10 +267,10 @@ Share links are for running New Leaf on a server, see
 
 | Keys | What it does |
 | --- | --- |
-| ⌘K, Ctrl+K | Find an item, page, version or CV |
-| ⌘S, Ctrl+S | Save now |
-| ⌘Z, Ctrl+Z | Undo a change to a version |
-| ⇧⌘Z, Ctrl+Shift+Z | Redo |
+| Ctrl+K | Find an item, page, version or CV |
+| Ctrl+S | Save now |
+| Ctrl+Z | Undo a change to a version |
+| Ctrl+Shift+Z | Redo |
 | Alt+↑, Alt+↓ | Move a section, on its handle |
 | Escape | Close the item editor or a dialog |
 

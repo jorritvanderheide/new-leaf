@@ -1,4 +1,4 @@
-// Editing: autosave, validation, the item panel, undo, ⌘K search, fit to
+// Editing: autosave, validation, the item panel, undo, Ctrl+K search, fit to
 // pages and the profile.
 
 import { api, check, openPage, sleep } from "./lib.mjs";
@@ -62,7 +62,7 @@ export default async function editor({ base, shots }) {
     check(true, "Undo restored the item under its old id");
     await api(base, "DELETE", `/api/items/publications/${created.id}`);
 
-    // ⌘K search jumps to an item.
+    // Ctrl+K search jumps to an item.
     await page.go(base + "/");
     await page.key("k", 2); // Ctrl
     await page.until("Alpine.store('cv').paletteOpen", "palette", 3000);
@@ -70,7 +70,7 @@ export default async function editor({ base, shots }) {
     await sleep(200);
     await page.key("Enter");
     await page.until("location.pathname === '/items/' && !!document.querySelector('#title-en')", "palette opened the item", 10000);
-    check((await page.js("document.querySelector('#title-en').value")) === title, "⌘K opened the item in the panel");
+    check((await page.js("document.querySelector('#title-en').value")) === title, "Ctrl+K opened the item in the panel");
 
     // A version: fits the window; fit to one page.
     await page.go(base + "/v/full-cv/");

@@ -18,10 +18,9 @@ import (
 	"codeberg.org/BW20/new-leaf/internal/render"
 )
 
-// TestEndToEnd drives the API with real Typst. It checks the
-// guarantees that matter: unselected items never reach the webroot, PDFs
-// report their page count, edits propagate to share links, and expired or
-// deleted links disappear.
+// TestEndToEnd drives the API with real Typst. It checks that unselected
+// items never reach the webroot, PDFs report their page count, edits reach
+// share links, and expired or deleted links disappear.
 func TestEndToEnd(t *testing.T) {
 	if _, err := exec.LookPath("typst"); err != nil {
 		t.Skip("typst not in PATH")

@@ -25,7 +25,7 @@ import (
 //	_index.<lang>.md                  profile text; body is the summary
 //	photo.{jpg,png,webp}              optional profile photo
 //	<section>/<id>.<lang>.md          one CV item; body is the description
-//	links/<slug>.<lang>.md            one share link, rendered in <lang>
+//	links/<slug>.md                   one share link, with every language
 
 var (
 	// Sections in their default order on a CV. Their titles are in

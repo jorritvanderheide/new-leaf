@@ -231,8 +231,8 @@ func (s *Store) DeleteLink(user, slug string) error {
 }
 
 // NewSlug is random, so share links can't be guessed: 12 base32 characters,
-// 2^60 ≈ 1.2e18 possibilities. It has no name in it, which would tell whoever
-// gets one link what the version was made for.
+// 60 bits. It has no name in it, which would tell whoever gets one link what
+// the version was made for.
 func NewSlug() string {
 	return strings.ToLower(rand.Text()[:12])
 }

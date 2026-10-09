@@ -409,7 +409,7 @@ func TestMigrate(t *testing.T) {
 		}
 	}
 
-	// Saving no longer touches a language the CV doesn't have.
+	// Saving leaves a language the CV doesn't have alone.
 	after.Name = "New Example"
 	if err := s.SaveProfile("old", after); err != nil {
 		t.Fatal(err)

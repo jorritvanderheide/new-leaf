@@ -35,8 +35,8 @@
       </span>
       <div class="ml-auto flex shrink-0 items-center gap-2">
         <div class="flex max-sm:hidden">
-          <button type="button" class="rounded-md p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 disabled:pointer-events-none disabled:opacity-30" @click="undo()" :disabled="!undoStack.length" aria-label="Undo" title="Undo (⌘Z)">{{ icon "undo" "size-5" }}</button>
-          <button type="button" class="rounded-md p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 disabled:pointer-events-none disabled:opacity-30" @click="redo()" :disabled="!redoStack.length" aria-label="Redo" title="Redo (⇧⌘Z)">{{ icon "redo" "size-5" }}</button>
+          <button type="button" class="rounded-md p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 disabled:pointer-events-none disabled:opacity-30" @click="undo()" :disabled="!undoStack.length" aria-label="Undo" title="Undo (Ctrl+Z)">{{ icon "undo" "size-5" }}</button>
+          <button type="button" class="rounded-md p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 disabled:pointer-events-none disabled:opacity-30" @click="redo()" :disabled="!redoStack.length" aria-label="Redo" title="Redo (Ctrl+Shift+Z)">{{ icon "redo" "size-5" }}</button>
         </div>
         <a class="btn max-sm:hidden" :href="(selected.length && pdfUrl) || null" :download="filename()" :class="!(selected.length && pdfUrl) && 'pointer-events-none opacity-50'">Download PDF</a>
         {{/* Phones: the same, in a menu */}}
