@@ -465,6 +465,31 @@ func TestBackupBomb(t *testing.T) {
 	}
 }
 
+// A backup has the CV's share links, and restoring it brings them back,
+// unless share links are left out.
+func TestBackupLinks(t *testing.T) {
+	s := newTestStore(t)
+	l := Link{Slug: NewSlug(), Label: "UvA", Lang: "nl", Entries: []string{"experience/acme"}, Created: "2026-10-07"}
+	if err := s.SaveLink("alice", l); err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	if err := s.WriteBackup(&b, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	for links, want := range map[bool]int{true: 1, false: 0} {
+		stage, err := s.StageBackup(b.Bytes(), links)
+		if err != nil {
+			t.Fatalf("StageBackup(links %v) = %v", links, err)
+		}
+		got, err := s.Links(filepath.Base(stage))
+		os.RemoveAll(stage)
+		if err != nil || len(got) != want || want == 1 && (got[0].Slug != l.Slug || got[0].Lang != "nl") {
+			t.Errorf("links %v: %+v, %v", links, got, err)
+		}
+	}
+}
+
 // tinyPNG is a real photo, 4 by 4 pixels.
 func tinyPNG() []byte {
 	var b bytes.Buffer

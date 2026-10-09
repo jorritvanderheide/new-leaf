@@ -154,7 +154,7 @@ func TestImportRejects(t *testing.T) {
 		}
 	}
 	// Share links in a server backup are skipped locally, not refused.
-	ok := zipOf(t, map[string]string{"content/_index.en.md": profile, "content/links/x-abcdefgh.en.md": "---\ntitle: x\n---\n"})
+	ok := zipOf(t, map[string]string{"content/_index.en.md": profile, "content/links/abcdefghijkl.md": "---\nlabel: x\n---\n", "content/links/x-abcdefgh.en.md": "---\ntitle: x\n---\n"})
 	if w := do(h, "POST", "/api/import", uploadOf(t, ok)); w.Code != http.StatusOK {
 		t.Errorf("server backup locally: %d %s", w.Code, w.Body)
 	}

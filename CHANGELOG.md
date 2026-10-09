@@ -11,6 +11,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   under it.
 - Keyboard shortcuts are shown as Ctrl (Ctrl+K, Ctrl+Z) instead of ⌘, in
   the editor and the README. Ctrl works on a Mac too, as does ⌘.
+- A backup has the CV's share links again. Since 0.7.0 they were left out,
+  so restoring a backup on a server took the CV's links offline.
 
 ## 0.7.2
 

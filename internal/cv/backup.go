@@ -18,7 +18,7 @@ import (
 // A backup is a zip of one CV: its content files and versions,
 //
 //	content/_index.md, content/_index.<lang>.md, content/photo.<ext>,
-//	content/<section>/<id>.<lang>.md, content/links/<slug>.<lang>.md,
+//	content/<section>/<id>.<lang>.md, content/links/<slug>.md,
 //	versions/<id>.json
 //
 // so it can move between computers and between local and hosted use.
@@ -59,7 +59,11 @@ func backupFile(name string, links bool) (ok, skip bool) {
 		}
 		return isProfileFile(file), false
 	case "links/":
-		_, _, ok := splitLangFile(file)
+		slug, found := strings.CutSuffix(file, ".md")
+		ok := found && IDRe.MatchString(slug)
+		if !ok {
+			_, _, ok = splitLangFile(file) // from before format 2
+		}
 		return ok, ok && !links
 	default:
 		_, _, ok := splitLangFile(file)
