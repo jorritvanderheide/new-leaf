@@ -43,7 +43,7 @@
       <article data-spacing="{{ .Doc.Spacing }}" class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-stone-200 sm:p-12">
         <header class="flex items-start justify-between gap-8">
           <div class="min-w-0">
-            <h1 class="text-3xl leading-[1.05] font-semibold tracking-tight text-stone-900 sm:text-[2.5rem]">{{ .Doc.Name }}</h1>
+            <h1 class="text-3xl leading-[1.05] font-semibold text-balance tracking-tight text-stone-900 sm:text-[2.5rem]">{{ .Doc.Name }}</h1>
             {{ with .Doc.Headline }}<p class="mt-2 text-lg text-accent">{{ . }}</p>{{ end }}
             <ul class="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-stone-600">
               {{ range .Doc.Contacts }}

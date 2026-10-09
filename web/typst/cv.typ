@@ -58,7 +58,22 @@
 
 // Header: name, headline, contact details, photo.
 #show heading.where(level: 1): set block(spacing: 0.45 * base)
-#show heading.where(level: 1): it => text(size: base * 2.5, weight: 600, fill: stone.at("900"), tracking: -0.02em, it.body)
+// A name over more lines than one has them about as long, and close
+// together: it is set in the narrowest width that needs no more lines than
+// the full width does.
+#show heading.where(level: 1): set par(leading: -0.16em)
+#show heading.where(level: 1): it => layout(size => {
+  let name = text(size: base * 2.5, weight: 600, fill: stone.at("900"), tracking: -0.02em, it.body)
+  let lines = measure(name, width: size.width).height
+  let (lo, hi) = (0pt, size.width)
+  if measure(name).width > size.width {
+    for _ in range(12) {
+      let mid = (lo + hi) / 2
+      if measure(name, width: mid).height > lines { lo = mid } else { hi = mid }
+    }
+  }
+  block(width: hi, name)
+})
 #grid(
   columns: (1fr, auto),
   column-gutter: 8mm,
