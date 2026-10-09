@@ -106,7 +106,12 @@ export default async function versions({ base, shots }) {
     await page.js("document.querySelector('aside[aria-label=Outline] [data-handle]').focus()");
     await page.key("ArrowDown", 1); // Alt
     await page.until(`${W}.shownSections()[1] === ${JSON.stringify(before[0])}`, "moved down", 3000);
-    check((await page.js("document.activeElement.dataset.handle")) === before[0], "Alt+↓ moves a section, and its handle keeps focus");
+    // The handle gets the focus back once the sections are drawn in their new
+    // order, a tick after the order changes; on a slow runner that's later.
+    const handleFocused = `document.activeElement.dataset.handle === ${JSON.stringify(before[0])}`;
+    await page.until(handleFocused, "focus on the handle", 3000).catch(() => {});
+    const focused = await page.js("document.activeElement.dataset.handle ?? document.activeElement.outerHTML.slice(0, 80)");
+    check(focused === before[0], `Alt+↓ moves a section, and its handle keeps focus (${focused})`);
     check(/moved to place 2 of/.test(await page.js("document.querySelector('aside[aria-label=Outline] [aria-live]').textContent")), "and says where it went");
     await page.js("document.querySelector('button[aria-label=Undo]').click()");
     await page.until(`${W}.shownSections()[0] === ${JSON.stringify(before[0])}`, "move undone", 3000);
