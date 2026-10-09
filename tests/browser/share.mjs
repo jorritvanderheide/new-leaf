@@ -1,7 +1,7 @@
 // Sharing a version: the link opens a published page in every language,
 // and stops working when sharing stops.
 
-import { check, openPage } from "./lib.mjs";
+import { check, openPage, sleep } from "./lib.mjs";
 
 export default async function share({ base, shots }) {
   const page = await openPage({ shots });
@@ -53,9 +53,24 @@ export default async function share({ base, shots }) {
     await page.go(base + "/v/full-cv/");
     await page.click("button", "Shared");
     await page.until("!!document.querySelector('[x-model=\"share.forever\"]')?.offsetParent", "share dialog", 3000);
+    // Stopping asks first, in a dialog over the share dialog. A click outside
+    // it answers no, and leaves the share dialog open.
+    const question = "!!document.querySelector('#question-action')?.offsetParent";
     await page.click("form button", "Stop sharing");
+    await page.until(question, "the question", 3000);
+    check(await page.js("document.activeElement.id === 'question-action'"), "asked before stopping, in the editor's own dialog");
+    await page.js("document.querySelector('[role=alertdialog]').parentElement.click()");
+    await page.until(`!${question}`, "a click outside", 3000);
+    await sleep(300);
+    check(
+      (await page.js("!!document.querySelector('[x-model=\"share.forever\"]')?.offsetParent && !!Alpine.store('cv').state.versions[0].link")),
+      "a click outside cancels, and keeps the share dialog",
+    );
+    await page.click("form button", "Stop sharing");
+    await page.until(question, "the question", 3000);
+    await page.click("[role=alertdialog] button", "Stop sharing");
     await page.until("!Alpine.store('cv').state.versions[0].link", "unshared", 10000);
-    check(page.dialogs.length === 1, "asked before stopping");
+    check(page.dialogs.length === 0, "no browser dialogs " + JSON.stringify(page.dialogs));
     check((await fetch(url)).status === 404, "the link is gone");
     check(page.errors.length === 0, "no uncaught JS errors " + JSON.stringify(page.errors));
   } finally {

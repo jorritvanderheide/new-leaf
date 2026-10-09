@@ -199,12 +199,7 @@ const itemEditor = () => ({
   add(section) {
     this.edit({ section, id: null, start: "", end: "", link: "", text: {} });
     this.form.present = !this.$store.cv.isPoint(section);
-  },
-
-  // addFrom adds an item in the section picked in a select, and resets it.
-  addFrom(event) {
-    this.add(event.target.value);
-    event.target.value = "";
+    this._snapshot = JSON.stringify(this.form);
   },
 
   // Escape closes the item, unless the palette is open over it.
@@ -338,6 +333,28 @@ document.addEventListener("alpine:init", () => {
     toast: null, // { message, action?: { label, run } }
     paletteOpen: false,
     manageOpen: false,
+    question: null, // { title, text, action, resolve }: what ask() waits for
+
+    // ask asks before something that can't be undone, in a dialog like the
+    // editor's others rather than the browser's confirm(). It resolves with
+    // true when the action is chosen.
+    ask(title, text, action) {
+      this._askedFrom = document.activeElement;
+      return new Promise((resolve) => {
+        this.question = { title, text, action, resolve };
+        focusSoon(document.getElementById("question-action"));
+      });
+    },
+    // The dialog goes a moment later, so the Escape or click that answered
+    // it doesn't also close the dialog under it.
+    answer(yes) {
+      if (!this.question) return;
+      this.question.resolve(yes);
+      setTimeout(() => {
+        this.question = null;
+        this._askedFrom?.focus();
+      });
+    },
 
     // For templates, before the state has loaded too: Alpine's CSP build
     // has no ?. and evaluates both sides of && and ||.
@@ -364,6 +381,15 @@ document.addEventListener("alpine:init", () => {
     },
     get toastLabel() {
       return this.toast?.action?.label || "";
+    },
+    get questionTitle() {
+      return this.question?.title || "";
+    },
+    get questionText() {
+      return this.question?.text || "";
+    },
+    get questionAction() {
+      return this.question?.action || "";
     },
     showSaveStatus() {
       return !!this.state && (this.saveStatus() === "saving" || this.saveStatus() === "error" || this.savedFlash);
@@ -757,6 +783,7 @@ document.addEventListener("alpine:init", () => {
     theme: { accent: "", font: "", photo: "" }, // empty: the default
     lookOpen: false,
     pagesOpen: false,
+    picking: [], // the sections the section dialog offers; none while it is closed
     accents: ACCENTS,
     pages: null,
     fitPages: 2,
@@ -833,9 +860,15 @@ document.addEventListener("alpine:init", () => {
       return this.shared() && this.shareExpires() === this.link().expires && this.share.lang === this.link().lang;
     },
 
-    // Escape closes the item, unless the palette or the share form is open.
+    // Escape closes the item, unless a dialog is open over it.
     escape() {
-      if (!this.$store.cv.paletteOpen && !this.share.open) this.close();
+      if (!this.$store.cv.paletteOpen && !this.$store.cv.question && !this.share.open && !this.picking.length) this.close();
+    },
+
+    // Escape and a click outside close the share dialog, unless they were
+    // for the question over it.
+    closeShare() {
+      if (!this.$store.cv.question) this.share.open = false;
     },
 
     // Read by x-effect: a change to any of these settings is saved.
@@ -853,6 +886,22 @@ document.addEventListener("alpine:init", () => {
     // The sections offered next to a job and education, for a first item.
     extraSections() {
       return this.order.filter((s) => s !== "experience" && s !== "education");
+    },
+
+    // pickSection asks which of the given sections a new item goes in.
+    pickSection(sections) {
+      this._pickFrom = document.activeElement;
+      this.picking = sections;
+      this.$nextTick(() => focusSoon(this.$refs.picks.querySelector("button")));
+    },
+    picked(section) {
+      this.picking = [];
+      this.add(section);
+    },
+    closePicker() {
+      if (!this.picking.length) return;
+      this.picking = [];
+      this._pickFrom?.focus();
     },
 
     // show switches what a phone shows: the outline or the preview.
@@ -1297,7 +1346,7 @@ document.addEventListener("alpine:init", () => {
     },
 
     async unshare() {
-      if (!confirm("Stop sharing? The link stops working; sharing again gives a new address.")) return;
+      if (!(await this.$store.cv.ask("Stop sharing?", "The link stops working. Sharing again gives it a new address.", "Stop sharing"))) return;
       if (await this.$store.cv.send("DELETE", `/api/versions/${this.id}/share`, undefined, "No longer shared")) this.share.open = false;
     },
   }));

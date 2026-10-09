@@ -178,6 +178,24 @@
       </div>
     </div>
 
+    {{/* A question before something that can't be undone (ask in app.js) */}}
+    <div
+      x-cloak
+      x-show="$store.cv.question"
+      class="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+      @keydown.escape.window="$store.cv.answer(false)">
+      <div class="card float w-full max-w-md space-y-4 p-6" role="alertdialog" aria-modal="true" aria-labelledby="question-title" aria-describedby="question-text" @click.outside="$store.cv.answer(false)">
+        <div>
+          <h2 id="question-title" class="text-base font-semibold" x-text="$store.cv.questionTitle"></h2>
+          <p id="question-text" class="mt-1 text-sm text-stone-500" x-text="$store.cv.questionText"></p>
+        </div>
+        <div class="flex flex-wrap justify-end gap-2">
+          <button type="button" class="btn" @click="$store.cv.answer(false)">Cancel</button>
+          <button type="button" id="question-action" class="btn btn-danger" @click="$store.cv.answer(true)" x-text="$store.cv.questionAction"></button>
+        </div>
+      </div>
+    </div>
+
     {{/* After Quit (local only) */}}
     <div x-cloak x-show="$store.cv.stopped" class="fixed inset-0 z-50 grid place-items-center bg-stone-50 p-6 text-center">
       <div>

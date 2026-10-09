@@ -65,12 +65,7 @@
         <div class="mt-5 flex flex-wrap justify-center gap-2">
           <button type="button" class="btn btn-primary" @click="add('experience')">Add a job</button>
           <button type="button" class="btn" @click="add('education')">Add education</button>
-          <select class="btn pr-8" aria-label="Add something else" @change="addFrom($event)">
-            <option value="">Something else…</option>
-            <template x-for="section in extraSections()" :key="section">
-              <option :value="section" x-text="$store.cv.sectionName(section)"></option>
-            </template>
-          </select>
+          <button type="button" class="btn" aria-haspopup="dialog" @click="pickSection(extraSections())">Something else…</button>
         </div>
         <p class="mt-5 text-sm text-stone-500" x-show="!$store.cv.state.profile.name">
           And <a href="/profile/" class="font-medium text-accent hover:underline">fill in your name and contact details</a>.
@@ -187,16 +182,14 @@
               </div>
             </template>
     
-            <select
-              class="w-full rounded-md border border-dashed border-stone-300 bg-transparent px-3 py-2 text-sm text-stone-500 hover:border-stone-400 hover:text-stone-900 max-lg:min-h-11"
+            <button
+              type="button"
+              class="w-full rounded-md border border-dashed border-stone-300 px-3 py-2 text-left text-sm text-stone-600 hover:border-stone-400 hover:text-stone-900 max-lg:min-h-11"
               x-show="emptySections().length"
-              aria-label="Add an item to another section"
-              @change="addFrom($event)">
-              <option value="">+ Add an item to another section…</option>
-              <template x-for="section in emptySections()" :key="section">
-                <option :value="section" x-text="$store.cv.sectionName(section)"></option>
-              </template>
-            </select>
+              aria-haspopup="dialog"
+              @click="pickSection(emptySections())">
+              + Add an item to another section…
+            </button>
           </div>
         </aside>
       </div>
@@ -349,9 +342,29 @@
 
     {{ template "item-editor" . }}
 
+    {{/* Which section a new item goes in */}}
+    <div x-cloak x-show="picking.length" class="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" @keydown.escape.window="closePicker()">
+      <div class="card float w-full max-w-md space-y-4 p-6" role="dialog" aria-modal="true" aria-labelledby="pick-title" @click.outside="closePicker()">
+        <div>
+          <h2 id="pick-title" class="text-base font-semibold">Add an item</h2>
+          <p class="mt-1 text-sm text-stone-500">Which section does it go in?</p>
+        </div>
+        <ul class="-mx-3 max-h-80 overflow-y-auto" x-ref="picks">
+          <template x-for="section in picking" :key="section">
+            <li>
+              <button type="button" class="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-stone-900 hover:bg-stone-100 focus-visible:bg-stone-100 max-lg:min-h-11" @click="picked(section)" x-text="$store.cv.sectionName(section)"></button>
+            </li>
+          </template>
+        </ul>
+        <div class="flex justify-end">
+          <button type="button" class="btn" @click="closePicker()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     {{/* Share */}}
-    <div x-cloak x-show="share.open" class="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" @keydown.escape.window="share.open = false">
-      <form class="card float w-full max-w-md space-y-4 p-6" @submit.prevent="saveShare()" @click.outside="share.open = false">
+    <div x-cloak x-show="share.open" class="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" @keydown.escape.window="closeShare()">
+      <form class="card float w-full max-w-md space-y-4 p-6" @submit.prevent="saveShare()" @click.outside="closeShare()">
         <div>
           <h2 class="text-base font-semibold">
             <span x-text="shared() ? 'Shared' : 'Share'"></span> “<span x-text="name"></span>”

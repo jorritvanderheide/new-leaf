@@ -86,6 +86,31 @@ export default async function editor({ base, shots }) {
     check(true, "fit to 1 page gave " + (await page.js(`JSON.stringify({ spacing: ${C}.spacing, pages: ${C}.pages })`)));
     await page.shot("compose");
 
+    // An item in a section without any: the section is picked in a dialog,
+    // which Escape and a click outside close.
+    const picker = "[aria-labelledby=pick-title]";
+    const picking = `!!document.querySelector('${picker}').offsetParent`;
+    const pick = () => page.js("(() => { const b = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '+ Add an item to another section…'); b.focus(); b.click(); })()");
+    await pick();
+    await page.until(picking, "section dialog", 3000);
+    check(await page.js(`!!document.activeElement.closest('${picker}')`), "the section dialog takes the focus");
+    await page.key("Escape");
+    await page.until(`!${picking}`, "Escape", 3000);
+    check(await page.js("document.activeElement.textContent.trim() === '+ Add an item to another section…'"), "Escape closes it, and the focus goes back");
+    await pick();
+    await page.until(picking, "section dialog", 3000);
+    await page.js(`document.querySelector('${picker}').parentElement.click()`);
+    await page.until(`!${picking}`, "a click outside", 3000);
+    check(true, "a click outside closes it");
+    await pick();
+    await page.until(picking, "section dialog", 3000);
+    const section = await page.js(`document.querySelector('${picker} li button').textContent.trim()`);
+    await page.click(`${picker} button`, section);
+    await page.until("!!document.querySelector('#title-en')?.offsetParent", "new item panel", 3000);
+    check(await page.js(`Alpine.store('cv').sectionName(${C}.form.section) === ${JSON.stringify(section)} && !${picking}`), `picking ${section} starts an item there`);
+    await page.key("Escape");
+    await page.until("!document.querySelector('#title-en')?.offsetParent", "panel closed", 3000);
+
     // Profile autosave; a half-typed URL is not saved.
     await page.go(base + "/profile/");
     const before = await state();
