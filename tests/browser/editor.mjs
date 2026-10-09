@@ -108,8 +108,21 @@ export default async function editor({ base, shots }) {
     await page.click(`${picker} button`, section);
     await page.until("!!document.querySelector('#title-en')?.offsetParent", "new item panel", 3000);
     check(await page.js(`Alpine.store('cv').sectionName(${C}.form.section) === ${JSON.stringify(section)} && !${picking}`), `picking ${section} starts an item there`);
+
+    // Closing a new item with text in it asks first; Escape answers no.
+    const question = "!!document.querySelector('#question-action')?.offsetParent";
+    await page.type("#title-en", "Not kept");
     await page.key("Escape");
+    await page.until(question, "the discard question", 3000);
+    await page.key("Escape");
+    await page.until(`!${question}`, "Escape", 3000);
+    await sleep(300);
+    check(await page.js("document.querySelector('#title-en')?.value === 'Not kept'"), "Escape on the question keeps the new item open");
+    await page.key("Escape");
+    await page.until(question, "the discard question", 3000);
+    await page.click("[role=alertdialog] button", "Discard");
     await page.until("!document.querySelector('#title-en')?.offsetParent", "panel closed", 3000);
+    check(!(await state()).items.some((i) => i.text.en?.title === "Not kept"), "Discard closes it unsaved");
 
     // Profile autosave; a half-typed URL is not saved.
     await page.go(base + "/profile/");

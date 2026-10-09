@@ -11,9 +11,11 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
   under it.
 - Keyboard shortcuts are shown as Ctrl (Ctrl+K, Ctrl+Z) instead of ⌘, in
   the editor and the README. Ctrl works on a Mac too, as does ⌘.
-- "Stop sharing?" and the section for a new item are asked in dialogs like
-  the editor's others, instead of the browser's own. A tap outside one
-  closes just that dialog.
+- Questions before something that can't be undone (stopping sharing,
+  deleting a CV or a shared version, replacing your CV with a backup or a
+  resume, removing your photo, discarding a new item), and the section for a
+  new item, are asked in dialogs like the editor's others, instead of the
+  browser's own. A tap outside one closes just that dialog.
 - A new item in a section with single dates, such as publications, closes
   without asking to discard it when nothing was typed in it yet.
 - A backup has the CV's share links again. Since 0.7.0 they were left out,

@@ -62,9 +62,21 @@ export default async function cvs({ base, shots }) {
     await page.shot("cvs");
 
     // Delete the open CV: it goes to the trash and the editor opens another.
-    await page.js(`document.querySelector('${dialog} li span.tag').closest('li').querySelector('button[aria-label=Delete]').click()`);
+    // It asks first; Escape answers no, and leaves Manage CVs open.
+    const remove = `document.querySelector('${dialog} li span.tag').closest('li').querySelector('button[aria-label=Delete]').click()`;
+    const question = "!!document.querySelector('#question-action')?.offsetParent";
+    await page.js(remove);
+    await page.until(question, "the question", 3000);
+    check((await page.js("document.querySelector('#question-title').textContent")).includes("Bob Builder"), "asked before deleting");
+    await page.key("Escape");
+    await page.until(`!${question}`, "Escape", 3000);
+    await sleep(300);
+    check(await page.js(`document.querySelector('${dialog}').style.display !== 'none'`), "Escape cancels, and keeps Manage CVs open");
+    await page.js(remove);
+    await page.until(question, "the question", 3000);
+    await page.click("[role=alertdialog] button", "Delete");
     await page.until(`Alpine.store('cv').state?.user === ${JSON.stringify(first)}`, "back on the first CV", 8000);
-    check(page.dialogs.length === 1 && page.dialogs[0].includes("Bob Builder"), "asked before deleting");
+    check(page.dialogs.length === 0, "no browser dialogs " + JSON.stringify(page.dialogs));
     check((await api(base, "GET", "/api/state")).cvs.length === 1, "deleted");
 
     await api(base, "PUT", `/api/cvs/${first}`, { name: "", owners: [] });

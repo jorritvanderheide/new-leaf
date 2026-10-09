@@ -202,9 +202,9 @@ const itemEditor = () => ({
     this._snapshot = JSON.stringify(this.form);
   },
 
-  // Escape closes the item, unless the palette is open over it.
+  // Escape closes the item, unless a dialog is open over it.
   escape() {
-    if (!this.$store.cv.paletteOpen) this.close();
+    if (!this.$store.cv.paletteOpen && !this.$store.cv.question) this.close();
   },
 
   // The title over the form: the first language that has one.
@@ -280,7 +280,7 @@ const itemEditor = () => ({
     if (!this.form) return;
     if (this.form.id) {
       await this._saver.flush();
-    } else if (JSON.stringify(this.form) !== this._snapshot && !confirm("Discard this new item?")) {
+    } else if (JSON.stringify(this.form) !== this._snapshot && !(await this.$store.cv.ask("Discard this new item?", "What you typed in it is lost.", "Discard"))) {
       return;
     }
     this.form = null;
@@ -336,8 +336,7 @@ document.addEventListener("alpine:init", () => {
     question: null, // { title, text, action, resolve }: what ask() waits for
 
     // ask asks before something that can't be undone, in a dialog like the
-    // editor's others rather than the browser's confirm(). It resolves with
-    // true when the action is chosen.
+    // editor's others. It resolves with true when the action is chosen.
     ask(title, text, action) {
       this._askedFrom = document.activeElement;
       return new Promise((resolve) => {
@@ -381,6 +380,11 @@ document.addEventListener("alpine:init", () => {
     },
     get toastLabel() {
       return this.toast?.action?.label || "";
+    },
+    // Escape and a click outside close Manage CVs, unless they were for the
+    // question over it.
+    closeManage() {
+      if (!this.question) this.manageOpen = false;
     },
     get questionTitle() {
       return this.question?.title || "";
@@ -683,9 +687,9 @@ document.addEventListener("alpine:init", () => {
 
     async remove(cv) {
       const store = this.$store.cv;
-      const links = store.state.sharing ? " Its share links stop working." : "";
+      const links = store.state.sharing ? "Its share links stop working. " : "";
       const where = store.state.local ? "the trash folder next to your CVs" : "the server's trash folder, where an admin can restore it";
-      if (!confirm(`Delete the CV “${cv.name}”?${links} It is moved to ${where}.`)) return;
+      if (!(await store.ask(`Delete “${cv.name}”?`, `${links}It is moved to ${where}.`, "Delete"))) return;
       try {
         await api("DELETE", `/api/cvs/${encodeURIComponent(cv.id)}`);
       } catch (e) {
@@ -760,7 +764,7 @@ document.addEventListener("alpine:init", () => {
       const st = this.$store.cv;
       // A link can't come back at the same address, so that gets a question
       // rather than an undo.
-      if (v.link && !v.link.expired && !confirm(`Delete “${v.name}”? Its share link stops working.`)) return;
+      if (v.link && !v.link.expired && !(await st.ask(`Delete “${v.name}”?`, "Its share link stops working.", "Delete"))) return;
       const copy = JSON.parse(JSON.stringify(v));
       delete copy.link;
       if (!(await st.send("DELETE", `/api/versions/${v.id}`))) return;
@@ -1433,7 +1437,7 @@ document.addEventListener("alpine:init", () => {
     async restore(event) {
       const file = event.target.files[0];
       event.target.value = "";
-      if (!file || !confirm("Replace your current CV with this backup? A copy of the current CV is kept.")) return;
+      if (!file || !(await this.$store.cv.ask("Replace your CV with this backup?", "A copy of the current CV is kept.", "Replace"))) return;
       await this.$store.cv.flushAll();
       const data = new FormData();
       data.append("backup", file);
@@ -1455,7 +1459,7 @@ document.addEventListener("alpine:init", () => {
       const file = event.target.files[0];
       event.target.value = "";
       const links = st.state.sharing ? " Its share links stop working." : "";
-      if (!file || !confirm(`Replace your current CV with this resume? A copy of the current CV is kept.${links}`)) return;
+      if (!file || !(await st.ask("Replace your CV with this resume?", `A copy of the current CV is kept.${links}`, "Replace"))) return;
       await st.flushAll();
       const data = new FormData();
       data.append("resume", file);
@@ -1474,7 +1478,7 @@ document.addEventListener("alpine:init", () => {
     },
 
     async removePhoto() {
-      if (confirm("Remove your photo? This can't be undone.")) await this.$store.cv.send("DELETE", "/api/photo", undefined, "Photo removed");
+      if (await this.$store.cv.ask("Remove your photo?", "This can't be undone.", "Remove")) await this.$store.cv.send("DELETE", "/api/photo", undefined, "Photo removed");
     },
   }));
 });

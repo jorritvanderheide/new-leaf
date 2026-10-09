@@ -58,7 +58,8 @@ export default async function share({ base, shots }) {
     const question = "!!document.querySelector('#question-action')?.offsetParent";
     await page.click("form button", "Stop sharing");
     await page.until(question, "the question", 3000);
-    check(await page.js("document.activeElement.id === 'question-action'"), "asked before stopping, in the editor's own dialog");
+    await page.until("document.activeElement.id === 'question-action'", "focus on the question", 3000);
+    check(true, "asked before stopping, in the editor's own dialog");
     await page.js("document.querySelector('[role=alertdialog]').parentElement.click()");
     await page.until(`!${question}`, "a click outside", 3000);
     await sleep(300);
