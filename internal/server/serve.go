@@ -144,15 +144,16 @@ func listener(addr string) (net.Listener, error) {
 }
 
 // publicHandler serves the webroot the way the NixOS module's nginx does:
-// noindex, no caching, a strict content security policy, no directory
-// listings, and nothing that starts with a dot (the marker file, publishes
-// in progress).
+// noindex, no caching, no rewriting by a proxy (Cloudflare obfuscates email
+// addresses with a script the content security policy blocks), a strict
+// content security policy, no directory listings, and nothing that starts
+// with a dot (the marker file, publishes in progress).
 func publicHandler(dir string) http.Handler {
 	files := http.FileServer(http.Dir(dir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Robots-Tag", "noindex, nofollow, noarchive")
-		h.Set("Cache-Control", "no-cache")
+		h.Set("Cache-Control", "no-cache, no-transform")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; font-src 'self'; img-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
