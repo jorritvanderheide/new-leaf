@@ -3,7 +3,7 @@
     <section class="card flex flex-wrap items-center gap-6 p-6">
       <div class="grid size-24 place-items-center overflow-hidden rounded-lg bg-stone-100 text-xs text-stone-600">
         <template x-if="$store.cv.state.profile.photo">
-          <img :src="'/api/photo?v=' + photoVersion" alt="" class="size-full object-cover">
+          <img :src="'/api/photo?v=' + $store.cv.photoVersion" alt="" class="size-full object-cover">
         </template>
         <span x-show="!$store.cv.state.profile.photo">No photo</span>
       </div>

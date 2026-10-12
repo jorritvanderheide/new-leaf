@@ -334,6 +334,7 @@ document.addEventListener("alpine:init", () => {
     paletteOpen: false,
     manageOpen: false,
     question: null, // { title, text, action, resolve }: what ask() waits for
+    photoVersion: Date.now(), // bumped after an upload, so the photo reloads
 
     // ask asks before something that can't be undone, in a dialog like the
     // editor's others. It resolves with true when the action is chosen.
@@ -362,6 +363,9 @@ document.addEventListener("alpine:init", () => {
     },
     get user() {
       return this.state?.user;
+    },
+    get photo() {
+      return this.state?.profile.photo;
     },
     get local() {
       return !!this.state?.local;
@@ -1359,7 +1363,6 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("profile", () => ({
     form: null,
     tab: "en",
-    photoVersion: Date.now(),
 
     init() {
       this.reset();
@@ -1431,7 +1434,7 @@ document.addEventListener("alpine:init", () => {
       if (!file) return;
       const data = new FormData();
       data.append("photo", file);
-      if (await this.$store.cv.send("POST", "/api/photo", data, "Photo updated")) this.photoVersion = Date.now();
+      if (await this.$store.cv.send("POST", "/api/photo", data, "Photo updated")) this.$store.cv.photoVersion = Date.now();
       event.target.value = "";
     },
 

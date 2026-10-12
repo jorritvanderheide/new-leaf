@@ -9,6 +9,24 @@ export default async function cvs({ base, shots }) {
   try {
     await page.go(base + "/");
     const first = await page.js("Alpine.store('cv').state.user");
+
+    // The CV's photo stands in for its initials on the menu button.
+    const avatar = "document.querySelector('body > aside [aria-haspopup=menu] img')";
+    const initials = "document.querySelector('body > aside [aria-haspopup=menu] span[x-text]').offsetParent";
+    check(!(await page.js(avatar)) && (await page.js(`!!${initials}`)), "initials without a photo");
+    await page.js(`(async () => {
+      const c = Object.assign(document.createElement('canvas'), { width: 40, height: 40 });
+      const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
+      const data = new FormData();
+      data.append('photo', blob, 'photo.png');
+      return Alpine.store('cv').send('POST', '/api/photo', data);
+    })()`);
+    await page.until(`${avatar}?.complete && ${avatar}.naturalWidth > 0`, "the photo on the CV menu button", 5000);
+    check(!(await page.js(`!!${initials}`)), "the photo replaces the initials");
+    await page.js("Alpine.store('cv').send('DELETE', '/api/photo')");
+    await page.until(`!${avatar} && !!${initials}`, "the initials back", 5000);
+    check(true, "the initials come back without the photo");
+
     await page.js("document.querySelector('body > aside [aria-haspopup=menu]').click()");
     await sleep(300);
     check((await page.js("document.querySelectorAll('body > aside [role=menuitemradio]').length")) === 1, "one CV in the CV menu");
