@@ -161,8 +161,9 @@ func docItem(it Item, section, lang string) DocItem {
 	return d
 }
 
-// sortItems puts the most recent first: ongoing items, then by end date; on
-// equal end dates the longer item first, so a programme precedes its thesis.
+// sortItems puts the most recent first: ongoing items, the newest start
+// first, then by end date; on equal end dates the longer item first, so a
+// programme precedes its thesis.
 // Single-date items sort by their date, undated ones last; an undated
 // publication by the year in its reference, e.g. "(2026)". Same order as the
 // editor's list.
@@ -185,7 +186,11 @@ func sortItems(items []Item, section, lang string) {
 		return cmp.Or(it.End, "9999-12")
 	}
 	slices.SortStableFunc(items, func(a, b Item) int {
-		return cmp.Or(strings.Compare(end(b), end(a)), strings.Compare(a.Start, b.Start), strings.Compare(a.ID, b.ID))
+		byStart := strings.Compare(a.Start, b.Start)
+		if !point && a.End == "" && b.End == "" {
+			byStart = -byStart
+		}
+		return cmp.Or(strings.Compare(end(b), end(a)), byStart, strings.Compare(a.ID, b.ID))
 	})
 }
 

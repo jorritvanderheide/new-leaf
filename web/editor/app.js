@@ -91,14 +91,16 @@ window.scrollShadows = (box) => {
 const itemKey = (item) => `${item.section}/${item.id}`;
 
 // Same order as the CV (sortItems in internal/cv/document.go): ongoing
-// first, then by end date; on equal end dates the longer item first.
+// first, the newest start first, then by end date; on equal end dates the
+// longer item first.
 // Single-date items (no end, point section) sort by their date, undated ones
 // last; an undated publication by the year in its reference, e.g. "(2026)".
 const refYear = (i) => Object.values(i.text).map((t) => /\((\d{4})[a-z]?\)/.exec(t.body || "")?.[1]).find(Boolean) || "";
 const byRecency = (point, publications) => (a, b) => {
   const start = (i) => i.start || (publications ? refYear(i) : "");
   const end = (i) => (point ? start(i) : i.end || "9999-12");
-  return end(b).localeCompare(end(a)) || a.start.localeCompare(b.start);
+  const byStart = a.start.localeCompare(b.start);
+  return end(b).localeCompare(end(a)) || (!point && !a.end && !b.end ? -byStart : byStart);
 };
 
 // "2023-09" -> "Sep 2023"; "2024" -> "2024"; "" -> "".

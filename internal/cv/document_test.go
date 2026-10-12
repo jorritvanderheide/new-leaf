@@ -48,6 +48,7 @@ func TestBuildDocument(t *testing.T) {
 		{Section: "education", ID: "ma", Start: "2020-09", End: "2022-08", Text: text("MA", "")},
 		{Section: "education", ID: "thesis", Start: "2022-03", End: "2022-08", Text: text("Thesis", "")},
 		{Section: "experience", ID: "now", Start: "2023-04", Text: text("Now", "")},
+		{Section: "experience", ID: "earlier", Start: "2021-06", Text: text("Earlier", "")},
 		{Section: "experience", ID: "old", Start: "2018-01", End: "2019-01", Text: text("Old", "")},
 		{Section: "publications", ID: "review", Text: text("Review", "Doe, J. Under review.")},
 		{Section: "publications", ID: "paper", Link: "https://doi.org/10.1/p", Text: text("Paper", "Doe, J. (2026). Paper.")},
@@ -55,7 +56,7 @@ func TestBuildDocument(t *testing.T) {
 	}
 	p := Profile{Name: "Alice", Email: "a@example.com", Links: []ProfileLink{{Label: "Scholar", URL: "https://scholar.example"}},
 		Order: []string{"education", "publications", "experience"}, Text: map[string]ProfileText{"en": {Location: "Exampletown"}}}
-	sel := []string{"education/ma", "education/thesis", "experience/now", "experience/old", "publications/review", "publications/paper"}
+	sel := []string{"education/ma", "education/thesis", "experience/earlier", "experience/now", "experience/old", "publications/review", "publications/paper"}
 
 	doc := BuildDocument(p, items, PrintOptions{Lang: "en", Entries: sel}, "photo.jpg")
 	var order []string
@@ -67,7 +68,7 @@ func TestBuildDocument(t *testing.T) {
 	want := []string{
 		"education/ma", "education/thesis", // same end: the longer item first
 		"publications/paper", "publications/review", // year from the reference; undated last
-		"experience/now", "experience/old", // ongoing first; then the default order's remaining sections
+		"experience/now", "experience/earlier", "experience/old", // ongoing first, the newest start first; then the default order's remaining sections
 	}
 	if g, w := toJSON(order), toJSON(want); g != w {
 		t.Errorf("order = %s, want %s", g, w)
