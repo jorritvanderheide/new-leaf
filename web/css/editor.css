@@ -105,9 +105,11 @@
   .card {
     @apply rounded-lg border border-stone-200 bg-white;
   }
-  /* What floats over the page: menus, popovers, dialogs. */
+  /* What floats over the page: menus, popovers, dialogs. The shadow is
+     stone-900 as a fixed colour, so it stays dark in dark mode, where it can
+     fall on the white PDF page. */
   .float {
-    @apply shadow-lg shadow-stone-900/10;
+    @apply shadow-lg shadow-[rgb(28_25_23/0.1)];
   }
   /* Around a scroll box: a soft inner shadow on an edge while there is more
      to scroll that way (scrollShadows in app.js). */
