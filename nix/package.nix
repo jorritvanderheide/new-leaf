@@ -8,7 +8,7 @@
 }:
 let
   root = ../.;
-  version = "0.7.3";
+  version = "0.8.0";
 in
 buildGoModule {
   pname = "new-leaf";

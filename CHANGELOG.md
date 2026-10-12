@@ -6,6 +6,8 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 
 ## Unreleased
 
+## 0.8.0
+
 - The bar with the language, the look and the pages floats over the
   preview, and the PDF scrolls under it. On a phone the PDF shows up to the
   version's header; on a larger screen it is cut off at the bar.
