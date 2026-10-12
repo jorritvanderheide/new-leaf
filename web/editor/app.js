@@ -5,6 +5,7 @@
 const SECTION_NAMES = {
   experience: "Work experience",
   education: "Education",
+  projects: "Projects",
   publications: "Publications",
   output: "Other output",
   presentations: "Presentations",

@@ -67,7 +67,7 @@ close the tab. Then:
 1. **Fill in your profile.** Your name, contact details and a short summary.
    Your CV starts in English: under **Languages**, pick another main language
    or add a second one. Add a photo if you want one.
-2. **Add your items.** Jobs, education, publications, teaching, anything that
+2. **Add your items.** Jobs, education, projects, publications, anything that
    could go on a CV, each once. Dates are a month and a year, or a year.
 3. **Open the Full CV.** It's the first version, with every item. Tick items
    off, drag sections around, and watch the PDF next to it.
@@ -140,9 +140,9 @@ files:
 
 ### 5.1 Items, once
 
-Everything you have done is an item: a job, a degree, a paper, a talk, a
-course you taught. Each has a period or a date, an organisation and a place,
-and a description in Markdown.
+Everything you have done is an item: a job, a degree, a project, a paper, a
+talk, a course you taught. Each has a period or a date, an organisation and a
+place, and a description in Markdown.
 
 A CV is in one language or two, chosen on the Profile page: English, Dutch,
 German, French, Spanish, Italian or Portuguese. With two, each item has text

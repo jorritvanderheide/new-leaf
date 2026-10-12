@@ -6,6 +6,14 @@ are listed on the [releases page](https://github.com/jorritvanderheide/new-leaf/
 
 ## Unreleased
 
+- A section for projects, such as software you built, with a period and a
+  link to its repository or website. It comes after education on a new CV;
+  on an existing one it is added at the end of the order, to drag where it
+  suits.
+- Importing a JSON Resume puts its projects under Projects, with their
+  period, instead of under Other output. Other output goes out as projects
+  of type `output`, so it comes back in where it was.
+
 ## 0.8.0
 
 - The bar with the language, the look and the pages floats over the

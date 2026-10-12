@@ -30,7 +30,7 @@ import (
 var (
 	// Sections in their default order on a CV. Their titles are in
 	// languages.go and web/editor/app.js (SECTION_NAMES).
-	Sections = []string{"experience", "education", "publications", "output", "presentations", "teaching", "awards", "extracurricular", "volunteering"}
+	Sections = []string{"experience", "education", "projects", "publications", "output", "presentations", "teaching", "awards", "extracurricular", "volunteering"}
 	// Sections whose items happen at one moment: a date, not a period. The
 	// date may be left out (e.g. a manuscript under review).
 	PointSections = []string{"publications", "output", "presentations", "awards"}

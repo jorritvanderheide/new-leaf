@@ -71,7 +71,7 @@ and never changes. The body is the description, in Markdown.
 | `end` | no | The same; none means ongoing |
 | `link` | no | A URL, such as a DOI |
 
-The sections, in their default order: `experience`, `education`,
+The sections, in their default order: `experience`, `education`, `projects`,
 `publications`, `output`, `presentations`, `teaching`, `awards`,
 `extracurricular`, `volunteering`. Publications, other output, presentations
 and awards happen at one moment: they have `start` only, and may leave it out

@@ -191,8 +191,13 @@
           </div>
 
           <div>
-            <label class="label" for="link">Link <span class="font-normal text-stone-500">(optional, e.g. a DOI; makes the title clickable)</span></label>
-            <input id="link" type="url" class="input" x-model="form.link" placeholder="https://doi.org/…">
+            <label class="label" for="link">
+              Link
+              <span
+                class="font-normal text-stone-500"
+                x-text="form.section === 'projects' ? '(optional, e.g. its repository or website; makes the title clickable)' : '(optional, e.g. a DOI; makes the title clickable)'"></span>
+            </label>
+            <input id="link" type="url" class="input" x-model="form.link" :placeholder="form.section === 'projects' ? 'https://' : 'https://doi.org/…'">
           </div>
         </div>
 

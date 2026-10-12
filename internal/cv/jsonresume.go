@@ -122,8 +122,9 @@ type ResumeProject struct {
 const resumeSchema = "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json"
 
 // projectSections are the sections that go to JSON Resume's projects, by
-// the project type they get. Output has none.
-var projectSections = map[string]string{"presentation": "presentations", "teaching": "teaching", "extracurricular": "extracurricular"}
+// the project type they get. Projects have none, and a project of any other
+// type comes in as one.
+var projectSections = map[string]string{"output": "output", "presentation": "presentations", "teaching": "teaching", "extracurricular": "extracurricular"}
 
 // ExportResume writes a CV's text in one language as a JSON Resume.
 func ExportResume(p Profile, items []Item, lang string) Resume {
@@ -162,7 +163,7 @@ func ExportResume(p Profile, items []Item, lang string) Resume {
 			r.Awards = append(r.Awards, ResumeAward{Title: x.Title, Awarder: x.Org, Date: it.Start, Summary: x.Body})
 		case "publications":
 			r.Publications = append(r.Publications, ResumePublication{Name: x.Title, Publisher: x.Org, ReleaseDate: it.Start, URL: it.Link, Summary: x.Body})
-		default: // output, presentations, teaching, extracurricular
+		default: // projects, output, presentations, teaching, extracurricular
 			typ := ""
 			for k, s := range projectSections {
 				if s == it.Section {
@@ -235,7 +236,7 @@ func ParseResume(data []byte, lang string) (p Profile, items []Item, skipped []s
 		add("publication", Item{Section: "publications", Start: pub.ReleaseDate, Link: pub.URL}, pub.Name, pub.Publisher, "", pub.Summary)
 	}
 	for _, pr := range r.Projects {
-		add("project", Item{Section: cmp.Or(projectSections[pr.Type], "output"), Start: pr.StartDate, End: pr.EndDate, Link: pr.URL}, pr.Name, pr.Entity, "", withList(pr.Description, pr.Highlights))
+		add("project", Item{Section: cmp.Or(projectSections[pr.Type], "projects"), Start: pr.StartDate, End: pr.EndDate, Link: pr.URL}, pr.Name, pr.Entity, "", withList(pr.Description, pr.Highlights))
 	}
 	for _, l := range []struct {
 		what string

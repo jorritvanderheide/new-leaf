@@ -34,7 +34,7 @@ var Languages = []Language{
 		Code: "en", Name: "English", English: "English",
 		present: "Present",
 		sections: map[string]string{
-			"experience": "Work experience", "education": "Education", "publications": "Publications",
+			"experience": "Work experience", "education": "Education", "projects": "Projects", "publications": "Publications",
 			"output": "Other output", "presentations": "Presentations", "teaching": "Teaching",
 			"awards": "Grants & awards", "extracurricular": "Extracurricular activities", "volunteering": "Volunteering",
 		},
@@ -48,7 +48,7 @@ var Languages = []Language{
 		Code: "nl", Name: "Nederlands", English: "Dutch",
 		present: "heden",
 		sections: map[string]string{
-			"experience": "Werkervaring", "education": "Opleiding", "publications": "Publicaties",
+			"experience": "Werkervaring", "education": "Opleiding", "projects": "Projecten", "publications": "Publicaties",
 			"output": "Overige output", "presentations": "Presentaties", "teaching": "Onderwijs",
 			"awards": "Beurzen & prijzen", "extracurricular": "Extracurriculaire activiteiten", "volunteering": "Vrijwilligerswerk",
 		},
@@ -62,7 +62,7 @@ var Languages = []Language{
 		Code: "de", Name: "Deutsch", English: "German",
 		present: "heute",
 		sections: map[string]string{
-			"experience": "Berufserfahrung", "education": "Ausbildung", "publications": "Publikationen",
+			"experience": "Berufserfahrung", "education": "Ausbildung", "projects": "Projekte", "publications": "Publikationen",
 			"output": "Weitere Beiträge", "presentations": "Vorträge", "teaching": "Lehre",
 			"awards": "Stipendien & Auszeichnungen", "extracurricular": "Weitere Aktivitäten", "volunteering": "Ehrenamt",
 		},
@@ -76,7 +76,7 @@ var Languages = []Language{
 		Code: "fr", Name: "Français", English: "French",
 		present: "aujourd’hui",
 		sections: map[string]string{
-			"experience": "Expérience professionnelle", "education": "Formation", "publications": "Publications",
+			"experience": "Expérience professionnelle", "education": "Formation", "projects": "Projets", "publications": "Publications",
 			"output": "Autres productions", "presentations": "Communications", "teaching": "Enseignement",
 			"awards": "Bourses et prix", "extracurricular": "Activités extra-professionnelles", "volunteering": "Bénévolat",
 		},
@@ -90,7 +90,7 @@ var Languages = []Language{
 		Code: "es", Name: "Español", English: "Spanish",
 		present: "actualidad",
 		sections: map[string]string{
-			"experience": "Experiencia laboral", "education": "Formación", "publications": "Publicaciones",
+			"experience": "Experiencia laboral", "education": "Formación", "projects": "Proyectos", "publications": "Publicaciones",
 			"output": "Otros resultados", "presentations": "Presentaciones", "teaching": "Docencia",
 			"awards": "Becas y premios", "extracurricular": "Actividades extracurriculares", "volunteering": "Voluntariado",
 		},
@@ -104,7 +104,7 @@ var Languages = []Language{
 		Code: "it", Name: "Italiano", English: "Italian",
 		present: "oggi",
 		sections: map[string]string{
-			"experience": "Esperienza professionale", "education": "Istruzione e formazione", "publications": "Pubblicazioni",
+			"experience": "Esperienza professionale", "education": "Istruzione e formazione", "projects": "Progetti", "publications": "Pubblicazioni",
 			"output": "Altri prodotti", "presentations": "Presentazioni", "teaching": "Didattica",
 			"awards": "Borse e premi", "extracurricular": "Attività extracurricolari", "volunteering": "Volontariato",
 		},
@@ -118,7 +118,7 @@ var Languages = []Language{
 		Code: "pt", Name: "Português", English: "Portuguese",
 		present: "presente",
 		sections: map[string]string{
-			"experience": "Experiência profissional", "education": "Formação académica", "publications": "Publicações",
+			"experience": "Experiência profissional", "education": "Formação académica", "projects": "Projetos", "publications": "Publicações",
 			"output": "Outros resultados", "presentations": "Apresentações", "teaching": "Docência",
 			"awards": "Bolsas e prémios", "extracurricular": "Atividades extracurriculares", "volunteering": "Voluntariado",
 		},

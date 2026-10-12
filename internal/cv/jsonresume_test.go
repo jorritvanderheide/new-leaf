@@ -57,7 +57,7 @@ func TestParseResume(t *testing.T) {
 		"education/Certificate":                   {"2021-11", "2021-11", "Company", ""},
 		"awards/Award":                            {"2014-11", "", "Company", "There is no spoon."},
 		"publications/Publication":                {"2014-10", "", "Company", "Description."},
-		"output/Project":                          {"2021-01", "", "", "Description.\n\n- Won award at AIHacks 2016"},
+		"projects/Project":                        {"2019-01", "2021-01", "", "Description.\n\n- Won award at AIHacks 2016"},
 	} {
 		it, ok := got[key]
 		if !ok {
