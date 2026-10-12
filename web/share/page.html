@@ -73,7 +73,7 @@
                   {{ else }}
                     <div class="min-w-0">
                       <h3 class="font-semibold text-stone-900">
-                        {{- if .Link }}<a href="{{ url .Link }}" class="decoration-stone-300 underline-offset-2 hover:underline">{{ .Title }}</a>{{ else }}{{ .Title }}{{ end -}}
+                        {{- if .Link }}<a href="{{ url .Link }}" target="_blank" rel="noopener" class="decoration-stone-300 underline-offset-2 hover:underline">{{ .Title }}</a>{{ else }}{{ .Title }}{{ end -}}
                       </h3>
                       {{ with .Sub }}<p class="text-sm text-stone-600">{{ . }}</p>{{ end }}
                       {{ with .Body }}<div class="cv-prose mt-1.5 text-stone-700">{{ rich . }}</div>{{ end }}

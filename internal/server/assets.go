@@ -227,7 +227,7 @@ func richHTML(r cv.Rich) template.HTML {
 				t = "<em>" + t + "</em>"
 			}
 			if run.Link != "" {
-				t = `<a href="` + html.EscapeString(string(trustedURL(run.Link))) + `">` + t + "</a>"
+				t = `<a href="` + html.EscapeString(string(trustedURL(run.Link))) + `" target="_blank" rel="noopener">` + t + "</a>"
 			}
 			b.WriteString(t)
 		}
